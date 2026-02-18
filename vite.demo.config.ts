@@ -1,0 +1,34 @@
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
+import path from 'path';
+import fs from 'fs';
+
+// Copy Cesium assets to public folder during dev
+const cesiumDir = path.resolve(__dirname, 'node_modules/cesium/Build/CesiumUnminified');
+const publicDir = path.resolve(__dirname, 'demo/public');
+
+if (!fs.existsSync(publicDir)) {
+  fs.mkdirSync(publicDir, { recursive: true });
+}
+
+const cesiumPublicDir = path.join(publicDir, 'cesium');
+if (!fs.existsSync(cesiumPublicDir)) {
+  fs.cpSync(cesiumDir, cesiumPublicDir, { recursive: true });
+}
+
+export default defineConfig({
+  plugins: [react()],
+  root: path.resolve(__dirname, './demo'),
+  server: {
+    port: 5173,
+    open: true,
+  },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+  define: {
+    'import.meta.env.CESIUM_BASE_URL': JSON.stringify('/cesium/'),
+  },
+});
