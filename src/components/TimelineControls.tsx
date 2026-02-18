@@ -2,23 +2,65 @@ import React from 'react';
 import { ControlsProps } from '../types';
 import { formatTime } from '../utils/timeConversion';
 
-export const TimelineControls: React.FC<ControlsProps> = ({
+const SPEED_MULTIPLIERS = [0.5, 1, 2, 5, 10];
+
+export const TimelineControls: React.FC<ControlsProps & { onJumpToEnd?: () => void }> = ({
   currentTime,
   isPlaying,
   multiplier,
   onPlayPause,
   onRewind,
   onMultiplierChange,
-  multiplierOptions,
+  onJumpToEnd,
   theme,
 }) => {
+  const handleRewind = () => {
+    const currentIndex = SPEED_MULTIPLIERS.indexOf(Math.abs(multiplier));
+    if (currentIndex < SPEED_MULTIPLIERS.length - 1) {
+      onMultiplierChange(-SPEED_MULTIPLIERS[currentIndex + 1]);
+    }
+  };
+
+  const handleFastForward = () => {
+    const currentIndex = SPEED_MULTIPLIERS.indexOf(Math.abs(multiplier));
+    if (currentIndex < SPEED_MULTIPLIERS.length - 1) {
+      onMultiplierChange(SPEED_MULTIPLIERS[currentIndex + 1]);
+    }
+  };
+
+  const speedDisplay = multiplier < 0 ? `${Math.abs(multiplier)}x ◀` : `${multiplier}x ▶`;
+
+  const buttonStyle = {
+    background: 'none',
+    border: 'none',
+    color: theme.buttonColor,
+    cursor: 'pointer',
+    fontSize: '16px',
+    padding: '4px 8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '32px',
+    height: '32px',
+    borderRadius: '4px',
+    transition: 'background-color 0.2s',
+  };
+
+  const handleButtonEnter = (e: React.MouseEvent<HTMLButtonElement>) => {
+    (e.currentTarget as HTMLButtonElement).style.backgroundColor = theme.buttonHoverColor;
+  };
+
+  const handleButtonLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
+    (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+  };
+
   return (
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '16px',
+        gap: '12px',
         padding: '8px 16px',
         backgroundColor: theme.controlBarBackground,
         borderBottom: `1px solid ${theme.controlBarBorder}`,
@@ -28,7 +70,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
       {/* Current Time Display */}
       <div
         style={{
-          minWidth: '100px',
+          minWidth: '120px',
           textAlign: 'center',
           color: theme.labelColor,
           fontSize: theme.fontSize,
@@ -38,91 +80,73 @@ export const TimelineControls: React.FC<ControlsProps> = ({
         {formatTime(currentTime, true)}
       </div>
 
+      {/* Jump to Start Button */}
+      <button
+        onClick={onRewind}
+        style={buttonStyle as React.CSSProperties}
+        onMouseEnter={handleButtonEnter}
+        onMouseLeave={handleButtonLeave}
+        title="Jump to start"
+      >
+        ⏮
+      </button>
+
+      {/* Rewind Button */}
+      <button
+        onClick={handleRewind}
+        style={buttonStyle as React.CSSProperties}
+        onMouseEnter={handleButtonEnter}
+        onMouseLeave={handleButtonLeave}
+        title="Decrease playback speed (rewind mode)"
+      >
+        ⏪
+      </button>
+
       {/* Play/Pause Button */}
       <button
         onClick={() => onPlayPause(!isPlaying)}
-        style={{
-          background: 'none',
-          border: 'none',
-          color: theme.buttonColor,
-          cursor: 'pointer',
-          fontSize: '16px',
-          padding: '4px 8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '32px',
-          height: '32px',
-          borderRadius: '4px',
-          transition: 'background-color 0.2s',
-        }}
-        onMouseEnter={(e) =>
-          (e.currentTarget.style.backgroundColor = theme.buttonHoverColor)
-        }
-        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+        style={buttonStyle as React.CSSProperties}
+        onMouseEnter={handleButtonEnter}
+        onMouseLeave={handleButtonLeave}
         title={isPlaying ? 'Pause' : 'Play'}
       >
         {isPlaying ? '⏸' : '▶'}
       </button>
 
-      {/* Rewind Button */}
+      {/* Fast Forward Button */}
       <button
-        onClick={onRewind}
-        style={{
-          background: 'none',
-          border: 'none',
-          color: theme.buttonColor,
-          cursor: 'pointer',
-          fontSize: '16px',
-          padding: '4px 8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '32px',
-          height: '32px',
-          borderRadius: '4px',
-          transition: 'background-color 0.2s',
-        }}
-        onMouseEnter={(e) =>
-          (e.currentTarget.style.backgroundColor = theme.buttonHoverColor)
-        }
-        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-        title="Rewind to start"
+        onClick={handleFastForward}
+        style={buttonStyle as React.CSSProperties}
+        onMouseEnter={handleButtonEnter}
+        onMouseLeave={handleButtonLeave}
+        title="Increase playback speed"
       >
-        ⏮
+        ⏩
       </button>
 
-      {/* Multiplier Control */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <label
-          htmlFor="multiplier-select"
-          style={{
-            color: theme.labelColor,
-            fontSize: theme.fontSize,
-          }}
-        >
-          Speed:
-        </label>
-        <select
-          id="multiplier-select"
-          value={multiplier}
-          onChange={(e) => onMultiplierChange(parseFloat(e.target.value))}
-          style={{
-            padding: '4px 8px',
-            borderRadius: '4px',
-            border: `1px solid ${theme.buttonColor}`,
-            backgroundColor: theme.controlBarBackground,
-            color: theme.labelColor,
-            cursor: 'pointer',
-            fontSize: theme.fontSize,
-          }}
-        >
-          {multiplierOptions.map((option) => (
-            <option key={option} value={option}>
-              {option}x
-            </option>
-          ))}
-        </select>
+      {/* Jump to End Button */}
+      <button
+        onClick={onJumpToEnd}
+        style={buttonStyle as React.CSSProperties}
+        onMouseEnter={handleButtonEnter}
+        onMouseLeave={handleButtonLeave}
+        title="Jump to end"
+      >
+        ⏭
+      </button>
+
+      {/* Speed Display */}
+      <div
+        style={{
+          minWidth: '80px',
+          textAlign: 'center',
+          color: theme.labelColor,
+          fontSize: theme.fontSize,
+          fontWeight: 'bold',
+          marginLeft: '8px',
+        }}
+      >
+        {speedDisplay}
       </div>
     </div>
   );

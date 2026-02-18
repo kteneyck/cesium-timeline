@@ -210,6 +210,17 @@ export const Timeline: React.FC<TimelineProps> = ({
     setVisibleEndTime(toJulianDate(endTime));
   };
 
+  // Handle jump to end - only update Cesium clock
+  const handleJumpToEnd = () => {
+    const newTime = toJulianDate(endTime);
+    if (clock) {
+      clock.currentTime = Cesium.JulianDate.clone(newTime);
+    }
+    // Reset visible range but let clock.onTick update currentTime
+    setVisibleStartTime(toJulianDate(startTime));
+    setVisibleEndTime(toJulianDate(endTime));
+  };
+
   // Handle multiplier change - only update Cesium clock
   const handleMultiplierChange = (newMultiplier: number) => {
     if (clock) {
@@ -238,7 +249,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           onPlayPause={handlePlayPause}
           onRewind={handleRewind}
           onMultiplierChange={handleMultiplierChange}
-          multiplierOptions={multiplierOptions}
+          onJumpToEnd={handleJumpToEnd}
           theme={finalTheme}
         />
       )}

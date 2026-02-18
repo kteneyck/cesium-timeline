@@ -28,6 +28,5 @@ export interface ControlsProps {
   onPlayPause: (isPlaying: boolean) => void;
   onRewind: () => void;
   onMultiplierChange: (multiplier: number) => void;
-  multiplierOptions: number[];
   theme: TimelineTheme;
 }
