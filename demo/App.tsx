@@ -18,7 +18,7 @@ export const TestApp: React.FC = () => {
   const [cesiumClock, setCesiumClock] = useState<Cesium.Clock | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
-  const [timelineHeight, setTimelineHeight] = useState(80);
+  const [timelineHeight, setTimelineHeight] = useState(35);
   const [tickInterval, setTickInterval] = useState<TickInterval>('1h');
 
   // Initialize Cesium viewer
@@ -329,8 +329,8 @@ export const TestApp: React.FC = () => {
       <div className="timeline-wrapper">
         {cesiumClock && (
           <Timeline
-            startTime={startTime}
-            endTime={endTime}
+            // startTime={startTime}
+            // endTime={endTime}
             currentTime={currentTime}
             clock={viewerRef.current?.clock}
             onTimeChange={handleCurrentTimeChange}
@@ -346,7 +346,7 @@ export const TestApp: React.FC = () => {
               lineColor: '#666',
               majorLineColor: '#999',
               textColor: '#ccc',
-              indicatorColor: '#ff4444',
+              indicatorColor: '#d69826',
               indicatorLabelColor: '#e0e0e0',
             }}
           />

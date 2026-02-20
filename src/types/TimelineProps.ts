@@ -3,8 +3,8 @@ import { TickInterval } from './TickInterval';
 import { TimelineTheme } from './TimelineTheme';
 
 export interface TimelineProps {
-  startTime: Cesium.JulianDate | Date;
-  endTime: Cesium.JulianDate | Date;
+  startTime?: Cesium.JulianDate | Date;
+  endTime?: Cesium.JulianDate | Date;
   currentTime?: Cesium.JulianDate | Date;
   clock?: Cesium.Clock;
   onTimeChange?: (time: Cesium.JulianDate) => void;
@@ -16,7 +16,6 @@ export interface TimelineProps {
   showControls?: boolean;
   snapToTicks?: boolean;
   enableDrag?: boolean;
-  multiplierOptions?: number[];
   theme?: Partial<TimelineTheme>;
   className?: string;
 }
