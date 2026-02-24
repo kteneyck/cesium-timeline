@@ -12,6 +12,8 @@ export interface TimelineTheme {
   controlBarBorder: string;
   buttonColor: string;
   buttonHoverColor: string;
+  /** Highlight color for active FF/RW buttons. Defaults to indicatorColor. */
+  buttonActiveColor: string;
 }
 
 export const defaultTheme: TimelineTheme = {
@@ -19,7 +21,7 @@ export const defaultTheme: TimelineTheme = {
   tickColor: '#666',
   majorTickColor: '#999',
   labelColor: '#ccc',
-  indicatorColor: '#ff6b6b',
+  indicatorColor: '#d69826',
   indicatorLineWidth: 3,
   majorTickHeight: 10,
   minorTickHeight: 5,
@@ -28,4 +30,5 @@ export const defaultTheme: TimelineTheme = {
   controlBarBorder: '#333',
   buttonColor: '#666',
   buttonHoverColor: '#888',
+  buttonActiveColor: '#d69826',
 };

@@ -34,7 +34,11 @@ export interface ControlsProps {
   /** @see TimelineProps.dateTimeFormat */
   dateTimeFormat?: string;
   onPlayPause: (isPlaying: boolean) => void;
+  onJumpToStart: () => void;
   onRewind: () => void;
-  onMultiplierChange: (multiplier: number) => void;
+  onFastForward: () => void;
+  onJumpToEnd: () => void;
+  onJumpToLive: () => void;
+  isLive: boolean;
   theme: TimelineTheme;
 }

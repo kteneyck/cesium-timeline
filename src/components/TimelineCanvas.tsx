@@ -40,13 +40,13 @@ function twoD(n: number) { return n < 10 ? `0${n}` : `${n}`; }
 
 function makeLabel(ms: number, durationSec: number): string {
   const d  = new Date(ms);
-  const y  = d.getUTCFullYear();
-  const mo = d.getUTCMonth();
-  const dy = d.getUTCDate();
-  const h  = d.getUTCHours();
-  const mi = d.getUTCMinutes();
-  const s  = d.getUTCSeconds();
-  const ms2 = d.getUTCMilliseconds();
+  const y  = d.getFullYear();
+  const mo = d.getMonth();
+  const dy = d.getDate();
+  const h  = d.getHours();
+  const mi = d.getMinutes();
+  const s  = d.getSeconds();
+  const ms2 = d.getMilliseconds();
   if (durationSec > 315360000) return `${y}`;
   if (durationSec > 31536000)  return `${MONTHS[mo]} ${y}`;
   if (durationSec > 604800)    return `${MONTHS[mo]} ${dy}`;
@@ -60,13 +60,13 @@ function makeLabel(ms: number, durationSec: number): string {
 // Pick a round epoch near startMs so tick offsets are clean integers (mirrors Cesium).
 function calcEpochMs(startMs: number, durationSec: number): number {
   const d  = new Date(startMs);
-  const y  = d.getUTCFullYear();
-  const mo = d.getUTCMonth();
-  const dy = d.getUTCDate();
-  if (durationSec > 315360000) return Date.UTC(Math.floor(y / 100) * 100, 0);
-  if (durationSec > 31536000)  return Date.UTC(Math.floor(y / 10)  * 10,  0);
-  if (durationSec > 86400)     return Date.UTC(y, 0);
-  return Date.UTC(y, mo, dy);
+  const y  = d.getFullYear();
+  const mo = d.getMonth();
+  const dy = d.getDate();
+  if (durationSec > 315360000) return new Date(Math.floor(y / 100) * 100, 0).getTime();
+  if (durationSec > 31536000)  return new Date(Math.floor(y / 10)  * 10,  0).getTime();
+  if (durationSec > 86400)     return new Date(y, 0).getTime();
+  return new Date(y, mo, dy).getTime();
 }
 
 // Advance to next tick boundary (identical to Cesium's getNextTic).

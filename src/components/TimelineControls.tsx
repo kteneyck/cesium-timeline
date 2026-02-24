@@ -2,57 +2,54 @@ import React from 'react';
 import { ControlsProps } from '../types';
 import { formatDateTime, splitForDisplay } from '../utils/timeConversion';
 
-const SPEED_MULTIPLIERS = [0.5, 1, 2, 5, 10];
-
-export const TimelineControls: React.FC<ControlsProps & { onJumpToEnd?: () => void }> = ({
+export const TimelineControls: React.FC<ControlsProps> = ({
   currentTime,
   isPlaying,
   multiplier,
   dateTimeFormat,
+  isLive,
   onPlayPause,
+  onJumpToStart,
   onRewind,
-  onMultiplierChange,
+  onFastForward,
   onJumpToEnd,
+  onJumpToLive,
   theme,
 }) => {
-  const handleRewind = () => {
-    const currentIndex = SPEED_MULTIPLIERS.indexOf(Math.abs(multiplier));
-    if (currentIndex < SPEED_MULTIPLIERS.length - 1) {
-      onMultiplierChange(-SPEED_MULTIPLIERS[currentIndex + 1]);
-    }
-  };
+  const isRewinding    = multiplier < 0;
+  const isFastForward  = multiplier > 1;
+  const isNormalSpeed  = multiplier === 1;
+  const absMultiplier  = Math.abs(multiplier);
 
-  const handleFastForward = () => {
-    const currentIndex = SPEED_MULTIPLIERS.indexOf(Math.abs(multiplier));
-    if (currentIndex < SPEED_MULTIPLIERS.length - 1) {
-      onMultiplierChange(SPEED_MULTIPLIERS[currentIndex + 1]);
-    }
-  };
-
-  const speedDisplay = multiplier < 0 ? `${Math.abs(multiplier)}x ◀` : `${multiplier}x ▶`;
-
-  const buttonStyle = {
+  const baseBtn: React.CSSProperties = {
     background: 'none',
     border: 'none',
-    color: theme.buttonColor,
     cursor: 'pointer',
     fontSize: '16px',
-    padding: '4px 8px',
+    padding: '4px 6px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '32px',
+    minWidth: '32px',
     height: '32px',
     borderRadius: '4px',
-    transition: 'background-color 0.2s',
+    transition: 'background-color 0.15s, color 0.15s',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
   };
 
-  const handleButtonEnter = (e: React.MouseEvent<HTMLButtonElement>) => {
-    (e.currentTarget as HTMLButtonElement).style.backgroundColor = theme.buttonHoverColor;
-  };
+  const btn  = (active: boolean): React.CSSProperties => ({
+    ...baseBtn,
+    color:  active ? theme.buttonActiveColor : theme.buttonColor,
+    border: active ? `1px solid ${theme.buttonActiveColor}33` : '1px solid transparent',
+  });
 
-  const handleButtonLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
-    (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+  const onEnter = (e: React.MouseEvent<HTMLButtonElement>, active: boolean) => {
+    e.currentTarget.style.backgroundColor = active
+      ? `${theme.buttonActiveColor}22`
+      : theme.buttonHoverColor + '44';
+  };
+  const onLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.currentTarget.style.backgroundColor = 'transparent';
   };
 
   return (
@@ -60,22 +57,21 @@ export const TimelineControls: React.FC<ControlsProps & { onJumpToEnd?: () => vo
       style={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        gap: '12px',
-        padding: '8px 16px',
+        gap: '4px',
+        padding: '6px 16px',
         backgroundColor: theme.controlBarBackground,
         borderBottom: `1px solid ${theme.controlBarBorder}`,
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
-      {/* Current Time Display */}
+      {/* ── Datetime display ── */}
       <div
         style={{
-          minWidth: '120px',
-          textAlign: 'center',
+          minWidth: '130px',
           color: theme.labelColor,
           fontFamily: 'monospace',
-          lineHeight: 1.2,
+          lineHeight: 1.1,
+          marginRight: '8px',
         }}
       >
         {(() => {
@@ -83,12 +79,12 @@ export const TimelineControls: React.FC<ControlsProps & { onJumpToEnd?: () => vo
           return (
             <>
               {timeFormat && (
-                <div style={{ fontSize: '1.15em', fontWeight: 'bold' }}>
+                <div style={{ fontSize: '1.45em', fontWeight: 'bold', letterSpacing: '0.02em' }}>
                   {formatDateTime(currentTime, timeFormat)}
                 </div>
               )}
               {dateFormat && (
-                <div style={{ fontSize: '0.75em', opacity: 0.75 }}>
+                <div style={{ fontSize: '1em', letterSpacing: '0.03em', color: theme.buttonActiveColor }}>
                   {formatDateTime(currentTime, dateFormat)}
                 </div>
               )}
@@ -97,74 +93,117 @@ export const TimelineControls: React.FC<ControlsProps & { onJumpToEnd?: () => vo
         })()}
       </div>
 
-      {/* Jump to Start Button */}
-      <button
-        onClick={onRewind}
-        style={buttonStyle as React.CSSProperties}
-        onMouseEnter={handleButtonEnter}
-        onMouseLeave={handleButtonLeave}
-        title="Jump to start"
-      >
-        ⏮
-      </button>
+      {/* ── Transport controls ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flex: 1, justifyContent: 'center' }}>
 
-      {/* Rewind Button */}
-      <button
-        onClick={handleRewind}
-        style={buttonStyle as React.CSSProperties}
-        onMouseEnter={handleButtonEnter}
-        onMouseLeave={handleButtonLeave}
-        title="Decrease playback speed (rewind mode)"
-      >
-        ⏪
-      </button>
+        {/* Jump to start */}
+        <button
+          onClick={onJumpToStart}
+          style={btn(false)}
+          onMouseEnter={e => onEnter(e, false)}
+          onMouseLeave={onLeave}
+          title="Jump to start"
+        >⏮</button>
 
-      {/* Play/Pause Button */}
-      <button
-        onClick={() => onPlayPause(!isPlaying)}
-        style={buttonStyle as React.CSSProperties}
-        onMouseEnter={handleButtonEnter}
-        onMouseLeave={handleButtonLeave}
-        title={isPlaying ? 'Pause' : 'Play'}
-      >
-        {isPlaying ? '⏸' : '▶'}
-      </button>
+        {/* Rewind — cycles reverse speeds; active when multiplier < 0 */}
+        <button
+          onClick={onRewind}
+          style={{ ...btn(isRewinding), gap: '3px', minWidth: isRewinding ? '52px' : '32px' }}
+          onMouseEnter={e => onEnter(e, isRewinding)}
+          onMouseLeave={onLeave}
+          title={isRewinding ? `Reverse ${absMultiplier}× — click to speed up, press play to stop` : 'Reverse play'}
+        >
+          {isRewinding ? (
+            <><span style={{ fontSize: '11px', fontWeight: 'bold' }}>{absMultiplier}×</span>◀◀</>
+          ) : '◀◀'}
+        </button>
 
-      {/* Fast Forward Button */}
-      <button
-        onClick={handleFastForward}
-        style={buttonStyle as React.CSSProperties}
-        onMouseEnter={handleButtonEnter}
-        onMouseLeave={handleButtonLeave}
-        title="Increase playback speed"
-      >
-        ⏩
-      </button>
+        {/* Play / Pause */}
+        <button
+          onClick={() => onPlayPause(!isPlaying)}
+          style={{
+            ...baseBtn,
+            color: theme.buttonActiveColor,
+            fontSize: '20px',
+            minWidth: '40px',
+            height: '40px',
+            border: `1px solid ${theme.buttonActiveColor}55`,
+            borderRadius: '50%',
+          }}
+          onMouseEnter={e => onEnter(e, true)}
+          onMouseLeave={onLeave}
+          title={isPlaying ? 'Pause' : (isRewinding ? 'Play (reset to 1×)' : 'Play')}
+        >
+          {isPlaying ? '⏸' : '▶'}
+        </button>
 
-      {/* Jump to End Button */}
-      <button
-        onClick={onJumpToEnd}
-        style={buttonStyle as React.CSSProperties}
-        onMouseEnter={handleButtonEnter}
-        onMouseLeave={handleButtonLeave}
-        title="Jump to end"
-      >
-        ⏭
-      </button>
+        {/* Fast Forward — cycles 2×→4×→8×→16×→32×→1×; active when multiplier > 1 */}
+        <button
+          onClick={onFastForward}
+          style={{ ...btn(isFastForward), gap: '3px', minWidth: isFastForward ? '52px' : '32px' }}
+          onMouseEnter={e => onEnter(e, isFastForward)}
+          onMouseLeave={onLeave}
+          title={isFastForward ? `${absMultiplier}× speed — click to increase, click again at max to reset` : 'Fast forward'}
+        >
+          {isFastForward ? (
+            <>▶▶<span style={{ fontSize: '11px', fontWeight: 'bold' }}>{absMultiplier}×</span></>
+          ) : '▶▶'}
+        </button>
 
-      {/* Speed Display */}
-      <div
-        style={{
-          minWidth: '80px',
-          textAlign: 'center',
-          color: theme.labelColor,
-          fontSize: theme.fontSize,
-          fontWeight: 'bold',
-          marginLeft: '8px',
-        }}
-      >
-        {speedDisplay}
+        {/* Jump to end */}
+        <button
+          onClick={onJumpToEnd}
+          style={btn(false)}
+          onMouseEnter={e => onEnter(e, false)}
+          onMouseLeave={onLeave}
+          title="Jump to end"
+        >⏭</button>
+
+        {/* LIVE */}
+        <button
+          onClick={onJumpToLive}
+          style={{
+            ...baseBtn,
+            fontSize: '11px',
+            fontWeight: 'bold',
+            letterSpacing: '0.05em',
+            minWidth: '44px',
+            padding: '3px 8px',
+            borderRadius: '3px',
+            color:   isLive ? theme.controlBarBackground : theme.buttonActiveColor,
+            backgroundColor: isLive ? theme.buttonActiveColor : 'transparent',
+            border: `1px solid ${theme.buttonActiveColor}`,
+            opacity: isLive ? 1 : 0.55,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.opacity = '1'; }}
+          onMouseLeave={e => { e.currentTarget.style.opacity = isLive ? '1' : '0.55'; }}
+          title={isLive ? 'Currently live' : 'Jump to live (now)'}
+        >
+          {isLive ? '● LIVE' : 'LIVE'}
+        </button>
+
+        {/* Speed reset badge */}
+        {!isNormalSpeed && (
+          <button
+            onClick={() => onPlayPause(isPlaying)}
+            style={{
+              ...baseBtn,
+              fontSize: '11px',
+              color: theme.buttonActiveColor,
+              border: `1px solid ${theme.buttonActiveColor}44`,
+              minWidth: '44px',
+              padding: '3px 6px',
+            }}
+            onMouseEnter={e => onEnter(e, true)}
+            onMouseLeave={onLeave}
+            title="Reset to 1× speed"
+          >
+            {isRewinding ? `◀ ${absMultiplier}×` : `${absMultiplier}× ▶`}
+          </button>
+        )}
+
       </div>
     </div>
   );
 };
+
