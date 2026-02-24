@@ -20,7 +20,7 @@ export const defaultTheme: TimelineTheme = {
   majorTickColor: '#999',
   labelColor: '#ccc',
   indicatorColor: '#ff6b6b',
-  indicatorLineWidth: 2,
+  indicatorLineWidth: 3,
   majorTickHeight: 10,
   minorTickHeight: 5,
   fontSize: 12,

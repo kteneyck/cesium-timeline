@@ -287,11 +287,6 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       ctx.lineTo(needleX, h);
       ctx.stroke();
 
-      ctx.fillStyle = t.indicatorColor;
-      ctx.beginPath();
-      ctx.arc(needleX, 8, 5, 0, Math.PI * 2);
-      ctx.fill();
-
       ctx.restore();
     }, []); // only refs used — stable forever
 
@@ -343,6 +338,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       e.preventDefault();
       if (e.button === 0) {
         mouseMode.current = 'scrub';
+        e.currentTarget.style.cursor = 'grabbing';
         onDragStart?.();
         const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
         const x    = e.clientX - rect.left;
@@ -398,6 +394,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       const onMouseUp = () => {
         stopEdgeScroll();
         mouseMode.current = 'none';
+        if (canvasRef.current) canvasRef.current.style.cursor = 'default';
         onDragEnd?.();
       };
 
@@ -424,6 +421,15 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       zoomFrom(Math.pow(1.05, e.deltaY > 0 ? -1 : 1));
     }, [zoomFrom]);
 
+    // Show grab cursor only when hovering near the needle.
+    const handleCanvasMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (mouseMode.current !== 'none') return; // cursor managed by drag state
+      const rect   = e.currentTarget.getBoundingClientRect();
+      const x      = e.clientX - rect.left;
+      const needleX = ((curMsRef.current - startMsRef.current) / (endMsRef.current - startMsRef.current)) * rect.width;
+      e.currentTarget.style.cursor = Math.abs(x - needleX) <= 10 ? 'grab' : 'default';
+    }, []);
+
     // Cleanup RAF on unmount
     useEffect(() => () => {
       if (edgeRAF.current !== null) cancelAnimationFrame(edgeRAF.current);
@@ -434,6 +440,8 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         ref={canvasRef}
         style={{ width: '100%', height: `${height}px`, display: 'block', cursor: 'default' }}
         onMouseDown={handleMouseDown}
+        onMouseMove={handleCanvasMouseMove}
+        onMouseLeave={() => { if (mouseMode.current === 'none' && canvasRef.current) canvasRef.current.style.cursor = 'default'; }}
         onWheel={handleWheel}
         onContextMenu={e => e.preventDefault()}
       />
