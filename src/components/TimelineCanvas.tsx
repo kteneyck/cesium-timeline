@@ -50,7 +50,8 @@ function makeLabel(ms: number, durationSec: number): string {
   if (durationSec > 315360000) return `${y}`;
   if (durationSec > 31536000)  return `${MONTHS[mo]} ${y}`;
   if (durationSec > 604800)    return `${MONTHS[mo]} ${dy}`;
-  if (durationSec > 3600)      return `${MONTHS[mo]} ${dy} ${twoD(h)}:${twoD(mi)}`;
+  if (durationSec > 86400)     return `${MONTHS[mo]} ${dy} ${twoD(h)}:${twoD(mi)}`;
+  if (durationSec > 3600)      return `${twoD(h)}:${twoD(mi)}`;
   if (durationSec > 60)        return `${twoD(h)}:${twoD(mi)}:${twoD(s)}`;
   const msStr = ms2 > 0 ? `.${String(ms2).padStart(3, '0')}` : '';
   return `${twoD(h)}:${twoD(mi)}:${twoD(s)}${msStr}`;

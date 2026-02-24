@@ -1,6 +1,6 @@
 import React from 'react';
 import { ControlsProps } from '../types';
-import { formatTime } from '../utils/timeConversion';
+import { formatDateTime, splitForDisplay } from '../utils/timeConversion';
 
 const SPEED_MULTIPLIERS = [0.5, 1, 2, 5, 10];
 
@@ -8,6 +8,7 @@ export const TimelineControls: React.FC<ControlsProps & { onJumpToEnd?: () => vo
   currentTime,
   isPlaying,
   multiplier,
+  dateTimeFormat,
   onPlayPause,
   onRewind,
   onMultiplierChange,
@@ -73,11 +74,27 @@ export const TimelineControls: React.FC<ControlsProps & { onJumpToEnd?: () => vo
           minWidth: '120px',
           textAlign: 'center',
           color: theme.labelColor,
-          fontSize: theme.fontSize,
-          fontWeight: 'bold',
+          fontFamily: 'monospace',
+          lineHeight: 1.2,
         }}
       >
-        {formatTime(currentTime, true)}
+        {(() => {
+          const { timeFormat, dateFormat } = splitForDisplay(dateTimeFormat);
+          return (
+            <>
+              {timeFormat && (
+                <div style={{ fontSize: '1.15em', fontWeight: 'bold' }}>
+                  {formatDateTime(currentTime, timeFormat)}
+                </div>
+              )}
+              {dateFormat && (
+                <div style={{ fontSize: '0.75em', opacity: 0.75 }}>
+                  {formatDateTime(currentTime, dateFormat)}
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {/* Jump to Start Button */}

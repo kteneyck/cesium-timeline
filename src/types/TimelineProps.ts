@@ -16,6 +16,13 @@ export interface TimelineProps {
   showControls?: boolean;
   snapToTicks?: boolean;
   enableDrag?: boolean;
+  /**
+   * Format string for the time display in the control bar.
+   * Tokens: YYYY YY MMMM MMM MM M DD D HH H hh h mm ss SSS A a
+   * Presets available via the exported `DateTimeFormats` object.
+   * @default 'MMM DD YYYY HH:mm:ss'
+   */
+  dateTimeFormat?: string;
   theme?: Partial<TimelineTheme>;
   className?: string;
 }
@@ -24,6 +31,8 @@ export interface ControlsProps {
   currentTime: Cesium.JulianDate;
   isPlaying: boolean;
   multiplier: number;
+  /** @see TimelineProps.dateTimeFormat */
+  dateTimeFormat?: string;
   onPlayPause: (isPlaying: boolean) => void;
   onRewind: () => void;
   onMultiplierChange: (multiplier: number) => void;

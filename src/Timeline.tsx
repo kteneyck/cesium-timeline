@@ -16,6 +16,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   height       = 120,
   showControls = true,
   enableDrag   = true,
+  dateTimeFormat,
   theme: customTheme,
   className,
 }) => {
@@ -125,6 +126,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           onRewind={handleRewind}
           onMultiplierChange={handleMultiplierChange}
           onJumpToEnd={handleJumpToEnd}
+          dateTimeFormat={dateTimeFormat}
           theme={finalTheme}
         />
       )}
