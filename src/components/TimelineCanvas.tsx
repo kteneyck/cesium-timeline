@@ -318,7 +318,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       if (edgeRAF.current !== null) return;
       const scroll = () => {
         const span  = endMsRef.current - startMsRef.current;
-        const shift = direction * span * 0.005;
+        const shift = direction * span * 0.01;  // 1% per frame (~60px/s feel)
         startMsRef.current += shift;
         endMsRef.current   += shift;
         draw();
@@ -364,18 +364,22 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         const w    = rect.width;
 
         if (mouseMode.current === 'scrub') {
-          const x = e.clientX - rect.left;
-          if (x < 0) {
+          const x    = e.clientX - rect.left;
+          const edge = w * 0.08;
+          if (x < edge) {
             startEdgeScroll(-1);
-            onTimeChange(Cesium.JulianDate.fromDate(new Date(startMsRef.current)));
-          } else if (x > w) {
+          } else if (x > w - edge) {
             startEdgeScroll(1);
-            onTimeChange(Cesium.JulianDate.fromDate(new Date(endMsRef.current)));
           } else {
             stopEdgeScroll();
-            const ms = startMsRef.current + (x / w) * (endMsRef.current - startMsRef.current);
-            onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
           }
+          // Always compute ms from actual mouse position (clamped to canvas).
+          // The RAF loop scrolls the window underneath — no snap, no jump.
+          const cx = Math.max(0, Math.min(w, x));
+          const ms = startMsRef.current + (cx / w) * (endMsRef.current - startMsRef.current);
+          curMsRef.current = ms;
+          draw();
+          onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
         } else if (mouseMode.current === 'slide') {
           const dx = mouseX.current - e.clientX;
           mouseX.current = e.clientX;
