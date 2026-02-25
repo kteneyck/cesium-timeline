@@ -23,24 +23,27 @@ export const TimelineControls: React.FC<ControlsProps> = ({
 
   const baseBtn: React.CSSProperties = {
     background: 'none',
-    border: 'none',
+    border: '1px solid transparent',  // always present — prevents layout shift on active
     cursor: 'pointer',
     fontSize: '16px',
-    padding: '4px 6px',
+    padding: '0',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: '32px',
+    width: '32px',
     height: '32px',
     borderRadius: '4px',
     transition: 'background-color 0.15s, color 0.15s',
     fontFamily: 'system-ui, -apple-system, sans-serif',
+    flexShrink: 0,
+    lineHeight: 1,
   };
 
   const btn  = (active: boolean): React.CSSProperties => ({
     ...baseBtn,
     color:  active ? theme.buttonActiveColor : theme.buttonColor,
-    border: active ? `1px solid ${theme.buttonActiveColor}33` : '1px solid transparent',
+    borderColor: active ? `${theme.buttonActiveColor}33` : 'transparent',
   });
 
   const onEnter = (e: React.MouseEvent<HTMLButtonElement>, active: boolean) => {
@@ -108,7 +111,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
         {/* Rewind — cycles reverse speeds; active when multiplier < 0 */}
         <button
           onClick={onRewind}
-          style={{ ...btn(isRewinding), gap: '3px', minWidth: isRewinding ? '52px' : '32px' }}
+          style={{ ...btn(isRewinding), width: '52px', minWidth: '52px', gap: '3px' }}
           onMouseEnter={e => onEnter(e, isRewinding)}
           onMouseLeave={onLeave}
           title={isRewinding ? `Reverse ${absMultiplier}× — click to speed up, press play to stop` : 'Reverse play'}
@@ -124,11 +127,13 @@ export const TimelineControls: React.FC<ControlsProps> = ({
           style={{
             ...baseBtn,
             color: theme.buttonActiveColor,
-            fontSize: '20px',
+            fontSize: '18px',
+            width: '40px',
             minWidth: '40px',
             height: '40px',
-            border: `1px solid ${theme.buttonActiveColor}55`,
+            borderColor: `${theme.buttonActiveColor}55`,
             borderRadius: '50%',
+            paddingLeft: isPlaying ? '0' : '2px',  // nudge ▶ to optical center
           }}
           onMouseEnter={e => onEnter(e, true)}
           onMouseLeave={onLeave}
@@ -140,7 +145,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
         {/* Fast Forward — cycles 2×→4×→8×→16×→32×→1×; active when multiplier > 1 */}
         <button
           onClick={onFastForward}
-          style={{ ...btn(isFastForward), gap: '3px', minWidth: isFastForward ? '52px' : '32px' }}
+          style={{ ...btn(isFastForward), width: '52px', minWidth: '52px', gap: '3px' }}
           onMouseEnter={e => onEnter(e, isFastForward)}
           onMouseLeave={onLeave}
           title={isFastForward ? `${absMultiplier}× speed — click to increase, click again at max to reset` : 'Fast forward'}
