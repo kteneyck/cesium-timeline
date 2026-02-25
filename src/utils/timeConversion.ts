@@ -90,24 +90,32 @@ export function formatDateTime(
   const pad2 = (n: number) => String(n).padStart(2, '0');
   const pad3 = (n: number) => String(n).padStart(3, '0');
 
-  return format
-    .replace('YYYY', String(yr))
-    .replace('YY',   String(yr).slice(-2))
-    .replace('MMMM', MONTH_LONG[mo])
-    .replace('MMM',  MONTH_SHORT[mo])
-    .replace('MM',   pad2(mo + 1))
-    .replace('M',    String(mo + 1))
-    .replace('DD',   pad2(day))
-    .replace('D',    String(day))
-    .replace('HH',   pad2(hr24))
-    .replace('H',    String(hr24))
-    .replace('hh',   pad2(hr12))
-    .replace('h',    String(hr12))
-    .replace('mm',   pad2(min))
-    .replace('ss',   pad2(sec))
-    .replace('SSS',  pad3(ms))
-    .replace('A',    ampm)
-    .replace('a',    ampm.toLowerCase());
+  const tokens: Record<string, string> = {
+    YYYY: String(yr),
+    YY:   String(yr).slice(-2),
+    MMMM: MONTH_LONG[mo],
+    MMM:  MONTH_SHORT[mo],
+    MM:   pad2(mo + 1),
+    M:    String(mo + 1),
+    DD:   pad2(day),
+    D:    String(day),
+    HH:   pad2(hr24),
+    H:    String(hr24),
+    hh:   pad2(hr12),
+    h:    String(hr12),
+    mm:   pad2(min),
+    ss:   pad2(sec),
+    SSS:  pad3(ms),
+    A:    ampm,
+    a:    ampm.toLowerCase(),
+  };
+
+  // Single-pass replacement — longest tokens listed first in the alternation
+  // so 'MMMM' matches before 'MMM', 'MMM' before 'MM', etc.
+  return format.replace(
+    /YYYY|YY|MMMM|MMM|MM|M|DD|D|HH|H|hh|h|mm|ss|SSS|A|a/g,
+    token => tokens[token] ?? token
+  );
 }
 
 /**
