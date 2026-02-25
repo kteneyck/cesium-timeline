@@ -14,6 +14,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   onFastForward,
   onJumpToEnd,
   onJumpToLive,
+  onResetSpeed,
   theme,
 }) => {
   const isRewinding    = multiplier < 0;
@@ -125,7 +126,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
           <div style={{ height: '20px', display: 'flex', alignItems: 'center' }}>
             {!isNormalSpeed && (
               <button
-                onClick={() => onPlayPause(isPlaying)}
+                onClick={() => onResetSpeed()}
                 style={{
                   ...baseBtn,
                   fontSize: '11px',

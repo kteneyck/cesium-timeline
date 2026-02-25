@@ -39,6 +39,7 @@ export interface ControlsProps {
   onFastForward: () => void;
   onJumpToEnd: () => void;
   onJumpToLive: () => void;
+  onResetSpeed: () => void;
   isLive: boolean;
   theme: TimelineTheme;
 }

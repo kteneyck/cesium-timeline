@@ -167,6 +167,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           onFastForward={handleFastForward}
           onJumpToEnd={handleJumpToEnd}
           onJumpToLive={handleJumpToLive}
+          onResetSpeed={() => applyMultiplier(1)}
           dateTimeFormat={dateTimeFormat}
           theme={finalTheme}
         />
