@@ -58,46 +58,96 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   return (
     <div
       style={{
-        display: 'flex',
+        display: 'grid',
+        gridTemplateColumns: '1fr auto 1fr',
         alignItems: 'center',
-        gap: '4px',
         padding: '6px 16px',
         backgroundColor: theme.controlBarBackground,
         borderBottom: `1px solid ${theme.controlBarBorder}`,
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
-      {/* ── Datetime display ── */}
-      <div
-        style={{
-          minWidth: '130px',
-          color: theme.labelColor,
-          fontFamily: 'monospace',
-          lineHeight: 1.1,
-          marginRight: '8px',
-        }}
-      >
-        {(() => {
-          const { timeFormat, dateFormat } = splitForDisplay(dateTimeFormat);
-          return (
-            <>
-              {timeFormat && (
-                <div style={{ fontSize: '1.45em', fontWeight: 'bold', letterSpacing: '0.02em' }}>
-                  {formatDateTime(currentTime, timeFormat)}
-                </div>
-              )}
-              {dateFormat && (
-                <div style={{ fontSize: '1em', letterSpacing: '0.03em', color: theme.buttonActiveColor }}>
-                  {formatDateTime(currentTime, dateFormat)}
-                </div>
-              )}
-            </>
-          );
-        })()}
+      {/* ── Left: Datetime + LIVE + speed badge ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div
+          style={{
+            color: theme.labelColor,
+            fontFamily: 'monospace',
+            lineHeight: 1.15,
+          }}
+        >
+          {(() => {
+            const { timeFormat, dateFormat } = splitForDisplay(dateTimeFormat);
+            return (
+              <>
+                {timeFormat && (
+                  <div style={{ fontSize: '1.45em', fontWeight: 'bold', letterSpacing: '0.02em' }}>
+                    {formatDateTime(currentTime, timeFormat)}
+                  </div>
+                )}
+                {dateFormat && (
+                  <div style={{ fontSize: '1em', letterSpacing: '0.03em', color: theme.buttonActiveColor }}>
+                    {formatDateTime(currentTime, dateFormat)}
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
+
+        {/* LIVE + speed badge — stacked to mirror the two-line datetime height */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', justifyContent: 'center' }}>
+          {/* LIVE */}
+          <button
+            onClick={onJumpToLive}
+            style={{
+              ...baseBtn,
+              fontSize: '11px',
+              fontWeight: 'bold',
+              letterSpacing: '0.05em',
+              width: '52px',
+              minWidth: '52px',
+              height: '20px',
+              borderRadius: '3px',
+              color:   isLive ? theme.controlBarBackground : theme.buttonActiveColor,
+              backgroundColor: isLive ? theme.buttonActiveColor : 'transparent',
+              borderColor: theme.buttonActiveColor,
+              opacity: isLive ? 1 : 0.55,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '1'; }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = isLive ? '1' : '0.55'; }}
+            title={isLive ? 'Currently live' : 'Jump to live (now)'}
+          >
+            {isLive ? '● LIVE' : 'LIVE'}
+          </button>
+
+          {/* Speed reset badge — same slot height whether visible or not */}
+          <div style={{ height: '20px', display: 'flex', alignItems: 'center' }}>
+            {!isNormalSpeed && (
+              <button
+                onClick={() => onPlayPause(isPlaying)}
+                style={{
+                  ...baseBtn,
+                  fontSize: '11px',
+                  color: theme.buttonActiveColor,
+                  borderColor: `${theme.buttonActiveColor}44`,
+                  width: '52px',
+                  minWidth: '52px',
+                  height: '20px',
+                }}
+                onMouseEnter={e => onEnter(e, true)}
+                onMouseLeave={onLeave}
+                title="Reset to 1× speed"
+              >
+                {isRewinding ? `◀ ${absMultiplier}×` : `${absMultiplier}× ▶`}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* ── Transport controls ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flex: 1, justifyContent: 'center' }}>
+      {/* ── Center: Transport buttons (always truly centered) ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
 
         {/* Jump to start */}
         <button
@@ -108,10 +158,10 @@ export const TimelineControls: React.FC<ControlsProps> = ({
           title="Jump to start"
         >⏮</button>
 
-        {/* Rewind — cycles reverse speeds; active when multiplier < 0 */}
+        {/* Rewind */}
         <button
           onClick={onRewind}
-          style={{ ...btn(isRewinding), width: '52px', minWidth: '52px', gap: '3px' }}
+          style={{ ...btn(isRewinding), width: '64px', minWidth: '64px', gap: '3px' }}
           onMouseEnter={e => onEnter(e, isRewinding)}
           onMouseLeave={onLeave}
           title={isRewinding ? `Reverse ${absMultiplier}× — click to speed up, press play to stop` : 'Reverse play'}
@@ -133,7 +183,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
             height: '40px',
             borderColor: `${theme.buttonActiveColor}55`,
             borderRadius: '50%',
-            paddingLeft: isPlaying ? '0' : '2px',  // nudge ▶ to optical center
+            paddingLeft: isPlaying ? '0' : '2px',
           }}
           onMouseEnter={e => onEnter(e, true)}
           onMouseLeave={onLeave}
@@ -142,10 +192,10 @@ export const TimelineControls: React.FC<ControlsProps> = ({
           {isPlaying ? '⏸' : '▶'}
         </button>
 
-        {/* Fast Forward — cycles 2×→4×→8×→16×→32×→1×; active when multiplier > 1 */}
+        {/* Fast Forward */}
         <button
           onClick={onFastForward}
-          style={{ ...btn(isFastForward), width: '52px', minWidth: '52px', gap: '3px' }}
+          style={{ ...btn(isFastForward), width: '64px', minWidth: '64px', gap: '3px' }}
           onMouseEnter={e => onEnter(e, isFastForward)}
           onMouseLeave={onLeave}
           title={isFastForward ? `${absMultiplier}× speed — click to increase, click again at max to reset` : 'Fast forward'}
@@ -164,50 +214,10 @@ export const TimelineControls: React.FC<ControlsProps> = ({
           title="Jump to end"
         >⏭</button>
 
-        {/* LIVE */}
-        <button
-          onClick={onJumpToLive}
-          style={{
-            ...baseBtn,
-            fontSize: '11px',
-            fontWeight: 'bold',
-            letterSpacing: '0.05em',
-            minWidth: '44px',
-            padding: '3px 8px',
-            borderRadius: '3px',
-            color:   isLive ? theme.controlBarBackground : theme.buttonActiveColor,
-            backgroundColor: isLive ? theme.buttonActiveColor : 'transparent',
-            border: `1px solid ${theme.buttonActiveColor}`,
-            opacity: isLive ? 1 : 0.55,
-          }}
-          onMouseEnter={e => { e.currentTarget.style.opacity = '1'; }}
-          onMouseLeave={e => { e.currentTarget.style.opacity = isLive ? '1' : '0.55'; }}
-          title={isLive ? 'Currently live' : 'Jump to live (now)'}
-        >
-          {isLive ? '● LIVE' : 'LIVE'}
-        </button>
-
-        {/* Speed reset badge */}
-        {!isNormalSpeed && (
-          <button
-            onClick={() => onPlayPause(isPlaying)}
-            style={{
-              ...baseBtn,
-              fontSize: '11px',
-              color: theme.buttonActiveColor,
-              border: `1px solid ${theme.buttonActiveColor}44`,
-              minWidth: '44px',
-              padding: '3px 6px',
-            }}
-            onMouseEnter={e => onEnter(e, true)}
-            onMouseLeave={onLeave}
-            title="Reset to 1× speed"
-          >
-            {isRewinding ? `◀ ${absMultiplier}×` : `${absMultiplier}× ▶`}
-          </button>
-        )}
-
       </div>
+
+      {/* ── Right: spacer to keep transport centered ── */}
+      <div />
     </div>
   );
 };
