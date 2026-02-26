@@ -10,6 +10,7 @@ export default defineConfig({
       include: ['src'],
       outDir: 'dist',
       entryRoot: 'src',
+      rollupTypes: true,
     }),
   ],
   build: {

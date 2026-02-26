@@ -5,12 +5,12 @@
   "type": "module",
   "main": "./dist/cesium-timeline.umd.cjs",
   "module": "./dist/cesium-timeline.js",
-  "types": "./dist/cesium-timeline.d.ts",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "import": "./dist/cesium-timeline.js",
       "require": "./dist/cesium-timeline.umd.cjs",
-      "types": "./dist/cesium-timeline.d.ts"
+      "types": "./dist/index.d.ts"
     }
   },
   "files": [
@@ -26,11 +26,13 @@
   "peerDependencies": {
     "cesium": "^1.100.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "@types/react": ">=18",
+    "@types/react-dom": ">=18"
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
+    "@types/react": "19.0.1",
+    "@types/react-dom": "19.0.1",
     "@vitejs/plugin-react": "^4.2.0",
     "cesium": "^1.100.0",
     "react": "^19.0.0",
