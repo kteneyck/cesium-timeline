@@ -21,7 +21,10 @@ import React, {
 import * as Cesium from 'cesium';
 import { TimelineTheme } from '../types';
 
-// ─── Tick scales (identical to Cesium's timelineTicScales) ────────────────────
+// ─── Zoom limits ──────────────────────────────────────────────────────────────
+const MIN_SPAN_MS = 1_000;                // 1 second — prevents sub-ms span / blank canvas
+const MAX_SPAN_MS = 31_536_000_000_000;  // ~1 000 years — stays within TIC_SCALES range
+
 const TIC_SCALES = [
   0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.25, 0.5,
   1, 2, 5, 10, 15, 30,
@@ -121,8 +124,10 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     // ── Imperative handle (called by Timeline parent) ──────────────────────
     useImperativeHandle(ref, () => ({
       zoomTo(startMs: number, endMs: number) {
-        startMsRef.current = startMs;
-        endMsRef.current   = endMs;
+        const span     = Math.max(MIN_SPAN_MS, Math.min(MAX_SPAN_MS, endMs - startMs));
+        const centerMs = (startMs + endMs) / 2;
+        startMsRef.current = centerMs - span / 2;
+        endMsRef.current   = centerMs + span / 2;
         draw();
       },
       getVisibleRange() {
@@ -413,11 +418,11 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
 
     // Zoom around center (mirrors Cesium's zoomFrom)
     const zoomFrom = useCallback((amount: number) => {
-      const span      = endMsRef.current - startMsRef.current;
-      const centerSec = span / 2000;
-      const flipSec   = span / 2000;
-      startMsRef.current += (centerSec - centerSec * amount) * 1000;
-      endMsRef.current   += (flipSec   * amount - flipSec)   * 1000;
+      const span     = endMsRef.current - startMsRef.current;
+      const centerMs = (startMsRef.current + endMsRef.current) / 2;
+      const newSpan  = Math.max(MIN_SPAN_MS, Math.min(MAX_SPAN_MS, span * amount));
+      startMsRef.current = centerMs - newSpan / 2;
+      endMsRef.current   = centerMs + newSpan / 2;
       draw();
     }, [draw]);
 
