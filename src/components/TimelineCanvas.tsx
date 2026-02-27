@@ -121,6 +121,14 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     const mouseMode = useRef<'none' | 'scrub' | 'slide' | 'zoom'>('none');
     const mouseX    = useRef(0);
 
+    // Touch state
+    const touchMode    = useRef<'none' | 'scrub' | 'slide' | 'pinch'>('none');
+    const touchX       = useRef(0);
+    const pinchDist    = useRef(0);
+
+    const getTouchDist = (a: Touch, b: Touch) =>
+      Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+
     // ── Imperative handle (called by Timeline parent) ──────────────────────
     useImperativeHandle(ref, () => ({
       zoomTo(startMs: number, endMs: number) {
@@ -430,6 +438,95 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       e.preventDefault();
       zoomFrom(Math.pow(1.05, e.deltaY > 0 ? -1 : 1));
     }, [zoomFrom]);
+
+    // ── Touch handlers (non-passive so preventDefault suppresses native scroll/zoom) ──
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const onTouchStart = (e: TouchEvent) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+
+        if (e.touches.length === 1) {
+          const x      = e.touches[0].clientX - rect.left;
+          const needleX = ((curMsRef.current - startMsRef.current) / (endMsRef.current - startMsRef.current)) * rect.width;
+          if (Math.abs(x - needleX) <= 24) {
+            touchMode.current = 'scrub';
+            onDragStart?.();
+            const ms = startMsRef.current + (x / rect.width) * (endMsRef.current - startMsRef.current);
+            curMsRef.current = ms;
+            draw();
+            onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
+          } else {
+            touchMode.current = 'slide';
+            touchX.current    = e.touches[0].clientX;
+          }
+        } else if (e.touches.length >= 2) {
+          touchMode.current = 'pinch';
+          pinchDist.current = getTouchDist(e.touches[0], e.touches[1]);
+        }
+      };
+
+      const onTouchMove = (e: TouchEvent) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+
+        if (touchMode.current === 'scrub' && e.touches.length >= 1) {
+          const x    = e.touches[0].clientX - rect.left;
+          const edge = rect.width * 0.08;
+          if (x < edge)                  startEdgeScroll(-1);
+          else if (x > rect.width - edge) startEdgeScroll(1);
+          else                            stopEdgeScroll();
+
+          const cx = Math.max(0, Math.min(rect.width, x));
+          const ms = startMsRef.current + (cx / rect.width) * (endMsRef.current - startMsRef.current);
+          curMsRef.current = ms;
+          draw();
+          onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
+
+        } else if (touchMode.current === 'slide' && e.touches.length >= 1) {
+          const dx = touchX.current - e.touches[0].clientX;
+          touchX.current = e.touches[0].clientX;
+          if (dx !== 0) {
+            const shift = (dx / rect.width) * (endMsRef.current - startMsRef.current);
+            startMsRef.current += shift;
+            endMsRef.current   += shift;
+            draw();
+          }
+
+        } else if (touchMode.current === 'pinch' && e.touches.length >= 2) {
+          const newDist = getTouchDist(e.touches[0], e.touches[1]);
+          if (newDist > 0 && pinchDist.current > 0) {
+            // prevDist / newDist < 1 when spreading (zoom in), > 1 when pinching (zoom out)
+            zoomFrom(pinchDist.current / newDist);
+          }
+          pinchDist.current = newDist;
+        }
+      };
+
+      const onTouchEnd = (e: TouchEvent) => {
+        stopEdgeScroll();
+        if (touchMode.current === 'scrub') onDragEnd?.();
+
+        if (e.touches.length === 0) {
+          touchMode.current = 'none';
+        } else if (e.touches.length === 1) {
+          // Lifted one finger during pinch — transition to slide
+          touchMode.current = 'slide';
+          touchX.current    = e.touches[0].clientX;
+        }
+      };
+
+      canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+      canvas.addEventListener('touchmove',  onTouchMove,  { passive: false });
+      canvas.addEventListener('touchend',   onTouchEnd,   { passive: false });
+      return () => {
+        canvas.removeEventListener('touchstart', onTouchStart);
+        canvas.removeEventListener('touchmove',  onTouchMove);
+        canvas.removeEventListener('touchend',   onTouchEnd);
+      };
+    }, [draw, onDragStart, onDragEnd, onTimeChange, zoomFrom, startEdgeScroll, stopEdgeScroll]);
 
     // Show grab cursor only when hovering near the needle.
     const handleCanvasMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
