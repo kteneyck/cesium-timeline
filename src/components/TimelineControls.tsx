@@ -82,12 +82,12 @@ export const TimelineControls: React.FC<ControlsProps> = ({
             return (
               <>
                 {timeFormat && (
-                  <div style={{ fontSize: '1.45em', fontWeight: 'bold', letterSpacing: '0.02em' }}>
+                  <div style={{ fontSize: '2em', fontWeight: 'bold', letterSpacing: '0.02em' }}>
                     {formatDateTime(currentTime, timeFormat)}
                   </div>
                 )}
                 {dateFormat && (
-                  <div style={{ fontSize: '1em', letterSpacing: '0.03em', color: theme.buttonActiveColor }}>
+                  <div style={{ fontSize: '1.15em', letterSpacing: '0.03em', color: theme.buttonActiveColor }}>
                     {formatDateTime(currentTime, dateFormat)}
                   </div>
                 )}
