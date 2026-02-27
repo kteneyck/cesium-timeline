@@ -23,6 +23,18 @@ export interface TimelineProps {
    * @default 'MMM DD YYYY HH:mm:ss'
    */
   dateTimeFormat?: string;
+  /**
+   * Called when the user clicks the datetime display in the control bar.
+   * Use this to open your own date/time picker (e.g. a PrimeReact Calendar).
+   * Once the user selects a time, pass it back via the `jumpToTime` prop.
+   */
+  onDateTimeClick?: () => void;
+  /**
+   * Set this to a new Date or JulianDate to programmatically jump the timeline
+   * to that moment (pans the canvas and updates current time).
+   * Typically set from the result of your own date/time picker.
+   */
+  jumpToTime?: Cesium.JulianDate | Date;
   theme?: Partial<TimelineTheme>;
   className?: string;
 }
@@ -33,6 +45,8 @@ export interface ControlsProps {
   multiplier: number;
   /** @see TimelineProps.dateTimeFormat */
   dateTimeFormat?: string;
+  /** @see TimelineProps.onDateTimeClick */
+  onDateTimeClick?: () => void;
   onPlayPause: (isPlaying: boolean) => void;
   onJumpToStart: () => void;
   onRewind: () => void;

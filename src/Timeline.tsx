@@ -22,6 +22,8 @@ export const Timeline: React.FC<TimelineProps> = ({
   showControls = true,
   enableDrag   = true,
   dateTimeFormat,
+  onDateTimeClick,
+  jumpToTime,
   theme: customTheme,
   className,
 }) => {
@@ -84,6 +86,20 @@ export const Timeline: React.FC<TimelineProps> = ({
     }, 1000);
     return () => clearInterval(id);
   }, [clock, isDragging]);
+
+  // ── jumpToTime prop: pan canvas and set time when implementer resolves their picker ──
+  useEffect(() => {
+    if (!jumpToTime) return;
+    const t = toJulianDate(jumpToTime);
+    handleTimeChange(t);
+    if (canvasRef.current) {
+      const { startMs, endMs } = canvasRef.current.getVisibleRange();
+      const span  = endMs - startMs;
+      const newMs = Cesium.JulianDate.toDate(t).getTime();
+      canvasRef.current.zoomTo(newMs - span / 2, newMs + span / 2);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jumpToTime]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const applyMultiplier = (m: number, play = true) => {
@@ -168,6 +184,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           onJumpToEnd={handleJumpToEnd}
           onJumpToLive={handleJumpToLive}
           onResetSpeed={() => applyMultiplier(1)}
+          onDateTimeClick={onDateTimeClick}
           dateTimeFormat={dateTimeFormat}
           theme={finalTheme}
         />

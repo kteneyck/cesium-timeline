@@ -449,19 +449,15 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         const rect = canvas.getBoundingClientRect();
 
         if (e.touches.length === 1) {
-          const x      = e.touches[0].clientX - rect.left;
-          const needleX = ((curMsRef.current - startMsRef.current) / (endMsRef.current - startMsRef.current)) * rect.width;
-          if (Math.abs(x - needleX) <= 24) {
-            touchMode.current = 'scrub';
-            onDragStart?.();
-            const ms = startMsRef.current + (x / rect.width) * (endMsRef.current - startMsRef.current);
-            curMsRef.current = ms;
-            draw();
-            onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
-          } else {
-            touchMode.current = 'slide';
-            touchX.current    = e.touches[0].clientX;
-          }
+          const x  = e.touches[0].clientX - rect.left;
+          const cx = Math.max(0, Math.min(rect.width, x));
+          const ms = startMsRef.current + (cx / rect.width) * (endMsRef.current - startMsRef.current);
+          touchMode.current    = 'scrub';
+          touchX.current       = e.touches[0].clientX;
+          curMsRef.current     = ms;
+          draw();
+          onDragStart?.();
+          onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
         } else if (e.touches.length >= 2) {
           touchMode.current = 'pinch';
           pinchDist.current = getTouchDist(e.touches[0], e.touches[1]);

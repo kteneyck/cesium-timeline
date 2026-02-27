@@ -32,6 +32,11 @@ export const TestApp: React.FC = () => {
   // Theme
   const [theme, setTheme] = useState<TimelineTheme>({ ...defaultTheme, backgroundColor: '#2a2a2a' });
 
+  // DateTime picker state (demo uses a simple native datetime-local input as a stand-in)
+  const [pickerOpen, setPickerOpen]   = useState(false);
+  const [pickerValue, setPickerValue] = useState('');
+  const [jumpToTime,  setJumpToTime]  = useState<Date | undefined>(undefined);
+
   // Initialize Cesium viewer
   useEffect(() => {
     if (!cesiumContainerRef.current) return;
@@ -115,6 +120,22 @@ export const TestApp: React.FC = () => {
 
   const setThemeProp= <K extends keyof TimelineTheme>(key: K, value: TimelineTheme[K]) =>
     setTheme(t => ({ ...t, [key]: value }));
+
+  const handleDateTimeClick = () => {
+    // Pre-fill with current time in datetime-local format
+    const iso = new Date(currentTime.getTime() - currentTime.getTimezoneOffset() * 60000)
+      .toISOString().slice(0, 16);
+    setPickerValue(iso);
+    setPickerOpen(true);
+  };
+
+  const handlePickerApply = () => {
+    const d = new Date(pickerValue);
+    if (!isNaN(d.getTime())) {
+      setJumpToTime(new Date(d));
+    }
+    setPickerOpen(false);
+  };
 
   return (
     <div className="app-container">
@@ -373,6 +394,8 @@ export const TestApp: React.FC = () => {
             height={timelineHeight}
             tickInterval={tickInterval}
             dateTimeFormat={dateTimeFormat}
+            onDateTimeClick={handleDateTimeClick}
+            jumpToTime={jumpToTime}
             theme={theme}
           />
         )}
@@ -497,6 +520,49 @@ export const TestApp: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* ── Demo datetime picker overlay (replace with PrimeReact Calendar etc. in production) ── */}
+      {pickerOpen && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+          }}
+          onClick={() => setPickerOpen(false)}
+        >
+          <div
+            style={{
+              background: '#242424', border: '1px solid #444', borderRadius: '8px',
+              padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px',
+              minWidth: '280px',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Jump to Date/Time
+            </div>
+            <input
+              type="datetime-local"
+              value={pickerValue}
+              onChange={e => setPickerValue(e.target.value)}
+              style={{
+                background: '#333', border: '1px solid #555', color: '#e0e0e0',
+                borderRadius: '4px', padding: '8px', fontSize: '13px', width: '100%',
+              }}
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setPickerOpen(false)} style={{ flex: 1 }}>Cancel</button>
+              <button
+                onClick={handlePickerApply}
+                style={{ flex: 1, background: '#d69826', borderColor: '#d69826', color: '#111', fontWeight: 600 }}
+              >
+                Jump
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

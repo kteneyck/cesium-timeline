@@ -15,6 +15,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   onJumpToEnd,
   onJumpToLive,
   onResetSpeed,
+  onDateTimeClick,
   theme,
 }) => {
   const isRewinding    = multiplier < 0;
@@ -71,11 +72,19 @@ export const TimelineControls: React.FC<ControlsProps> = ({
       {/* ── Left: Datetime + LIVE + speed badge ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <div
+          onClick={onDateTimeClick}
+          title={onDateTimeClick ? 'Click to jump to a date/time' : undefined}
           style={{
             color: theme.labelColor,
             fontFamily: 'monospace',
             lineHeight: 1.15,
+            cursor: onDateTimeClick ? 'pointer' : 'default',
+            borderRadius: '4px',
+            padding: '2px 4px',
+            transition: 'background 0.15s',
           }}
+          onMouseEnter={e => { if (onDateTimeClick) e.currentTarget.style.background = theme.buttonHoverColor + '44'; }}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
           {(() => {
             const { timeFormat, dateFormat } = splitForDisplay(dateTimeFormat);
