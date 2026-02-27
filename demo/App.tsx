@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Timeline } from '../src/Timeline';
-import type { TickInterval } from '../src/types';
+import { defaultTheme } from '../src/types';
+import type { TimelineTheme } from '../src/types';
+import { DateTimeFormats } from '../src/utils';
 import * as Cesium from 'cesium';
 
 // Set Cesium base URL for assets
@@ -17,9 +19,18 @@ export const TestApp: React.FC = () => {
 
   const [cesiumClock, setCesiumClock] = useState<Cesium.Clock | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [speedMultiplier, setSpeedMultiplier] = useState(1);
+
+  // Timeline props
   const [timelineHeight, setTimelineHeight] = useState(35);
-  const [tickInterval, setTickInterval] = useState<TickInterval>('1h');
+  const [showControls, setShowControls] = useState(true);
+  const [showLabels, setShowLabels] = useState(true);
+  const [snapToTicks, setSnapToTicks] = useState(false);
+  const [enableDrag, setEnableDrag] = useState(true);
+  const [tickInterval, setTickInterval] = useState<number>(60);
+  const [dateTimeFormat, setDateTimeFormat] = useState(DateTimeFormats.DEFAULT);
+
+  // Theme
+  const [theme, setTheme] = useState<TimelineTheme>({ ...defaultTheme, backgroundColor: '#2a2a2a' });
 
   // Initialize Cesium viewer
   useEffect(() => {
@@ -84,36 +95,9 @@ export const TestApp: React.FC = () => {
     }
   }, []);
 
-  // Update clock multiplier when speed changes
-  useEffect(() => {
-    if (viewerRef.current) {
-      viewerRef.current.clock.multiplier = speedMultiplier;
-    }
-  }, [speedMultiplier]);
-
-  const handlePlay = () => {
-    if (viewerRef.current) {
-      viewerRef.current.clock.shouldAnimate = true;
-    }
-  };
-
-  const handlePause = () => {
-    if (viewerRef.current) {
-      viewerRef.current.clock.shouldAnimate = false;
-    }
-  };
-
   const handlePlayPause = (playing: boolean) => {
     if (viewerRef.current) {
       viewerRef.current.clock.shouldAnimate = playing;
-    }
-  };
-
-  const handleRewind = () => {
-    if (viewerRef.current) {
-      const startOfDay = new Date(currentTime.getFullYear(), currentTime.getMonth(), currentTime.getDate(), 0, 0, 0);
-      viewerRef.current.clock.currentTime = Cesium.JulianDate.fromDate(startOfDay);
-      viewerRef.current.clock.shouldAnimate = false;
     }
   };
 
@@ -129,12 +113,8 @@ export const TestApp: React.FC = () => {
     }
   };
 
-  const startTime = new Date();
-  startTime.setHours(0, 0, 0, 0);
-  const endTime = new Date();
-  endTime.setHours(23, 59, 59, 999);
-
-  const isPlaying = viewerRef.current?.clock.shouldAnimate ?? false;
+  const setThemeProp= <K extends keyof TimelineTheme>(key: K, value: TimelineTheme[K]) =>
+    setTheme(t => ({ ...t, [key]: value }));
 
   return (
     <div className="app-container">
@@ -315,6 +295,58 @@ export const TestApp: React.FC = () => {
           margin: 8px 0;
         }
 
+        input[type="color"] {
+          padding: 2px;
+          height: 32px;
+          width: 100%;
+          background: #333;
+          border: 1px solid #555;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+
+        .prop-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          font-size: 12px;
+        }
+
+        .prop-row label {
+          color: #aaa;
+          flex-shrink: 0;
+        }
+
+        .prop-row input, .prop-row select {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .toggle-btn {
+          padding: 2px 10px;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.05em;
+          border-radius: 3px;
+          min-width: 40px;
+          height: 24px;
+          cursor: pointer;
+          transition: background 0.15s, color 0.15s;
+        }
+
+        .toggle-btn.on {
+          background: #4da6ff;
+          color: #111;
+          border-color: #4da6ff;
+        }
+
+        .toggle-btn.off {
+          background: #333;
+          color: #666;
+          border-color: #555;
+        }
+
         .error-message {
           background: #3a2525;
           border: 1px solid #6a3535;
@@ -329,26 +361,19 @@ export const TestApp: React.FC = () => {
       <div className="timeline-wrapper">
         {cesiumClock && (
           <Timeline
-            // startTime={startTime}
-            // endTime={endTime}
             currentTime={currentTime}
             clock={viewerRef.current?.clock}
             onTimeChange={handleCurrentTimeChange}
             onPlayPause={handlePlayPause}
             onMultiplierChange={handleMultiplierChange}
-            showControls={true}
-            showLabels={true}
-            snapToTicks={false}
+            showControls={showControls}
+            showLabels={showLabels}
+            snapToTicks={snapToTicks}
+            enableDrag={enableDrag}
             height={timelineHeight}
             tickInterval={tickInterval}
-            theme={{
-              backgroundColor: '#2a2a2a',
-              lineColor: '#666',
-              majorLineColor: '#999',
-              textColor: '#ccc',
-              indicatorColor: '#d69826',
-              indicatorLabelColor: '#e0e0e0',
-            }}
+            dateTimeFormat={dateTimeFormat}
+            theme={theme}
           />
         )}
       </div>
@@ -367,96 +392,108 @@ export const TestApp: React.FC = () => {
             </div>
           )}
 
+          {/* ── Timeline Props ── */}
           <div className="control-section">
-            <div className="section-title">Playback</div>
-            <div className="control-group">
-              <button onClick={handlePlay} disabled={!cesiumClock || isPlaying}>
-                ▶ Play
+            <div className="section-title">Timeline Props</div>
+
+            <div className="prop-row">
+              <label>Height</label>
+              <input type="range" min="30" max="200" value={timelineHeight}
+                onChange={e => setTimelineHeight(+e.target.value)} />
+              <span style={{ color: '#4da6ff', minWidth: '36px', textAlign: 'right', fontSize: '12px' }}>{timelineHeight}px</span>
+            </div>
+
+            <div className="prop-row">
+              <label>Show Controls</label>
+              <button className={`toggle-btn ${showControls ? 'on' : 'off'}`} onClick={() => setShowControls(v => !v)}>
+                {showControls ? 'ON' : 'OFF'}
               </button>
-              <button onClick={handlePause} disabled={!cesiumClock || !isPlaying}>
-                ⏸ Pause
+            </div>
+
+            <div className="prop-row">
+              <label>Show Labels</label>
+              <button className={`toggle-btn ${showLabels ? 'on' : 'off'}`} onClick={() => setShowLabels(v => !v)}>
+                {showLabels ? 'ON' : 'OFF'}
               </button>
             </div>
-            <button onClick={handleRewind} disabled={!cesiumClock}>
-              ⏮ Rewind
-            </button>
+
+            <div className="prop-row">
+              <label>Snap to Ticks</label>
+              <button className={`toggle-btn ${snapToTicks ? 'on' : 'off'}`} onClick={() => setSnapToTicks(v => !v)}>
+                {snapToTicks ? 'ON' : 'OFF'}
+              </button>
+            </div>
+
+            <div className="prop-row">
+              <label>Enable Drag</label>
+              <button className={`toggle-btn ${enableDrag ? 'on' : 'off'}`} onClick={() => setEnableDrag(v => !v)}>
+                {enableDrag ? 'ON' : 'OFF'}
+              </button>
+            </div>
+
+            <div className="prop-row">
+              <label>Tick Interval</label>
+              <select value={tickInterval} onChange={e => setTickInterval(+e.target.value)}>
+                <option value={15}>15 Minutes</option>
+                <option value={30}>30 Minutes</option>
+                <option value={60}>1 Hour</option>
+              </select>
+            </div>
+
+            <div className="prop-row">
+              <label>Date/Time Format</label>
+              <select value={dateTimeFormat} onChange={e => setDateTimeFormat(e.target.value)}>
+                {Object.entries(DateTimeFormats).map(([key, fmt]) => (
+                  <option key={key} value={fmt}>{key.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div className="divider"></div>
+          <div className="divider" />
+
+          {/* ── Theme ── */}
+          <div className="control-section">
+            <div className="section-title">Theme — Colors</div>
+
+            {([
+              ['backgroundColor',     'Background'],
+              ['controlBarBackground','Control Bar Bg'],
+              ['controlBarBorder',    'Control Bar Border'],
+              ['tickColor',           'Tick'],
+              ['majorTickColor',      'Major Tick'],
+              ['labelColor',          'Label'],
+              ['indicatorColor',      'Indicator'],
+              ['buttonColor',         'Button'],
+              ['buttonHoverColor',    'Button Hover'],
+              ['buttonActiveColor',   'Button Active'],
+            ] as [keyof TimelineTheme, string][]).map(([key, label]) => (
+              <div className="prop-row" key={key}>
+                <label>{label}</label>
+                <input type="color" value={theme[key] as string}
+                  onChange={e => setThemeProp(key, e.target.value)} />
+              </div>
+            ))}
+          </div>
+
+          <div className="divider" />
 
           <div className="control-section">
-            <div className="section-title">Speed Multiplier</div>
-            <select
-              value={speedMultiplier}
-              onChange={(e) => {
-                const newMultiplier = parseFloat(e.target.value);
-                if (viewerRef.current) {
-                  viewerRef.current.clock.multiplier = newMultiplier;
-                }
-              }}
-              disabled={!cesiumClock}
-            >
-              <option value={0.5}>0.5x (Slow)</option>
-              <option value={1}>1x (Normal)</option>
-              <option value={2}>2x (Fast)</option>
-              <option value={5}>5x (Very Fast)</option>
-              <option value={10}>10x (Extreme)</option>
-            </select>
-          </div>
+            <div className="section-title">Theme — Sizes</div>
 
-          <div className="divider"></div>
-
-          <div className="control-section">
-            <div className="section-title">Timeline Height</div>
-            <div className="control-group">
-              <input
-                type="range"
-                min="60"
-                max="200"
-                value={timelineHeight}
-                onChange={(e) => setTimelineHeight(parseInt(e.target.value))}
-              />
-            </div>
-            <div style={{ fontSize: '12px', color: '#999', textAlign: 'center' }}>
-              {timelineHeight}px
-            </div>
-          </div>
-
-          <div className="divider"></div>
-
-          <div className="control-section">
-            <div className="section-title">Tick Interval</div>
-            <select
-              value={tickInterval}
-              onChange={(e) => setTickInterval(e.target.value as TickInterval)}
-            >
-              <option value="5m">5 Minutes</option>
-              <option value="15m">15 Minutes</option>
-              <option value="30m">30 Minutes</option>
-              <option value="1h">1 Hour</option>
-            </select>
-          </div>
-
-          <div className="divider"></div>
-
-          <div className="info-panel">
-            <div className="info-row">
-              <span className="info-label">Playing:</span>
-              <span className="info-value">{isPlaying ? 'Yes' : 'No'}</span>
-            </div>
-            <div className="info-row">
-              <span className="info-label">Current:</span>
-              <span className="info-value">{currentTime.toLocaleTimeString()}</span>
-            </div>
-            <div className="info-row">
-              <span className="info-label">Multiplier:</span>
-              <span className="info-value">{speedMultiplier}x</span>
-            </div>
-            <div className="divider"></div>
-            <div className="info-row">
-              <span className="info-label">Viewer:</span>
-              <span className="info-value">{cesiumClock ? 'Ready' : 'Loading'}</span>
-            </div>
+            {([
+              ['indicatorLineWidth', 'Indicator Width', 1, 8],
+              ['majorTickHeight',    'Major Tick H',    4, 24],
+              ['minorTickHeight',    'Minor Tick H',    2, 16],
+              ['fontSize',          'Font Size',        8, 20],
+            ] as [keyof TimelineTheme, string, number, number][]).map(([key, label, min, max]) => (
+              <div className="prop-row" key={key}>
+                <label>{label}</label>
+                <input type="range" min={min} max={max} value={theme[key] as number}
+                  onChange={e => setThemeProp(key, +e.target.value)} />
+                <span style={{ color: '#4da6ff', minWidth: '28px', textAlign: 'right', fontSize: '12px' }}>{theme[key]}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
