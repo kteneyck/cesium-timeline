@@ -5,10 +5,8 @@ import { TimelineControls } from './components/TimelineControls';
 import { TimelineCanvas, TimelineCanvasHandle } from './components/TimelineCanvas';
 import { toJulianDate } from './utils/timeConversion';
 
-// FF cycles forward: 2→4→8→16→32→1 (1 resets to normal)
-const FF_SPEEDS = [2, 4, 8, 16, 32, 1];
-// RW cycles reverse magnitude: 1→2→4→8→16→32 (wraps)
-const RW_SPEEDS = [1, 2, 4, 8, 16, 32];
+const DEFAULT_FF_SPEEDS = [2, 4, 8, 16, 32, 100, 1];
+const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
 
 export const Timeline: React.FC<TimelineProps> = ({
   startTime: providedStart,
@@ -24,6 +22,9 @@ export const Timeline: React.FC<TimelineProps> = ({
   dateTimeFormat,
   onDateTimeClick,
   jumpToTime,
+  maxTicks,
+  ffSpeeds = DEFAULT_FF_SPEEDS,
+  rwSpeeds = DEFAULT_RW_SPEEDS,
   theme: customTheme,
   className,
 }) => {
@@ -40,8 +41,9 @@ export const Timeline: React.FC<TimelineProps> = ({
   );
   const [isPlaying,  setIsPlaying]  = useState(clock?.shouldAnimate ?? false);
   const [multiplier, setMultiplier] = useState(clock?.multiplier    ?? 1);
-  const [isDragging, setIsDragging] = useState(false);
 
+  // Ref-based drag flag — avoids stale closures in the clock onTick handler.
+  const isDraggingRef = useRef(false);
   const canvasRef = useRef<TimelineCanvasHandle>(null);
   const finalTheme = { ...defaultTheme, ...customTheme };
 
@@ -49,34 +51,38 @@ export const Timeline: React.FC<TimelineProps> = ({
   useEffect(() => {
     if (!clock) return;
     const onTick = () => {
-      const ct = Cesium.JulianDate.clone(clock.currentTime);
-      setCurrentTime(ct);
-      setIsPlaying(clock.shouldAnimate);
-      setMultiplier(clock.multiplier);
+      // Don't overwrite the drag position while the user is scrubbing.
+      if (!isDraggingRef.current) {
+        const ct = Cesium.JulianDate.clone(clock.currentTime);
+        setCurrentTime(ct);
+        setIsPlaying(clock.shouldAnimate);
+        setMultiplier(clock.multiplier);
 
-      if (!isDragging && canvasRef.current) {
-        const { startMs, endMs } = canvasRef.current.getVisibleRange();
-        const span  = endMs - startMs;
-        const ctMs  = Cesium.JulianDate.toDate(ct).getTime();
-        const pos   = ctMs - startMs;
-        if (pos < span * 0.1) {
-          canvasRef.current.zoomTo(startMs - span * 0.2, endMs - span * 0.2);
-        } else if (pos > span * 0.9) {
-          canvasRef.current.zoomTo(startMs + span * 0.2, endMs + span * 0.2);
+        if (canvasRef.current) {
+          const { startMs, endMs } = canvasRef.current.getVisibleRange();
+          const span  = endMs - startMs;
+          const ctMs  = Cesium.JulianDate.toDate(ct).getTime();
+          const pos   = ctMs - startMs;
+          if (pos < span * 0.1) {
+            canvasRef.current.zoomTo(startMs - span * 0.2, endMs - span * 0.2);
+          } else if (pos > span * 0.9) {
+            canvasRef.current.zoomTo(startMs + span * 0.2, endMs + span * 0.2);
+          }
         }
       }
     };
     clock.onTick.addEventListener(onTick);
     return () => { clock.onTick.removeEventListener(onTick); };
-  }, [clock, isDragging]);
+  }, [clock]);
 
   // ── Fallback: real-time tick when no clock ────────────────────────────────
   useEffect(() => {
     if (clock) return;
     const id = setInterval(() => {
+      if (isDraggingRef.current) return;
       const ct = Cesium.JulianDate.fromDate(new Date());
       setCurrentTime(ct);
-      if (!isDragging && canvasRef.current) {
+      if (canvasRef.current) {
         const { startMs, endMs } = canvasRef.current.getVisibleRange();
         const span = endMs - startMs;
         const pos  = Cesium.JulianDate.toDate(ct).getTime() - startMs;
@@ -85,7 +91,7 @@ export const Timeline: React.FC<TimelineProps> = ({
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [clock, isDragging]);
+  }, [clock]);
 
   // ── jumpToTime prop: pan canvas and set time when implementer resolves their picker ──
   useEffect(() => {
@@ -127,16 +133,18 @@ export const Timeline: React.FC<TimelineProps> = ({
   };
 
   const handleFastForward = () => {
+    const speeds = ffSpeeds.length > 0 ? ffSpeeds : DEFAULT_FF_SPEEDS;
     const cur = multiplier > 1 ? multiplier : 1;
-    const idx = FF_SPEEDS.indexOf(cur);
-    const next = FF_SPEEDS[idx < 0 || idx === FF_SPEEDS.length - 1 ? 0 : idx + 1];
+    const idx = speeds.indexOf(cur);
+    const next = speeds[idx < 0 || idx === speeds.length - 1 ? 0 : idx + 1];
     applyMultiplier(next);
   };
 
   const handleRewindSpeed = () => {
+    const speeds = rwSpeeds.length > 0 ? rwSpeeds : DEFAULT_RW_SPEEDS;
     const curAbs = multiplier < 0 ? Math.abs(multiplier) : 0;
-    const idx    = RW_SPEEDS.indexOf(curAbs);
-    const next   = -(RW_SPEEDS[idx < 0 || idx === RW_SPEEDS.length - 1 ? 0 : idx + 1]);
+    const idx    = speeds.indexOf(curAbs);
+    const next   = -(speeds[idx < 0 || idx === speeds.length - 1 ? 0 : idx + 1]);
     applyMultiplier(next);
   };
 
@@ -177,6 +185,8 @@ export const Timeline: React.FC<TimelineProps> = ({
           isPlaying={isPlaying}
           multiplier={multiplier}
           isLive={isLive}
+          hasStartTime={providedStart != null}
+          hasEndTime={providedEnd != null}
           onPlayPause={handlePlayPause}
           onJumpToStart={handleJumpToStart}
           onRewind={handleRewindSpeed}
@@ -198,9 +208,10 @@ export const Timeline: React.FC<TimelineProps> = ({
           defaultEndMs={defaultEndMs}
           height={height}
           theme={finalTheme}
+          maxTicks={maxTicks}
           onTimeChange={handleTimeChange}
-          onDragStart={() => setIsDragging(true)}
-          onDragEnd={() => setIsDragging(false)}
+          onDragStart={() => { isDraggingRef.current = true; }}
+          onDragEnd={() => { isDraggingRef.current = false; }}
         />
       )}
     </div>

@@ -2,12 +2,22 @@ import React from 'react';
 import { ControlsProps } from '../types';
 import { formatDateTime, splitForDisplay } from '../utils/timeConversion';
 
+/** Two vertical bars rendered as SVG — consistent across all platforms. */
+const PauseIcon = () => (
+  <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor" aria-hidden="true">
+    <rect x="1" y="0" width="4" height="16" rx="1" />
+    <rect x="9" y="0" width="4" height="16" rx="1" />
+  </svg>
+);
+
 export const TimelineControls: React.FC<ControlsProps> = ({
   currentTime,
   isPlaying,
   multiplier,
   dateTimeFormat,
   isLive,
+  hasStartTime,
+  hasEndTime,
   onPlayPause,
   onJumpToStart,
   onRewind,
@@ -159,14 +169,16 @@ export const TimelineControls: React.FC<ControlsProps> = ({
       {/* ── Center: Transport buttons (always truly centered) ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
 
-        {/* Jump to start */}
-        <button
-          onClick={onJumpToStart}
-          style={btn(false)}
-          onMouseEnter={e => onEnter(e, false)}
-          onMouseLeave={onLeave}
-          title="Jump to start"
-        >⏮</button>
+        {/* Jump to start — only shown when startTime was provided */}
+        {hasStartTime && (
+          <button
+            onClick={onJumpToStart}
+            style={btn(false)}
+            onMouseEnter={e => onEnter(e, false)}
+            onMouseLeave={onLeave}
+            title="Jump to start"
+          >⏮</button>
+        )}
 
         {/* Rewind */}
         <button
@@ -199,7 +211,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
           onMouseLeave={onLeave}
           title={isPlaying ? 'Pause' : (isRewinding ? 'Play (reset to 1×)' : 'Play')}
         >
-          {isPlaying ? '⏸' : '▶'}
+          {isPlaying ? <PauseIcon /> : '▶'}
         </button>
 
         {/* Fast Forward */}
@@ -215,14 +227,16 @@ export const TimelineControls: React.FC<ControlsProps> = ({
           ) : '▶▶'}
         </button>
 
-        {/* Jump to end */}
-        <button
-          onClick={onJumpToEnd}
-          style={btn(false)}
-          onMouseEnter={e => onEnter(e, false)}
-          onMouseLeave={onLeave}
-          title="Jump to end"
-        >⏭</button>
+        {/* Jump to end — only shown when endTime was provided */}
+        {hasEndTime && (
+          <button
+            onClick={onJumpToEnd}
+            style={btn(false)}
+            onMouseEnter={e => onEnter(e, false)}
+            onMouseLeave={onLeave}
+            title="Jump to end"
+          >⏭</button>
+        )}
 
       </div>
 

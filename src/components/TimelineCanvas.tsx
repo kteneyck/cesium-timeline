@@ -90,6 +90,7 @@ interface TimelineCanvasProps {
   defaultEndMs: number;
   height: number;
   theme: TimelineTheme;
+  maxTicks?: number;
   onTimeChange: (time: Cesium.JulianDate) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
@@ -100,26 +101,31 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   (props, ref) => {
     const {
       currentTime, defaultStartMs, defaultEndMs,
-      height, theme, onTimeChange, onDragStart, onDragEnd,
+      height, theme, maxTicks, onTimeChange, onDragStart, onDragEnd,
     } = props;
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     // All mutable rendering state in refs — no React re-renders triggered from here.
-    const themeRef   = useRef(theme);
-    const startMsRef = useRef(defaultStartMs);
-    const endMsRef   = useRef(defaultEndMs);
-    const curMsRef   = useRef(Cesium.JulianDate.toDate(currentTime).getTime());
+    const themeRef    = useRef(theme);
+    const maxTicksRef = useRef(maxTicks);
+    const startMsRef  = useRef(defaultStartMs);
+    const endMsRef    = useRef(defaultEndMs);
+    const curMsRef    = useRef(Cesium.JulianDate.toDate(currentTime).getTime());
 
-    // Keep theme ref current
+    // Keep theme/maxTicks refs current
     useEffect(() => { themeRef.current = theme; }, [theme]);
+    useEffect(() => { maxTicksRef.current = maxTicks; }, [maxTicks]);
 
     // Edge-scroll animation
     const edgeRAF = useRef<number | null>(null);
 
     // Mouse state
-    const mouseMode = useRef<'none' | 'scrub' | 'slide' | 'zoom'>('none');
-    const mouseX    = useRef(0);
+    const mouseMode    = useRef<'none' | 'scrub' | 'slide' | 'zoom'>('none');
+    const mouseX       = useRef(0);
+    // clientX of the cursor during a scrub drag — used by the edge-scroll RAF
+    // to keep the needle pinned to the cursor as the window shifts under it.
+    const scrubClientX = useRef(0);
 
     // Touch state
     const touchMode    = useRef<'none' | 'scrub' | 'slide' | 'pinch'>('none');
@@ -198,6 +204,15 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       let mainIdx = TIC_SCALES.length - 1;
       for (let i = 0; i < TIC_SCALES.length; i++) {
         if (TIC_SCALES[i] > idealTic) { mainTic = TIC_SCALES[i]; mainIdx = i; break; }
+      }
+
+      // If maxTicks is set, coarsen mainTic until the tick count fits.
+      const limit = maxTicksRef.current;
+      if (limit != null && limit > 0) {
+        while (mainIdx < TIC_SCALES.length - 1 && durationSec / mainTic > limit) {
+          mainIdx++;
+          mainTic = TIC_SCALES[mainIdx];
+        }
       }
 
       // sub-tic: largest scale < mainTic that evenly divides mainTic and is ≥ 3px wide.
@@ -330,15 +345,26 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     const startEdgeScroll = useCallback((direction: -1 | 1) => {
       if (edgeRAF.current !== null) return;
       const scroll = () => {
-        const span  = endMsRef.current - startMsRef.current;
-        const shift = direction * span * 0.01;  // 1% per frame (~60px/s feel)
+        const canvas = canvasRef.current;
+        const span   = endMsRef.current - startMsRef.current;
+        const shift  = direction * span * 0.01;  // 1% per frame (~60px/s feel)
         startMsRef.current += shift;
         endMsRef.current   += shift;
+
+        // Keep the needle pinned to the cursor while the window scrolls under it.
+        if (canvas) {
+          const rect = canvas.getBoundingClientRect();
+          const cx   = Math.max(0, Math.min(rect.width, scrubClientX.current - rect.left));
+          const ms   = startMsRef.current + (cx / rect.width) * (endMsRef.current - startMsRef.current);
+          curMsRef.current = ms;
+          onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
+        }
+
         draw();
         edgeRAF.current = requestAnimationFrame(scroll);
       };
       edgeRAF.current = requestAnimationFrame(scroll);
-    }, [draw]);
+    }, [draw, onTimeChange]);
 
     const stopEdgeScroll = useCallback(() => {
       if (edgeRAF.current !== null) {
@@ -351,12 +377,15 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
       e.preventDefault();
       if (e.button === 0) {
-        mouseMode.current = 'scrub';
+        mouseMode.current  = 'scrub';
+        scrubClientX.current = e.clientX;
         e.currentTarget.style.cursor = 'grabbing';
         onDragStart?.();
         const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
         const x    = e.clientX - rect.left;
         const ms   = startMsRef.current + (x / rect.width) * (endMsRef.current - startMsRef.current);
+        curMsRef.current = ms;
+        draw();
         onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
       } else if (e.button === 1) {
         mouseMode.current = 'slide';
@@ -365,7 +394,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         mouseMode.current = 'zoom';
         mouseX.current    = e.clientX;
       }
-    }, [onTimeChange, onDragStart]);
+    }, [draw, onTimeChange, onDragStart]);
 
     useEffect(() => {
       const onMouseMove = (e: MouseEvent) => {
@@ -377,6 +406,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         const w    = rect.width;
 
         if (mouseMode.current === 'scrub') {
+          scrubClientX.current = e.clientX;
           const x    = e.clientX - rect.left;
           const edge = w * 0.08;
           if (x < edge) {

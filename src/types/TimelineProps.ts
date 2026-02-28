@@ -35,6 +35,23 @@ export interface TimelineProps {
    * Typically set from the result of your own date/time picker.
    */
   jumpToTime?: Cesium.JulianDate | Date;
+  /**
+   * Maximum number of major ticks to render on the canvas at one time.
+   * When the computed tick count would exceed this value the tick scale is
+   * coarsened until it fits. Defaults to unlimited.
+   */
+  maxTicks?: number;
+  /**
+   * Speed steps cycled by the fast-forward button.
+   * Each click advances to the next entry; the last entry wraps back to the
+   * first. Defaults to [2, 4, 8, 16, 32, 1].
+   */
+  ffSpeeds?: number[];
+  /**
+   * Absolute-value speed steps cycled by the rewind button (negated internally).
+   * Defaults to [1, 2, 4, 8, 16, 32].
+   */
+  rwSpeeds?: number[];
   theme?: Partial<TimelineTheme>;
   className?: string;
 }
@@ -55,5 +72,9 @@ export interface ControlsProps {
   onJumpToLive: () => void;
   onResetSpeed: () => void;
   isLive: boolean;
+  /** Whether to show the ⏮ jump-to-start button (true when startTime prop was provided). */
+  hasStartTime: boolean;
+  /** Whether to show the ⏭ jump-to-end button (true when endTime prop was provided). */
+  hasEndTime: boolean;
   theme: TimelineTheme;
 }
