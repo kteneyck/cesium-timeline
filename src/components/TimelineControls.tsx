@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { ControlsProps } from '../types';
 import { formatDateTime, splitForDisplay } from '../utils/timeConversion';
+
+const NARROW_BREAKPOINT = 520; // px — below this, center controls in remaining space
 
 /** Two vertical bars rendered as SVG — consistent across all platforms. */
 const PauseIcon = () => (
@@ -32,6 +34,19 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   const isFastForward  = multiplier > 1;
   const isNormalSpeed  = multiplier === 1;
   const absMultiplier  = Math.abs(multiplier);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isNarrow, setIsNarrow] = useState(false);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setIsNarrow(entry.contentRect.width < NARROW_BREAKPOINT);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const baseBtn: React.CSSProperties = {
     background: 'none',
@@ -69,9 +84,10 @@ export const TimelineControls: React.FC<ControlsProps> = ({
 
   return (
     <div
+      ref={containerRef}
       style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr auto 1fr',
+        display: isNarrow ? 'flex' : 'grid',
+        gridTemplateColumns: isNarrow ? undefined : '1fr auto 1fr',
         alignItems: 'center',
         padding: '6px 16px',
         backgroundColor: theme.controlBarBackground,
@@ -80,7 +96,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
       }}
     >
       {/* ── Left: Datetime + LIVE + speed badge ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
         <div
           onClick={onDateTimeClick}
           title={onDateTimeClick ? 'Click to jump to a date/time' : undefined}
@@ -166,8 +182,8 @@ export const TimelineControls: React.FC<ControlsProps> = ({
         </div>
       </div>
 
-      {/* ── Center: Transport buttons (always truly centered) ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+      {/* ── Center: Transport buttons — screen-centered on wide, remaining-space-centered on narrow ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', ...(isNarrow ? { flex: 1, justifyContent: 'center' } : {}) }}>
 
         {/* Jump to start — only shown when startTime was provided */}
         {hasStartTime && (
@@ -240,8 +256,8 @@ export const TimelineControls: React.FC<ControlsProps> = ({
 
       </div>
 
-      {/* ── Right: spacer to keep transport centered ── */}
-      <div />
+      {/* ── Right: spacer to keep transport centered on wide screens ── */}
+      {!isNarrow && <div />}
     </div>
   );
 };
