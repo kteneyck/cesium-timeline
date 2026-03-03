@@ -63,10 +63,10 @@ export const Timeline: React.FC<TimelineProps> = ({
           const span  = endMs - startMs;
           const ctMs  = Cesium.JulianDate.toDate(ct).getTime();
           const pos   = ctMs - startMs;
-          if (pos < span * 0.1) {
-            canvasRef.current.zoomTo(startMs - span * 0.2, endMs - span * 0.2);
-          } else if (pos > span * 0.9) {
-            canvasRef.current.zoomTo(startMs + span * 0.2, endMs + span * 0.2);
+          if (pos <= span * 0.1) {
+            canvasRef.current.zoomTo(ctMs - span * 0.1, ctMs + span * 0.9, ctMs);
+          } else if (pos >= span * 0.9) {
+            canvasRef.current.zoomTo(ctMs - span * 0.9, ctMs + span * 0.1, ctMs);
           }
         }
       }
@@ -85,9 +85,10 @@ export const Timeline: React.FC<TimelineProps> = ({
       if (canvasRef.current) {
         const { startMs, endMs } = canvasRef.current.getVisibleRange();
         const span = endMs - startMs;
-        const pos  = Cesium.JulianDate.toDate(ct).getTime() - startMs;
-        if (pos < span * 0.1)       canvasRef.current.zoomTo(startMs - span * 0.2, endMs - span * 0.2);
-        else if (pos > span * 0.9)  canvasRef.current.zoomTo(startMs + span * 0.2, endMs + span * 0.2);
+        const ctMs = Cesium.JulianDate.toDate(ct).getTime();
+        const pos  = ctMs - startMs;
+        if (pos <= span * 0.1)       canvasRef.current.zoomTo(ctMs - span * 0.1, ctMs + span * 0.9, ctMs);
+        else if (pos >= span * 0.9)  canvasRef.current.zoomTo(ctMs - span * 0.9, ctMs + span * 0.1, ctMs);
       }
     }, 1000);
     return () => clearInterval(id);

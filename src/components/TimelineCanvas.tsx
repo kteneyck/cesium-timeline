@@ -79,8 +79,15 @@ function nextTic(t: number, scale: number): number {
 
 // ─── Public handle ────────────────────────────────────────────────────────────
 export interface TimelineCanvasHandle {
-  zoomTo(startMs: number, endMs: number): void;
+  /** Reposition the visible window. Pass `currentMs` to atomically update the needle too (avoids jitter). */
+  zoomTo(startMs: number, endMs: number, currentMs?: number): void;
   getVisibleRange(): { startMs: number; endMs: number };
+  /** Start a smooth RAF-based follow scroll at the given rate (clock multiplier). */
+  startFollow(rate: number): void;
+  /** Stop the follow scroll. */
+  stopFollow(): void;
+  /** Correct accumulated drift while follow scroll is active (called from onTick). */
+  correctFollow(currentMs: number): void;
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -120,6 +127,11 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     // Edge-scroll animation
     const edgeRAF = useRef<number | null>(null);
 
+    // Follow-scroll (playback auto-scroll) — RAF-driven like edge-scroll for smooth motion.
+    const followRAF      = useRef<number | null>(null);
+    const followingRef   = useRef(false);
+    const followRateRef  = useRef(0);
+
     // Mouse state
     const mouseMode    = useRef<'none' | 'scrub' | 'slide' | 'zoom'>('none');
     const mouseX       = useRef(0);
@@ -137,15 +149,53 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
 
     // ── Imperative handle (called by Timeline parent) ──────────────────────
     useImperativeHandle(ref, () => ({
-      zoomTo(startMs: number, endMs: number) {
+      zoomTo(startMs: number, endMs: number, currentMs?: number) {
         const span     = Math.max(MIN_SPAN_MS, Math.min(MAX_SPAN_MS, endMs - startMs));
         const centerMs = (startMs + endMs) / 2;
         startMsRef.current = centerMs - span / 2;
         endMsRef.current   = centerMs + span / 2;
+        if (currentMs !== undefined) curMsRef.current = currentMs;
         draw();
       },
       getVisibleRange() {
         return { startMs: startMsRef.current, endMs: endMsRef.current };
+      },
+      startFollow(rate: number) {
+        followRateRef.current = rate;
+        if (followRAF.current !== null) return;   // already running — rate updated above
+        followingRef.current = true;
+        let lastTime = performance.now();
+
+        const scroll = () => {
+          const now = performance.now();
+          const dt  = now - lastTime;
+          lastTime  = now;
+
+          // Shift window and needle at the clock's speed (ms of sim-time per ms of real-time).
+          const shiftMs = dt * followRateRef.current;
+          startMsRef.current += shiftMs;
+          endMsRef.current   += shiftMs;
+          curMsRef.current   += shiftMs;
+          draw();
+          followRAF.current = requestAnimationFrame(scroll);
+        };
+        followRAF.current = requestAnimationFrame(scroll);
+      },
+      stopFollow() {
+        followingRef.current = false;
+        if (followRAF.current !== null) {
+          cancelAnimationFrame(followRAF.current);
+          followRAF.current = null;
+        }
+      },
+      correctFollow(currentMs: number) {
+        if (!followingRef.current) return;
+        // Silently adjust for drift between RAF interpolation and the real clock.
+        // No draw — the next RAF frame picks up the correction automatically.
+        const drift = currentMs - curMsRef.current;
+        curMsRef.current    = currentMs;
+        startMsRef.current += drift;
+        endMsRef.current   += drift;
       },
     }));
 
@@ -337,7 +387,12 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
 
     // ── Sync current time from React prop ─────────────────────────────────
     useEffect(() => {
-      curMsRef.current = Cesium.JulianDate.toDate(currentTime).getTime();
+      // When follow-scroll is active the RAF loop drives the canvas — skip.
+      if (followingRef.current) return;
+      const newMs = Cesium.JulianDate.toDate(currentTime).getTime();
+      // Skip redundant draw when zoomTo() already set curMsRef to this value.
+      if (curMsRef.current === newMs) return;
+      curMsRef.current = newMs;
       draw();
     }, [currentTime, draw]);
 
@@ -563,9 +618,10 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       e.currentTarget.style.cursor = Math.abs(x - needleX) <= 10 ? 'grab' : 'default';
     }, []);
 
-    // Cleanup RAF on unmount
+    // Cleanup RAFs on unmount
     useEffect(() => () => {
       if (edgeRAF.current !== null) cancelAnimationFrame(edgeRAF.current);
+      if (followRAF.current !== null) cancelAnimationFrame(followRAF.current);
     }, []);
 
     return (
