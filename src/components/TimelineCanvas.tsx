@@ -539,6 +539,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           const ms = startMsRef.current + (cx / rect.width) * (endMsRef.current - startMsRef.current);
           touchMode.current    = 'scrub';
           touchX.current       = e.touches[0].clientX;
+          scrubClientX.current = e.touches[0].clientX;  // seed for edge-scroll RAF
           curMsRef.current     = ms;
           draw();
           onDragStart?.();
@@ -556,15 +557,21 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         if (touchMode.current === 'scrub' && e.touches.length >= 1) {
           const x    = e.touches[0].clientX - rect.left;
           const edge = rect.width * 0.08;
-          if (x < edge)                  startEdgeScroll(-1);
-          else if (x > rect.width - edge) startEdgeScroll(1);
-          else                            stopEdgeScroll();
 
-          const cx = Math.max(0, Math.min(rect.width, x));
-          const ms = startMsRef.current + (cx / rect.width) * (endMsRef.current - startMsRef.current);
-          curMsRef.current = ms;
-          draw();
-          onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
+          // Always keep scrubClientX current so the edge-scroll RAF can use it
+          scrubClientX.current = e.touches[0].clientX;
+
+          if (x < edge)                   startEdgeScroll(-1);
+          else if (x > rect.width - edge)  startEdgeScroll(1);
+          else {
+            stopEdgeScroll();
+            // Only update needle directly when NOT edge-scrolling (RAF handles it otherwise)
+            const cx = Math.max(0, Math.min(rect.width, x));
+            const ms = startMsRef.current + (cx / rect.width) * (endMsRef.current - startMsRef.current);
+            curMsRef.current = ms;
+            draw();
+            onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
+          }
 
         } else if (touchMode.current === 'slide' && e.touches.length >= 1) {
           const dx = touchX.current - e.touches[0].clientX;

@@ -3,7 +3,7 @@ import * as Cesium from 'cesium';
 import { TimelineProps, defaultTheme } from './types';
 import { TimelineControls } from './components/TimelineControls';
 import { TimelineCanvas, TimelineCanvasHandle } from './components/TimelineCanvas';
-import { toJulianDate } from './utils/timeConversion';
+import { toJulianDate } from './utils';
 
 const DEFAULT_FF_SPEEDS = [2, 4, 8, 16, 32, 100, 1];
 const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];

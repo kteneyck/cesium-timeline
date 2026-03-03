@@ -202,7 +202,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
           style={{ ...btn(isRewinding), width: '64px', minWidth: '64px', gap: '3px' }}
           onMouseEnter={e => onEnter(e, isRewinding)}
           onMouseLeave={onLeave}
-          title={isRewinding ? `Reverse ${absMultiplier}× — click to speed up, press play to stop` : 'Reverse play'}
+          title={isRewinding ? `Reverse ${absMultiplier}× — click to speed up, press play to stop` : 'Rewind'}
         >
           {isRewinding ? (
             <><span style={{ fontSize: '11px', fontWeight: 'bold' }}>{absMultiplier}×</span>◀◀</>
