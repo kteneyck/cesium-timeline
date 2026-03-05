@@ -945,9 +945,11 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       draw();
     }, [draw]);
 
-    const handleWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
+    const handleWheel = useCallback((e: WheelEvent) => {
       e.preventDefault();
-      const rect = e.currentTarget.getBoundingClientRect();
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
       const y = e.clientY - rect.top;
 
       // Vertical scroll in swim lane region
@@ -964,6 +966,14 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
 
       zoomFrom(Math.pow(1.05, e.deltaY > 0 ? -1 : 1));
     }, [zoomFrom, draw, isInSwimLaneRegion]);
+
+    // Attach wheel as a non-passive native listener so preventDefault works
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      canvas.addEventListener('wheel', handleWheel, { passive: false });
+      return () => canvas.removeEventListener('wheel', handleWheel);
+    }, [handleWheel]);
 
     // ── Touch handlers (non-passive so preventDefault suppresses native scroll/zoom) ──
     useEffect(() => {
@@ -1144,7 +1154,6 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           if (hoveredItemRef.current) { hoveredItemRef.current = null; onSwimLaneItemHoverRef.current?.(null); draw(); }
           if (mouseMode.current === 'none' && canvasRef.current) canvasRef.current.style.cursor = 'default';
         }}
-        onWheel={handleWheel}
         onContextMenu={e => e.preventDefault()}
       />
     );
