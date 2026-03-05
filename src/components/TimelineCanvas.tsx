@@ -789,12 +789,14 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       if (e.button === 0 && onSwimLaneReorderRef.current) {
         const labelLane = isInLaneLabelArea(x, y, rect.height);
         if (labelLane) {
+          const lanes = swimLanesRef.current;
+          const dragIdx = lanes.findIndex(l => l.id === labelLane.id);
           reorderState.current = {
             dragging: true,
             dragLaneId: labelLane.id,
             dragStartY: e.clientY,
             currentY: e.clientY,
-            insertIndex: 0,
+            insertIndex: dragIdx,
           };
           e.currentTarget.style.cursor = 'grabbing';
           return;
@@ -901,9 +903,11 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         // ── Finish reorder drag ────────────────────────────────────
         const rs = reorderState.current;
         if (rs && rs.dragging) {
+          const dragDistance = Math.abs(rs.currentY - rs.dragStartY);
           const lanes = swimLanesRef.current;
           const dragIdx = lanes.findIndex(l => l.id === rs.dragLaneId);
-          if (dragIdx >= 0 && rs.insertIndex !== dragIdx && rs.insertIndex !== dragIdx + 1) {
+          // Only reorder if the user actually dragged (>5px) and the position changed
+          if (dragDistance > 5 && dragIdx >= 0 && rs.insertIndex !== dragIdx && rs.insertIndex !== dragIdx + 1) {
             const newLanes = [...lanes];
             const [removed] = newLanes.splice(dragIdx, 1);
             const insertAt = rs.insertIndex > dragIdx ? rs.insertIndex - 1 : rs.insertIndex;
