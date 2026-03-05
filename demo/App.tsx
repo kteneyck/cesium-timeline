@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Timeline } from '../src/Timeline';
 import { defaultTheme } from '../src/types';
-import type { TimelineTheme } from '../src/types';
+import type { TimelineTheme, SwimLane, SwimLaneEventInfo } from '../src/types';
 import { DateTimeFormats } from '../src/utils';
 import * as Cesium from 'cesium';
 
@@ -21,7 +21,7 @@ export const TestApp: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Timeline props
-  const [timelineHeight, setTimelineHeight] = useState(35);
+  const [timelineHeight, setTimelineHeight] = useState(150);
   const [showControls, setShowControls] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [snapToTicks, setSnapToTicks] = useState(false);
@@ -36,6 +36,75 @@ export const TestApp: React.FC = () => {
   const [pickerOpen, setPickerOpen]   = useState(false);
   const [pickerValue, setPickerValue] = useState('');
   const [jumpToTime,  setJumpToTime]  = useState<Date | undefined>(undefined);
+
+  // Swim lane state
+  const [showSwimLanes, setShowSwimLanes] = useState(true);
+  const [swimLaneLog, setSwimLaneLog] = useState<string[]>([]);
+
+  // Demo swim lane data — relative to "now"
+  const swimLanes = useMemo<SwimLane[]>(() => {
+    const now = new Date();
+    const h = (hours: number) => {
+      const d = new Date(now);
+      d.setHours(d.getHours() + hours, 0, 0, 0);
+      return Cesium.JulianDate.fromDate(d);
+    };
+    return [
+      {
+        id: 'satellite-passes',
+        label: 'Sat Passes',
+        items: [
+          { id: 'pass-1', interval: new Cesium.TimeInterval({ start: h(-4), stop: h(-3) }), style: { color: '#4da6ff' }, data: { name: 'ISS Pass' } },
+          { id: 'pass-2', interval: new Cesium.TimeInterval({ start: h(-1), stop: h(0.5) }), style: { color: '#4da6ff' }, data: { name: 'ISS Pass 2' } },
+          { id: 'pass-3', interval: new Cesium.TimeInterval({ start: h(3), stop: h(4) }), style: { color: '#66bb6a' }, data: { name: 'Hubble Pass' } },
+        ],
+      },
+      {
+        id: 'ground-contacts',
+        label: 'Ground',
+        items: [
+          { id: 'gc-1', interval: new Cesium.TimeInterval({ start: h(-5), stop: h(-4.5) }), style: { color: '#ff9800' } },
+          { id: 'gc-2', interval: new Cesium.TimeInterval({ start: h(1), stop: h(2) }), style: { color: '#ff9800' } },
+          { id: 'gc-3', interval: new Cesium.TimeInterval({ start: h(5), stop: h(6) }), style: { color: '#ffc107' } },
+        ],
+      },
+      {
+        id: 'events',
+        label: 'Events',
+        items: [
+          { id: 'evt-1', instant: h(-3), style: { color: '#f44336', markerShape: 'diamond' as const }, data: { name: 'Anomaly' } },
+          { id: 'evt-2', instant: h(0), style: { color: '#4caf50', markerShape: 'circle' as const }, data: { name: 'GO' } },
+          { id: 'evt-3', instant: h(2.5), style: { color: '#e040fb', markerShape: 'line' as const }, data: { name: 'Maneuver' } },
+        ],
+      },
+      {
+        id: 'maintenance',
+        label: 'Maint.',
+        items: [
+          { id: 'mt-1', interval: new Cesium.TimeInterval({ start: h(-8), stop: h(-6) }), style: { color: '#78909c' } },
+          { id: 'mt-2', interval: new Cesium.TimeInterval({ start: h(7), stop: h(10) }), style: { color: '#78909c' } },
+        ],
+        style: { backgroundColor: 'rgba(120,144,156,0.08)' },
+      },
+    ];
+  }, []);
+
+  const handleSwimLaneClick = (info: SwimLaneEventInfo) => {
+    const msg = `Click: lane=${info.laneId} item=${info.item.id}`;
+    setSwimLaneLog(prev => [msg, ...prev].slice(0, 8));
+  };
+
+  const handleSwimLaneHover = (info: SwimLaneEventInfo | null) => {
+    if (info) {
+      const msg = `Hover: lane=${info.laneId} item=${info.item.id}`;
+      setSwimLaneLog(prev => [msg, ...prev].slice(0, 8));
+    }
+  };
+
+  const handleSwimLaneReorder = (ids: string[]) => {
+    const msg = `Reorder: ${ids.join(', ')}`;
+    setSwimLaneLog(prev => [msg, ...prev].slice(0, 8));
+  };
 
   // Initialize Cesium viewer
   useEffect(() => {
@@ -397,6 +466,11 @@ export const TestApp: React.FC = () => {
             onDateTimeClick={handleDateTimeClick}
             jumpToTime={jumpToTime}
             theme={theme}
+            swimLanes={swimLanes}
+            showSwimLanes={showSwimLanes}
+            onSwimLaneItemClick={handleSwimLaneClick}
+            onSwimLaneItemHover={handleSwimLaneHover}
+            onSwimLaneReorder={handleSwimLaneReorder}
           />
         )}
       </div>
@@ -451,6 +525,13 @@ export const TestApp: React.FC = () => {
               <label>Enable Drag</label>
               <button className={`toggle-btn ${enableDrag ? 'on' : 'off'}`} onClick={() => setEnableDrag(v => !v)}>
                 {enableDrag ? 'ON' : 'OFF'}
+              </button>
+            </div>
+
+            <div className="prop-row">
+              <label>Show Swim Lanes</label>
+              <button className={`toggle-btn ${showSwimLanes ? 'on' : 'off'}`} onClick={() => setShowSwimLanes(v => !v)}>
+                {showSwimLanes ? 'ON' : 'OFF'}
               </button>
             </div>
 
@@ -517,6 +598,20 @@ export const TestApp: React.FC = () => {
                 <span style={{ color: '#4da6ff', minWidth: '28px', textAlign: 'right', fontSize: '12px' }}>{theme[key]}</span>
               </div>
             ))}
+          </div>
+
+          {/* ── Swim Lane Events Log ── */}
+          <div className="control-section">
+            <div className="section-title">Swim Lane Events</div>
+            <div className="info-panel" style={{ maxHeight: '160px', overflowY: 'auto', fontSize: '11px' }}>
+              {swimLaneLog.length === 0 ? (
+                <span style={{ color: '#666' }}>Click/hover swim lane items…</span>
+              ) : (
+                swimLaneLog.map((msg, i) => (
+                  <div key={i} style={{ color: i === 0 ? '#4da6ff' : '#888' }}>{msg}</div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>

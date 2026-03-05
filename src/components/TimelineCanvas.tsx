@@ -20,6 +20,14 @@ import React, {
 } from 'react';
 import * as Cesium from 'cesium';
 import { TimelineTheme } from '../types';
+import {
+  SwimLane,
+  SwimLaneItem,
+  SwimLaneEventInfo,
+  SwimLaneItemStyle,
+  defaultSwimLaneStyle,
+  DEFAULT_LANE_HEIGHT,
+} from '../types/SwimLane';
 
 // ─── Zoom limits ──────────────────────────────────────────────────────────────
 const MIN_SPAN_MS = 1_000;                // 1 second — prevents sub-ms span / blank canvas
@@ -77,6 +85,18 @@ function nextTic(t: number, scale: number): number {
   return Math.ceil(t / scale + 0.5) * scale;
 }
 
+// Resolve the effective style for a swim lane item (defaults → lane → item).
+function resolveItemStyle(lane: SwimLane, item: SwimLaneItem): SwimLaneItemStyle {
+  return {
+    color:       item.style?.color       ?? lane.style?.color       ?? defaultSwimLaneStyle.color,
+    borderColor: item.style?.borderColor ?? lane.style?.borderColor ?? defaultSwimLaneStyle.borderColor,
+    borderWidth: item.style?.borderWidth ?? lane.style?.borderWidth ?? defaultSwimLaneStyle.borderWidth,
+    opacity:     item.style?.opacity     ?? lane.style?.opacity     ?? defaultSwimLaneStyle.opacity,
+    markerShape: item.style?.markerShape ?? lane.style?.markerShape ?? defaultSwimLaneStyle.markerShape,
+    markerSize:  item.style?.markerSize  ?? lane.style?.markerSize  ?? defaultSwimLaneStyle.markerSize,
+  };
+}
+
 // ─── Public handle ────────────────────────────────────────────────────────────
 export interface TimelineCanvasHandle {
   /** Reposition the visible window. Pass `currentMs` to atomically update the needle too (avoids jitter). */
@@ -88,6 +108,14 @@ export interface TimelineCanvasHandle {
   stopFollow(): void;
   /** Correct accumulated drift while follow scroll is active (called from onTick). */
   correctFollow(currentMs: number): void;
+  /** Append a swim lane. */
+  appendSwimLane(lane: SwimLane): void;
+  /** Update a swim lane by id. */
+  updateSwimLane(id: string, updates: Partial<SwimLane>): void;
+  /** Remove a swim lane by id. */
+  removeSwimLane(id: string): void;
+  /** Reorder swim lanes to match the given id order. */
+  reorderSwimLanes(orderedIds: string[]): void;
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -101,7 +129,20 @@ interface TimelineCanvasProps {
   onTimeChange: (time: Cesium.JulianDate) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
+  // Swim lane props
+  swimLanes?: SwimLane[];
+  showSwimLanes?: boolean;
+  onSwimLaneItemClick?: (info: SwimLaneEventInfo) => void;
+  onSwimLaneItemHover?: (info: SwimLaneEventInfo | null) => void;
+  onSwimLaneItemDoubleClick?: (info: SwimLaneEventInfo) => void;
+  onSwimLaneReorder?: (orderedLaneIds: string[]) => void;
 }
+
+// ─── Tick area constants ──────────────────────────────────────────────────────
+const TICK_AREA_HEIGHT = 36; // fixed height for ticks + labels at the bottom
+const LANE_GAP = 1;          // 1px gap between swim lane rows
+const LABEL_PAD_LEFT = 6;   // left padding for lane labels
+const SCROLLBAR_WIDTH = 6;  // thin scrollbar track width
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasProps>(
@@ -109,6 +150,9 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     const {
       currentTime, defaultStartMs, defaultEndMs,
       height, theme, maxTicks, onTimeChange, onDragStart, onDragEnd,
+      swimLanes: swimLanesProp, showSwimLanes: showSwimLanesProp,
+      onSwimLaneItemClick, onSwimLaneItemHover, onSwimLaneItemDoubleClick,
+      onSwimLaneReorder,
     } = props;
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -123,6 +167,43 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     // Keep theme/maxTicks refs current
     useEffect(() => { themeRef.current = theme; }, [theme]);
     useEffect(() => { maxTicksRef.current = maxTicks; }, [maxTicks]);
+
+    // ── Swim lane state (ref-based — no React re-renders) ──────────────────
+    const swimLanesRef     = useRef<SwimLane[]>(swimLanesProp ?? []);
+    const showSwimLanesRef = useRef(showSwimLanesProp ?? (swimLanesProp != null && swimLanesProp.length > 0));
+    const scrollTopRef     = useRef(0);
+    // Track which item is currently hovered for cursor + callback
+    const hoveredItemRef   = useRef<{ lane: SwimLane; item: SwimLaneItem } | null>(null);
+    // Drag-to-reorder state
+    const reorderState     = useRef<{
+      dragging: boolean;
+      dragLaneId: string;
+      dragStartY: number;
+      currentY: number;
+      insertIndex: number;
+    } | null>(null);
+    // Callback refs (avoids stale closures in event handlers)
+    const onSwimLaneItemClickRef      = useRef(onSwimLaneItemClick);
+    const onSwimLaneItemHoverRef      = useRef(onSwimLaneItemHover);
+    const onSwimLaneItemDoubleClickRef = useRef(onSwimLaneItemDoubleClick);
+    const onSwimLaneReorderRef        = useRef(onSwimLaneReorder);
+
+    useEffect(() => { onSwimLaneItemClickRef.current = onSwimLaneItemClick; }, [onSwimLaneItemClick]);
+    useEffect(() => { onSwimLaneItemHoverRef.current = onSwimLaneItemHover; }, [onSwimLaneItemHover]);
+    useEffect(() => { onSwimLaneItemDoubleClickRef.current = onSwimLaneItemDoubleClick; }, [onSwimLaneItemDoubleClick]);
+    useEffect(() => { onSwimLaneReorderRef.current = onSwimLaneReorder; }, [onSwimLaneReorder]);
+
+    // Sync swim lane prop changes into refs
+    useEffect(() => {
+      swimLanesRef.current = swimLanesProp ?? [];
+      draw();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [swimLanesProp]);
+    useEffect(() => {
+      showSwimLanesRef.current = showSwimLanesProp ?? (swimLanesProp != null && swimLanesProp.length > 0);
+      draw();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [showSwimLanesProp, swimLanesProp]);
 
     // Edge-scroll animation
     const edgeRAF = useRef<number | null>(null);
@@ -190,12 +271,35 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       },
       correctFollow(currentMs: number) {
         if (!followingRef.current) return;
-        // Silently adjust for drift between RAF interpolation and the real clock.
-        // No draw — the next RAF frame picks up the correction automatically.
         const drift = currentMs - curMsRef.current;
         curMsRef.current    = currentMs;
         startMsRef.current += drift;
         endMsRef.current   += drift;
+      },
+      // ── Swim lane CRUD ──────────────────────────────────────────────
+      appendSwimLane(lane: SwimLane) {
+        swimLanesRef.current = [...swimLanesRef.current, lane];
+        draw();
+      },
+      updateSwimLane(id: string, updates: Partial<SwimLane>) {
+        swimLanesRef.current = swimLanesRef.current.map(l =>
+          l.id === id ? { ...l, ...updates, id: l.id } : l
+        );
+        draw();
+      },
+      removeSwimLane(id: string) {
+        swimLanesRef.current = swimLanesRef.current.filter(l => l.id !== id);
+        draw();
+      },
+      reorderSwimLanes(orderedIds: string[]) {
+        const byId = new Map(swimLanesRef.current.map(l => [l.id, l]));
+        const reordered: SwimLane[] = [];
+        for (const id of orderedIds) {
+          const lane = byId.get(id);
+          if (lane) reordered.push(lane);
+        }
+        swimLanesRef.current = reordered;
+        draw();
       },
     }));
 
@@ -238,6 +342,181 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       // ── Background ────────────────────────────────────────────────
       ctx.fillStyle = t.backgroundColor;
       ctx.fillRect(0, 0, w, h);
+
+      // ── Swim lane region geometry ─────────────────────────────────
+      const lanes       = swimLanesRef.current;
+      const showLanes   = showSwimLanesRef.current && lanes.length > 0;
+      const tickAreaH   = TICK_AREA_HEIGHT;
+      const laneRegionH = showLanes ? Math.max(0, h - tickAreaH) : 0;
+
+      // Total content height of all swim lanes
+      let totalLanesH = 0;
+      if (showLanes) {
+        for (const lane of lanes) totalLanesH += (lane.height ?? DEFAULT_LANE_HEIGHT) + LANE_GAP;
+      }
+      // Clamp scroll
+      const maxScroll = Math.max(0, totalLanesH - laneRegionH);
+      if (scrollTopRef.current > maxScroll) scrollTopRef.current = maxScroll;
+      if (scrollTopRef.current < 0) scrollTopRef.current = 0;
+
+      // ── Draw swim lanes (clipped to lane region) ──────────────────
+      if (showLanes && laneRegionH > 0) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, w, laneRegionH);
+        ctx.clip();
+
+        const scrollTop = scrollTopRef.current;
+        let y = -scrollTop;
+        const msToX = (ms: number) => ((ms - startMs) / (endMs - startMs)) * w;
+
+        for (const lane of lanes) {
+          const laneH = lane.height ?? DEFAULT_LANE_HEIGHT;
+          const laneBottom = y + laneH;
+
+          // Skip lanes above visible region
+          if (laneBottom > 0 && y < laneRegionH) {
+            // Lane background
+            const laneStyle = lane.style;
+            const bgColor = laneStyle?.backgroundColor ?? defaultSwimLaneStyle.backgroundColor;
+            if (bgColor && bgColor !== 'transparent') {
+              ctx.fillStyle = bgColor;
+              ctx.fillRect(0, y, w, laneH);
+            }
+
+            // Lane separator line
+            ctx.strokeStyle = t.tickColor + '44';
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(0, laneBottom);
+            ctx.lineTo(w, laneBottom);
+            ctx.stroke();
+
+            // Draw items
+            for (const item of lane.items) {
+              const itemStyle = resolveItemStyle(lane, item);
+
+              if (item.interval) {
+                // Interval bar
+                const iStart = Cesium.JulianDate.toDate(item.interval.start).getTime();
+                const iStop  = Cesium.JulianDate.toDate(item.interval.stop).getTime();
+                const x1 = msToX(iStart);
+                const x2 = msToX(iStop);
+                const barX = Math.max(0, x1);
+                const barW = Math.min(w, x2) - barX;
+                if (barW > 0) {
+                  ctx.globalAlpha = itemStyle.opacity;
+                  ctx.fillStyle = itemStyle.color;
+                  const barPad = 3;
+                  const barY = y + barPad;
+                  const barH = laneH - barPad * 2;
+                  ctx.fillRect(barX, barY, barW, barH);
+                  if (itemStyle.borderWidth > 0) {
+                    ctx.strokeStyle = itemStyle.borderColor;
+                    ctx.lineWidth = itemStyle.borderWidth;
+                    ctx.strokeRect(barX, barY, barW, barH);
+                  }
+                  ctx.globalAlpha = 1;
+                }
+              }
+
+              if (item.instant) {
+                // Instant marker
+                const iMs = Cesium.JulianDate.toDate(item.instant).getTime();
+                const mx = msToX(iMs);
+                if (mx >= -itemStyle.markerSize && mx <= w + itemStyle.markerSize) {
+                  const cy = y + laneH / 2;
+                  const sz = itemStyle.markerSize;
+                  ctx.globalAlpha = itemStyle.opacity;
+                  ctx.fillStyle = itemStyle.color;
+
+                  if (itemStyle.markerShape === 'diamond') {
+                    ctx.beginPath();
+                    ctx.moveTo(mx, cy - sz / 2);
+                    ctx.lineTo(mx + sz / 2, cy);
+                    ctx.lineTo(mx, cy + sz / 2);
+                    ctx.lineTo(mx - sz / 2, cy);
+                    ctx.closePath();
+                    ctx.fill();
+                  } else if (itemStyle.markerShape === 'circle') {
+                    ctx.beginPath();
+                    ctx.arc(mx, cy, sz / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                  } else {
+                    // 'line'
+                    ctx.strokeStyle = itemStyle.color;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(mx, y + 2);
+                    ctx.lineTo(mx, y + laneH - 2);
+                    ctx.stroke();
+                  }
+                  ctx.globalAlpha = 1;
+                }
+              }
+            }
+
+            // Lane label
+            ctx.font = `${Math.min(11, laneH - 4)}px system-ui, sans-serif`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = laneStyle?.labelColor ?? defaultSwimLaneStyle.labelColor;
+            ctx.fillText(lane.label, LABEL_PAD_LEFT, y + laneH / 2);
+          }
+
+          y += laneH + LANE_GAP;
+          if (y >= laneRegionH) break;
+        }
+
+        // ── Drag-to-reorder visual feedback ─────────────────────────
+        const rs = reorderState.current;
+        if (rs && rs.dragging) {
+          const dy = rs.currentY - rs.dragStartY;
+          // Draw insertion indicator line
+          let insertY = -scrollTop;
+          for (let i = 0; i < lanes.length && i < rs.insertIndex; i++) {
+            insertY += (lanes[i].height ?? DEFAULT_LANE_HEIGHT) + LANE_GAP;
+          }
+          ctx.strokeStyle = t.indicatorColor;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(0, insertY);
+          ctx.lineTo(w, insertY);
+          ctx.stroke();
+
+          // Draw ghost of the dragged lane
+          const dragLane = lanes.find(l => l.id === rs.dragLaneId);
+          if (dragLane) {
+            const ghostH = dragLane.height ?? DEFAULT_LANE_HEIGHT;
+            let origY = -scrollTop;
+            for (const l of lanes) {
+              if (l.id === rs.dragLaneId) break;
+              origY += (l.height ?? DEFAULT_LANE_HEIGHT) + LANE_GAP;
+            }
+            ctx.globalAlpha = 0.4;
+            ctx.fillStyle = t.indicatorColor;
+            ctx.fillRect(0, origY + dy, w, ghostH);
+            ctx.globalAlpha = 1;
+          }
+        }
+
+        // ── Vertical scrollbar ──────────────────────────────────────
+        if (totalLanesH > laneRegionH) {
+          const trackX = w - SCROLLBAR_WIDTH - 2;
+          const thumbRatio = laneRegionH / totalLanesH;
+          const thumbH = Math.max(20, laneRegionH * thumbRatio);
+          const thumbY = (scrollTopRef.current / maxScroll) * (laneRegionH - thumbH);
+
+          // Track
+          ctx.fillStyle = t.tickColor + '22';
+          ctx.fillRect(trackX, 0, SCROLLBAR_WIDTH, laneRegionH);
+          // Thumb
+          ctx.fillStyle = t.tickColor + '88';
+          ctx.fillRect(trackX, thumbY, SCROLLBAR_WIDTH, thumbH);
+        }
+
+        ctx.restore();
+      }
 
       // ── Pick tick scales (Cesium algorithm) ───────────────────────
       // Measure a sample label to find how many pixels a typical label needs.
@@ -428,16 +707,115 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       }
     }, []);
 
+    // ── Swim lane hit-testing ────────────────────────────────────────────
+    // Given a canvas-local (x, y), find which lane and item (if any) is under the cursor.
+    const hitTestSwimLane = useCallback((canvasX: number, canvasY: number, canvasW: number, canvasH: number): { lane: SwimLane; item: SwimLaneItem } | null => {
+      const lanes = swimLanesRef.current;
+      if (!showSwimLanesRef.current || lanes.length === 0) return null;
+      const laneRegionH = Math.max(0, canvasH - TICK_AREA_HEIGHT);
+      if (canvasY < 0 || canvasY >= laneRegionH) return null;
+
+      const scrollTop = scrollTopRef.current;
+      let y = -scrollTop;
+      const startMs = startMsRef.current;
+      const endMs   = endMsRef.current;
+
+      for (const lane of lanes) {
+        const laneH = lane.height ?? DEFAULT_LANE_HEIGHT;
+        const laneTop = y;
+        const laneBottom = y + laneH;
+        y += laneH + LANE_GAP;
+
+        if (canvasY < laneTop || canvasY >= laneBottom) continue;
+
+        // Check items in this lane
+        for (const item of lane.items) {
+          if (item.interval) {
+            const iStart = Cesium.JulianDate.toDate(item.interval.start).getTime();
+            const iStop  = Cesium.JulianDate.toDate(item.interval.stop).getTime();
+            const x1 = ((iStart - startMs) / (endMs - startMs)) * canvasW;
+            const x2 = ((iStop  - startMs) / (endMs - startMs)) * canvasW;
+            if (canvasX >= Math.max(0, x1) && canvasX <= Math.min(canvasW, x2)) {
+              return { lane, item };
+            }
+          }
+          if (item.instant) {
+            const iMs = Cesium.JulianDate.toDate(item.instant).getTime();
+            const mx = ((iMs - startMs) / (endMs - startMs)) * canvasW;
+            const style = resolveItemStyle(lane, item);
+            if (Math.abs(canvasX - mx) <= style.markerSize / 2 + 2) {
+              return { lane, item };
+            }
+          }
+        }
+        // In the lane region but not on an item
+        return null;
+      }
+      return null;
+    }, []);
+
+    // Check if a Y coordinate is in the swim lane label area (leftmost ~80px)
+    const isInLaneLabelArea = useCallback((canvasX: number, canvasY: number, canvasH: number): SwimLane | null => {
+      const lanes = swimLanesRef.current;
+      if (!showSwimLanesRef.current || lanes.length === 0 || canvasX > 80) return null;
+      const laneRegionH = Math.max(0, canvasH - TICK_AREA_HEIGHT);
+      if (canvasY < 0 || canvasY >= laneRegionH) return null;
+
+      const scrollTop = scrollTopRef.current;
+      let y = -scrollTop;
+      for (const lane of lanes) {
+        const laneH = lane.height ?? DEFAULT_LANE_HEIGHT;
+        if (canvasY >= y && canvasY < y + laneH) return lane;
+        y += laneH + LANE_GAP;
+      }
+      return null;
+    }, []);
+
+    // Check if Y is in the swim lane region (above tick area)
+    const isInSwimLaneRegion = useCallback((canvasY: number, canvasH: number): boolean => {
+      if (!showSwimLanesRef.current || swimLanesRef.current.length === 0) return false;
+      const laneRegionH = Math.max(0, canvasH - TICK_AREA_HEIGHT);
+      return canvasY >= 0 && canvasY < laneRegionH;
+    }, []);
+
     // ── Mouse handlers ────────────────────────────────────────────────────
     const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
       e.preventDefault();
+      const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      // Check for reorder drag on lane label
+      if (e.button === 0 && onSwimLaneReorderRef.current) {
+        const labelLane = isInLaneLabelArea(x, y, rect.height);
+        if (labelLane) {
+          reorderState.current = {
+            dragging: true,
+            dragLaneId: labelLane.id,
+            dragStartY: e.clientY,
+            currentY: e.clientY,
+            insertIndex: 0,
+          };
+          e.currentTarget.style.cursor = 'grabbing';
+          return;
+        }
+      }
+
+      // Check for click on swim lane item (don't start scrub if clicking an item)
+      if (e.button === 0 && isInSwimLaneRegion(y, rect.height)) {
+        const hit = hitTestSwimLane(x, y, rect.width, rect.height);
+        if (hit) {
+          // Clicking on a swim lane item — don't start timeline scrub
+          return;
+        }
+        // Clicked in swim lane region but not on an item — fall through to scrub
+      }
+
       if (e.button === 0) {
         mouseMode.current  = 'scrub';
         scrubClientX.current = e.clientX;
         e.currentTarget.style.cursor = 'grabbing';
         onDragStart?.();
-        const rect = (e.currentTarget as HTMLCanvasElement).getBoundingClientRect();
-        const x    = e.clientX - rect.left;
         const ms   = startMsRef.current + (x / rect.width) * (endMsRef.current - startMsRef.current);
         curMsRef.current = ms;
         draw();
@@ -449,10 +827,35 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         mouseMode.current = 'zoom';
         mouseX.current    = e.clientX;
       }
-    }, [draw, onTimeChange, onDragStart]);
+    }, [draw, onTimeChange, onDragStart, isInLaneLabelArea, isInSwimLaneRegion]);
 
     useEffect(() => {
       const onMouseMove = (e: MouseEvent) => {
+        // ── Reorder drag ────────────────────────────────────────────
+        const rs = reorderState.current;
+        if (rs && rs.dragging) {
+          rs.currentY = e.clientY;
+          // Calculate insertion index based on cursor Y
+          const canvas = canvasRef.current;
+          if (canvas) {
+            const rect = canvas.getBoundingClientRect();
+            const canvasY = e.clientY - rect.top;
+            const scrollTop = scrollTopRef.current;
+            let y = -scrollTop;
+            const lanes = swimLanesRef.current;
+            let idx = lanes.length;
+            for (let i = 0; i < lanes.length; i++) {
+              const laneH = lanes[i].height ?? DEFAULT_LANE_HEIGHT;
+              const mid = y + laneH / 2;
+              if (canvasY < mid) { idx = i; break; }
+              y += laneH + LANE_GAP;
+            }
+            rs.insertIndex = idx;
+          }
+          draw();
+          return;
+        }
+
         if (mouseMode.current === 'none') return;
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -495,6 +898,25 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       };
 
       const onMouseUp = () => {
+        // ── Finish reorder drag ────────────────────────────────────
+        const rs = reorderState.current;
+        if (rs && rs.dragging) {
+          const lanes = swimLanesRef.current;
+          const dragIdx = lanes.findIndex(l => l.id === rs.dragLaneId);
+          if (dragIdx >= 0 && rs.insertIndex !== dragIdx && rs.insertIndex !== dragIdx + 1) {
+            const newLanes = [...lanes];
+            const [removed] = newLanes.splice(dragIdx, 1);
+            const insertAt = rs.insertIndex > dragIdx ? rs.insertIndex - 1 : rs.insertIndex;
+            newLanes.splice(insertAt, 0, removed);
+            swimLanesRef.current = newLanes;
+            onSwimLaneReorderRef.current?.(newLanes.map(l => l.id));
+          }
+          reorderState.current = null;
+          if (canvasRef.current) canvasRef.current.style.cursor = 'default';
+          draw();
+          return;
+        }
+
         stopEdgeScroll();
         mouseMode.current = 'none';
         if (canvasRef.current) canvasRef.current.style.cursor = 'default';
@@ -521,8 +943,23 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
 
     const handleWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
       e.preventDefault();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+
+      // Vertical scroll in swim lane region
+      if (isInSwimLaneRegion(y, rect.height)) {
+        const lanes = swimLanesRef.current;
+        let totalH = 0;
+        for (const l of lanes) totalH += (l.height ?? DEFAULT_LANE_HEIGHT) + LANE_GAP;
+        const laneRegionH = Math.max(0, rect.height - TICK_AREA_HEIGHT);
+        const maxScroll = Math.max(0, totalH - laneRegionH);
+        scrollTopRef.current = Math.max(0, Math.min(maxScroll, scrollTopRef.current + e.deltaY));
+        draw();
+        return;
+      }
+
       zoomFrom(Math.pow(1.05, e.deltaY > 0 ? -1 : 1));
-    }, [zoomFrom]);
+    }, [zoomFrom, draw, isInSwimLaneRegion]);
 
     // ── Touch handlers (non-passive so preventDefault suppresses native scroll/zoom) ──
     useEffect(() => {
@@ -621,9 +1058,69 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       if (mouseMode.current !== 'none') return; // cursor managed by drag state
       const rect   = e.currentTarget.getBoundingClientRect();
       const x      = e.clientX - rect.left;
+      const y      = e.clientY - rect.top;
+
+      // Needle hover check (applies everywhere — needle spans full height)
       const needleX = ((curMsRef.current - startMsRef.current) / (endMsRef.current - startMsRef.current)) * rect.width;
-      e.currentTarget.style.cursor = Math.abs(x - needleX) <= 10 ? 'grab' : 'default';
-    }, []);
+      const nearNeedle = Math.abs(x - needleX) <= 10;
+
+      // Swim lane hover detection
+      if (isInSwimLaneRegion(y, rect.height)) {
+        const hit = hitTestSwimLane(x, y, rect.width, rect.height);
+        const prev = hoveredItemRef.current;
+        if (hit) {
+          e.currentTarget.style.cursor = nearNeedle ? 'grab' : 'pointer';
+          if (!prev || prev.item.id !== hit.item.id || prev.lane.id !== hit.lane.id) {
+            hoveredItemRef.current = hit;
+            onSwimLaneItemHoverRef.current?.({ laneId: hit.lane.id, item: hit.item, originalEvent: e.nativeEvent });
+            draw();
+          }
+        } else {
+          if (prev) {
+            hoveredItemRef.current = null;
+            onSwimLaneItemHoverRef.current?.(null);
+            draw();
+          }
+          if (nearNeedle) {
+            e.currentTarget.style.cursor = 'grab';
+          } else {
+            // Check if over label area for grab cursor (reorder hint)
+            const labelLane = isInLaneLabelArea(x, y, rect.height);
+            e.currentTarget.style.cursor = labelLane && onSwimLaneReorderRef.current ? 'grab' : 'default';
+          }
+        }
+        return;
+      }
+
+      // Clear hover when leaving swim lane region
+      if (hoveredItemRef.current) {
+        hoveredItemRef.current = null;
+        onSwimLaneItemHoverRef.current?.(null);
+        draw();
+      }
+
+      e.currentTarget.style.cursor = nearNeedle ? 'grab' : 'default';
+    }, [draw, hitTestSwimLane, isInSwimLaneRegion, isInLaneLabelArea]);
+
+    const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const hit = hitTestSwimLane(x, y, rect.width, rect.height);
+      if (hit) {
+        onSwimLaneItemClickRef.current?.({ laneId: hit.lane.id, item: hit.item, originalEvent: e.nativeEvent });
+      }
+    }, [hitTestSwimLane]);
+
+    const handleDoubleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const hit = hitTestSwimLane(x, y, rect.width, rect.height);
+      if (hit) {
+        onSwimLaneItemDoubleClickRef.current?.({ laneId: hit.lane.id, item: hit.item, originalEvent: e.nativeEvent });
+      }
+    }, [hitTestSwimLane]);
 
     // Cleanup RAFs on unmount
     useEffect(() => () => {
@@ -637,7 +1134,12 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         style={{ width: '100%', height: `${height}px`, display: 'block', cursor: 'default' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleCanvasMouseMove}
-        onMouseLeave={() => { if (mouseMode.current === 'none' && canvasRef.current) canvasRef.current.style.cursor = 'default'; }}
+        onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
+        onMouseLeave={() => {
+          if (hoveredItemRef.current) { hoveredItemRef.current = null; onSwimLaneItemHoverRef.current?.(null); draw(); }
+          if (mouseMode.current === 'none' && canvasRef.current) canvasRef.current.style.cursor = 'default';
+        }}
         onWheel={handleWheel}
         onContextMenu={e => e.preventDefault()}
       />

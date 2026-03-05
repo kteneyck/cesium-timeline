@@ -27,6 +27,12 @@ export const Timeline: React.FC<TimelineProps> = ({
   rwSpeeds = DEFAULT_RW_SPEEDS,
   theme: customTheme,
   className,
+  swimLanes,
+  showSwimLanes,
+  onSwimLaneItemClick,
+  onSwimLaneItemHover,
+  onSwimLaneItemDoubleClick,
+  onSwimLaneReorder,
 }) => {
   const now = () => Date.now();
   const defaultStartMs = providedStart
@@ -213,6 +219,12 @@ export const Timeline: React.FC<TimelineProps> = ({
           onTimeChange={handleTimeChange}
           onDragStart={() => { isDraggingRef.current = true; }}
           onDragEnd={() => { isDraggingRef.current = false; }}
+          swimLanes={swimLanes}
+          showSwimLanes={showSwimLanes}
+          onSwimLaneItemClick={onSwimLaneItemClick}
+          onSwimLaneItemHover={onSwimLaneItemHover}
+          onSwimLaneItemDoubleClick={onSwimLaneItemDoubleClick}
+          onSwimLaneReorder={onSwimLaneReorder}
         />
       )}
     </div>

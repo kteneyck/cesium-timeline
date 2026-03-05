@@ -1,6 +1,7 @@
 import * as Cesium from 'cesium';
 import { TickInterval } from './TickInterval';
 import { TimelineTheme } from './TimelineTheme';
+import { SwimLane, SwimLaneEventInfo } from './SwimLane';
 
 export interface TimelineProps {
   startTime?: Cesium.JulianDate | Date;
@@ -54,6 +55,23 @@ export interface TimelineProps {
   rwSpeeds?: number[];
   theme?: Partial<TimelineTheme>;
   className?: string;
+  /**
+   * Swim lane definitions. Each lane is a labeled row rendered inside the
+   * timeline canvas showing time intervals (bars) and/or instants (markers).
+   */
+  swimLanes?: SwimLane[];
+  /**
+   * Whether to show swim lanes. Defaults to `true` when `swimLanes` is provided.
+   */
+  showSwimLanes?: boolean;
+  /** Fired when the user clicks a swim lane item. */
+  onSwimLaneItemClick?: (info: SwimLaneEventInfo) => void;
+  /** Fired when the user hovers over (or leaves) a swim lane item. `null` = left. */
+  onSwimLaneItemHover?: (info: SwimLaneEventInfo | null) => void;
+  /** Fired when the user double-clicks a swim lane item. */
+  onSwimLaneItemDoubleClick?: (info: SwimLaneEventInfo) => void;
+  /** Fired when swim lanes are reordered via drag. Returns the new ordered lane IDs. */
+  onSwimLaneReorder?: (orderedLaneIds: string[]) => void;
 }
 
 export interface ControlsProps {
