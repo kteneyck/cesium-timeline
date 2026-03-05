@@ -82,6 +82,7 @@ When no `clock` is provided the component falls back to `setInterval` and tracks
 - **Clickable datetime** — pass `onDateTimeClick` to open your own date picker; pass the result back via `jumpToTime` to pan the canvas and set the time.
 - **Token-based datetime format** — built-in presets plus custom format strings with 17 supported tokens.
 - **Max tick limit** — `maxTicks` prop prevents the canvas from becoming overloaded at wide zoom levels by coarsening the tick scale automatically.
+- **Swim lanes** — display time intervals and instants as horizontal rows inside the canvas. Supports customizable styling, click/hover/double-click event hooks, drag-to-reorder, and vertical scrolling when lanes overflow.
 - **Fully themeable** — 14 theme properties cover every color, size, and font setting.
 - **Responsive** — fills container width; `ResizeObserver` redraws on resize.
 
@@ -114,6 +115,12 @@ When no `clock` is provided the component falls back to `setInterval` and tracks
 | `onTimeChange` | `(t: JulianDate) => void` | — | Fires when needle moves (drag, click, or clock tick) |
 | `onPlayPause` | `(playing: boolean) => void` | — | Fires on play/pause toggle |
 | `onMultiplierChange` | `(m: number) => void` | — | Fires when speed changes |
+| `swimLanes` | `SwimLane[]` | — | Array of swim lane definitions to render on the canvas |
+| `showSwimLanes` | `boolean` | `true` | Show or hide the swim lanes |
+| `onSwimLaneItemClick` | `(info: SwimLaneEventInfo) => void` | — | Fires when a swim lane item is clicked |
+| `onSwimLaneItemHover` | `(info: SwimLaneEventInfo \| null) => void` | — | Fires when mouse enters/leaves a swim lane item |
+| `onSwimLaneItemDoubleClick` | `(info: SwimLaneEventInfo) => void` | — | Fires when a swim lane item is double-clicked |
+| `onSwimLaneReorder` | `(orderedIds: string[]) => void` | — | Fires when swim lanes are reordered via drag. Receives the new lane id order. |
 
 ---
 
@@ -311,6 +318,19 @@ import {
   fromMilliseconds,  // Convert ms → JulianDate
   getDurationMs,     // Duration between two dates in ms
   TickInterval,      // Enum: FIFTEEN_MIN | THIRTY_MIN | HOURLY | CUSTOM
+
+  // Swim lane types
+  defaultSwimLaneStyle, // Default style applied to swim lane items
+  DEFAULT_LANE_HEIGHT,  // Default lane row height (24px)
+} from '@bariumstudios/cesium-timeline';
+
+// TypeScript types
+import type {
+  SwimLane,
+  SwimLaneItem,
+  SwimLaneItemStyle,
+  SwimLaneStyle,
+  SwimLaneEventInfo,
 } from '@bariumstudios/cesium-timeline';
 ```
 
@@ -455,6 +475,278 @@ const StandaloneTimeline = () => {
     </>
   );
 };
+```
+
+---
+
+## Swim Lanes
+
+Swim lanes render time intervals (bars) and instants (markers) as horizontal rows directly on the timeline canvas, aligned with the ticks and needle. They are ideal for visualizing satellite passes, ground contacts, scheduled events, or any temporal data.
+
+Lanes are rendered in the upper portion of the canvas. The tick area remains fixed at the bottom. As you increase the timeline `height`, more lanes become visible. When lanes overflow the available space, a vertical scrollbar appears and you can scroll with the mouse wheel.
+
+### Basic Swim Lane Example
+
+```tsx
+import * as Cesium from 'cesium';
+import { Timeline } from '@bariumstudios/cesium-timeline';
+import type { SwimLane } from '@bariumstudios/cesium-timeline';
+
+const now = Cesium.JulianDate.now();
+const later = Cesium.JulianDate.addHours(now, 3, new Cesium.JulianDate());
+
+const swimLanes: SwimLane[] = [
+  {
+    id: 'passes',
+    label: 'Passes',
+    items: [
+      {
+        id: 'pass-1',
+        interval: new Cesium.TimeInterval({ start: now, stop: later }),
+      },
+    ],
+  },
+];
+
+<Timeline
+  clock={viewer.clock}
+  height={150}
+  swimLanes={swimLanes}
+  onTimeChange={(t) => { viewer.clock.currentTime = t; }}
+/>
+```
+
+### Intervals and Instants
+
+Each `SwimLaneItem` can have an `interval` (rendered as a horizontal bar), an `instant` (rendered as a marker), or both.
+
+```tsx
+const lanes: SwimLane[] = [
+  {
+    id: 'events',
+    label: 'Events',
+    items: [
+      // Interval — rendered as a bar spanning start to stop
+      {
+        id: 'meeting',
+        interval: new Cesium.TimeInterval({
+          start: Cesium.JulianDate.fromIso8601('2026-03-05T09:00:00Z'),
+          stop:  Cesium.JulianDate.fromIso8601('2026-03-05T10:30:00Z'),
+        }),
+      },
+      // Instant — rendered as a marker at a single point in time
+      {
+        id: 'alert',
+        instant: Cesium.JulianDate.fromIso8601('2026-03-05T12:00:00Z'),
+      },
+    ],
+  },
+];
+```
+
+### Customizing Styles
+
+Styles cascade: `defaultSwimLaneStyle` → `lane.style` → `item.style`. Each level is a partial override.
+
+```tsx
+const lanes: SwimLane[] = [
+  {
+    id: 'maintenance',
+    label: 'Maint.',
+    // Lane-level style: all items in this lane default to grey
+    style: {
+      color: '#78909c',
+      backgroundColor: 'rgba(120,144,156,0.1)',
+    },
+    items: [
+      {
+        id: 'window-1',
+        interval: new Cesium.TimeInterval({ start: h(-2), stop: h(0) }),
+        // Item-level override: this specific item is red
+        style: { color: '#f44336', opacity: 1.0 },
+      },
+      {
+        id: 'window-2',
+        interval: new Cesium.TimeInterval({ start: h(4), stop: h(6) }),
+        // Inherits lane style (grey)
+      },
+    ],
+  },
+];
+```
+
+#### `SwimLaneItemStyle` Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `color` | `string` | `#4da6ff` | Fill colour for interval bars and instant markers |
+| `borderColor` | `string` | `#2980b9` | Border colour for interval bars |
+| `borderWidth` | `number` | `1` | Border width in px for interval bars |
+| `opacity` | `number` | `0.8` | Opacity (0–1) |
+| `markerShape` | `'diamond' \| 'circle' \| 'line'` | `'diamond'` | Shape used to render instant markers |
+| `markerSize` | `number` | `10` | Size in px for instant markers |
+
+#### `SwimLaneStyle` Properties (extends `SwimLaneItemStyle`)
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `labelColor` | `string` | `#cccccc` | Colour of the lane label text |
+| `backgroundColor` | `string` | `transparent` | Background colour of the lane row |
+
+### Instant Marker Shapes
+
+Three marker shapes are available for instants:
+
+```tsx
+// Diamond (default)
+{ id: 'a', instant: someDate, style: { markerShape: 'diamond' } }
+
+// Circle
+{ id: 'b', instant: someDate, style: { markerShape: 'circle' } }
+
+// Vertical line
+{ id: 'c', instant: someDate, style: { markerShape: 'line' } }
+```
+
+### Event Hooks
+
+Swim lane items support click, hover, and double-click events. Each callback receives a `SwimLaneEventInfo` object.
+
+```tsx
+import type { SwimLaneEventInfo } from '@bariumstudios/cesium-timeline';
+
+const handleClick = (info: SwimLaneEventInfo) => {
+  console.log(`Clicked item ${info.item.id} in lane ${info.laneId}`);
+  console.log('Custom data:', info.item.data);
+};
+
+const handleHover = (info: SwimLaneEventInfo | null) => {
+  if (info) {
+    showTooltip(`${info.item.id} in ${info.laneId}`);
+  } else {
+    hideTooltip();
+  }
+};
+
+const handleDoubleClick = (info: SwimLaneEventInfo) => {
+  openDetailPanel(info.item.data);
+};
+
+<Timeline
+  clock={viewer.clock}
+  height={150}
+  swimLanes={lanes}
+  onSwimLaneItemClick={handleClick}
+  onSwimLaneItemHover={handleHover}
+  onSwimLaneItemDoubleClick={handleDoubleClick}
+/>
+```
+
+#### `SwimLaneEventInfo`
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `laneId` | `string` | The `id` of the lane containing the item |
+| `item` | `SwimLaneItem` | The item that was interacted with |
+| `originalEvent` | `MouseEvent` | The native DOM mouse event |
+
+### Attaching Custom Data
+
+Use the `data` field on `SwimLaneItem` to attach arbitrary metadata. It's passed through in event callbacks.
+
+```tsx
+const lanes: SwimLane[] = [
+  {
+    id: 'contacts',
+    label: 'Contacts',
+    items: [
+      {
+        id: 'c-1',
+        interval: new Cesium.TimeInterval({ start: t1, stop: t2 }),
+        data: { satellite: 'ISS', groundStation: 'Goldstone', snr: 42.5 },
+      },
+    ],
+  },
+];
+
+const handleClick = (info: SwimLaneEventInfo) => {
+  const { satellite, groundStation, snr } = info.item.data as ContactData;
+  console.log(`${satellite} → ${groundStation} (SNR: ${snr})`);
+};
+```
+
+### Drag-to-Reorder
+
+Pass `onSwimLaneReorder` to enable drag-to-reorder. Grab a lane by its label (left side) and drag up or down. An insertion indicator shows where the lane will be placed.
+
+```tsx
+const [lanes, setLanes] = useState<SwimLane[]>(initialLanes);
+
+const handleReorder = (orderedIds: string[]) => {
+  // orderedIds is the new order of lane IDs
+  setLanes(prev => orderedIds.map(id => prev.find(l => l.id === id)!));
+};
+
+<Timeline
+  clock={viewer.clock}
+  height={150}
+  swimLanes={lanes}
+  onSwimLaneReorder={handleReorder}
+/>
+```
+
+### Show / Hide Swim Lanes
+
+Toggle visibility without removing the data:
+
+```tsx
+const [showSwimLanes, setShowSwimLanes] = useState(true);
+
+<Timeline
+  clock={viewer.clock}
+  height={150}
+  swimLanes={lanes}
+  showSwimLanes={showSwimLanes}
+/>
+
+<button onClick={() => setShowSwimLanes(v => !v)}>
+  {showSwimLanes ? 'Hide' : 'Show'} Swim Lanes
+</button>
+```
+
+When hidden, the full canvas height is used for the tick/label area as normal.
+
+### Lane Height and Scrolling
+
+Each lane defaults to 24px tall. Override per-lane with the `height` property:
+
+```tsx
+const lanes: SwimLane[] = [
+  { id: 'big', label: 'Important', height: 40, items: [...] },
+  { id: 'small', label: 'Minor', height: 16, items: [...] },
+];
+```
+
+When the total lane height exceeds the available space (canvas height minus the 36px tick area), a scrollbar appears and the mouse wheel scrolls vertically in the swim lane region. Outside the lane region, the mouse wheel zooms the timeline as usual.
+
+### Imperative API
+
+The `TimelineCanvasHandle` (accessible via a ref on `Timeline`) exposes methods for programmatic swim lane management:
+
+```tsx
+const timelineRef = useRef<TimelineCanvasHandle>(null);
+
+// Append a new lane
+timelineRef.current?.appendSwimLane(newLane);
+
+// Update an existing lane
+timelineRef.current?.updateSwimLane('lane-id', updatedLane);
+
+// Remove a lane
+timelineRef.current?.removeSwimLane('lane-id');
+
+// Reorder lanes
+timelineRef.current?.reorderSwimLanes(['lane-b', 'lane-a', 'lane-c']);
 ```
 
 ---
