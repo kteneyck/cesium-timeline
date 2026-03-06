@@ -231,17 +231,19 @@ export const TestApp: React.FC = () => {
           background: #1a1a1a;
         }
 
-        .timeline-wrapper {
-          width: 100%;
-          background: #2a2a2a;
-          border-bottom: 1px solid #444;
-          padding: 0;
-        }
-
         .content {
           flex: 1;
           display: flex;
           overflow: hidden;
+          min-height: 0;
+        }
+
+        .timeline-wrapper {
+          width: 100%;
+          background: #2a2a2a;
+          border-top: 1px solid #444;
+          padding: 0;
+          flex-shrink: 0;
         }
 
         .cesium-container {
@@ -448,33 +450,6 @@ export const TestApp: React.FC = () => {
         }
       `}</style>
 
-      <div className="timeline-wrapper">
-        {cesiumClock && (
-          <Timeline
-            currentTime={currentTime}
-            clock={viewerRef.current?.clock}
-            onTimeChange={handleCurrentTimeChange}
-            onPlayPause={handlePlayPause}
-            onMultiplierChange={handleMultiplierChange}
-            showControls={showControls}
-            showLabels={showLabels}
-            snapToTicks={snapToTicks}
-            enableDrag={enableDrag}
-            height={timelineHeight}
-            tickInterval={tickInterval}
-            dateTimeFormat={dateTimeFormat}
-            onDateTimeClick={handleDateTimeClick}
-            jumpToTime={jumpToTime}
-            theme={theme}
-            swimLanes={swimLanes}
-            showSwimLanes={showSwimLanes}
-            onSwimLaneItemClick={handleSwimLaneClick}
-            onSwimLaneItemHover={handleSwimLaneHover}
-            onSwimLaneReorder={handleSwimLaneReorder}
-          />
-        )}
-      </div>
-
       <div className="content">
         <div className="cesium-container" ref={cesiumContainerRef}>
           {!cesiumClock && (
@@ -616,7 +591,34 @@ export const TestApp: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Demo datetime picker overlay (replace with PrimeReact Calendar etc. in production) ── */}
+      <div className="timeline-wrapper">
+        {cesiumClock && (
+          <Timeline
+            currentTime={currentTime}
+            clock={viewerRef.current?.clock}
+            onTimeChange={handleCurrentTimeChange}
+            onPlayPause={handlePlayPause}
+            onMultiplierChange={handleMultiplierChange}
+            showControls={showControls}
+            showLabels={showLabels}
+            snapToTicks={snapToTicks}
+            enableDrag={enableDrag}
+            height={timelineHeight}
+            tickInterval={tickInterval}
+            dateTimeFormat={dateTimeFormat}
+            onDateTimeClick={handleDateTimeClick}
+            jumpToTime={jumpToTime}
+            theme={theme}
+            swimLanes={swimLanes}
+            showSwimLanes={showSwimLanes}
+            onSwimLaneItemClick={handleSwimLaneClick}
+            onSwimLaneItemHover={handleSwimLaneHover}
+            onSwimLaneReorder={handleSwimLaneReorder}
+          />
+        )}
+      </div>
+
+      {/* ── Demo datetime picker overlay(replace with PrimeReact Calendar etc. in production) ── */}
       {pickerOpen && (
         <div
           style={{
