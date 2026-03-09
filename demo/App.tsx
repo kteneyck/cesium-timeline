@@ -393,7 +393,8 @@ export const TestApp: React.FC = () => {
         input[type="color"] {
           padding: 2px;
           height: 32px;
-          width: 100%;
+          width: 5rem;
+          flex-shrink: 0;
           background: #333;
           border: 1px solid #555;
           border-radius: 4px;
@@ -413,7 +414,7 @@ export const TestApp: React.FC = () => {
           flex-shrink: 0;
         }
 
-        .prop-row input, .prop-row select {
+        .prop-row input:not([type="color"]), .prop-row select {
           flex: 1;
           min-width: 0;
         }
