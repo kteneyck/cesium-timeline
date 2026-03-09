@@ -83,7 +83,7 @@ When no `clock` is provided the component falls back to `setInterval` and tracks
 - **Token-based datetime format** — built-in presets plus custom format strings with 17 supported tokens.
 - **Max tick limit** — `maxTicks` prop prevents the canvas from becoming overloaded at wide zoom levels by coarsening the tick scale automatically.
 - **Swim lanes** — display time intervals and instants as horizontal rows inside the canvas. Supports customizable styling, click/hover/double-click event hooks, drag-to-reorder, and vertical scrolling when lanes overflow.
-- **Fully themeable** — 14 theme properties cover every color, size, and font setting.
+- **Fully themeable** — 16 theme properties cover every color, size, and font setting, including swim lane item border defaults.
 - **Responsive** — fills container width; `ResizeObserver` redraws on resize.
 
 ---
@@ -141,22 +141,24 @@ Pass a partial `TimelineTheme` object to the `theme` prop. Any omitted propertie
 
 ### `TimelineTheme` Properties
 
-| Property | Default | Description |
-|----------|---------|-------------|
+| Property | Default   | Description |
+|----------|-----------|-------------|
 | `backgroundColor` | `#1a1a1a` | Canvas background colour |
-| `tickColor` | `#666` | Minor tick stroke colour |
-| `majorTickColor` | `#999` | Major tick stroke colour |
-| `labelColor` | `#ccc` | Tick label and datetime text colour |
+| `tickColor` | `#666`    | Minor tick stroke colour |
+| `majorTickColor` | `#999`    | Major tick stroke colour |
+| `labelColor` | `#ccc`    | Tick label and datetime text colour |
 | `indicatorColor` | `#d69826` | Needle (current-time line) colour |
-| `indicatorLineWidth` | `3` | Needle stroke width in px |
-| `majorTickHeight` | `10` | Major tick height in px |
-| `minorTickHeight` | `5` | Minor tick height in px |
-| `fontSize` | `12` | Tick label font size in px |
+| `indicatorLineWidth` | `5`       | Needle stroke width in px |
+| `majorTickHeight` | `10`      | Major tick height in px |
+| `minorTickHeight` | `5`       | Minor tick height in px |
+| `fontSize` | `12`      | Tick label font size in px |
 | `controlBarBackground` | `#242424` | Control bar background colour |
-| `controlBarBorder` | `#333` | Control bar bottom border colour |
-| `buttonColor` | `#666` | Normal button colour |
-| `buttonHoverColor` | `#888` | Button hover colour |
+| `controlBarBorder` | `#333`    | Control bar bottom border colour |
+| `buttonColor` | `#666`    | Normal button colour |
+| `buttonHoverColor` | `#888`    | Button hover colour |
 | `buttonActiveColor` | `#d69826` | Active buttons, LIVE, speed badge, and date line colour |
+| `swimLaneItemBorderColor` | `#666666` | Default border colour for swim lane interval bars. Can be overridden per-lane or per-item. |
+| `swimLaneItemBorderWidth` | `0`       | Default border width (px) for swim lane interval bars. Set to `0` to remove borders globally. Can be overridden per-lane or per-item. |
 
 > **Note:** Theme colours must be resolved hex/rgb values. CSS variables like `var(--primary-color)` do **not** work in canvas `ctx.fillStyle`. Use `getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim()` to resolve them first.
 
@@ -546,7 +548,9 @@ const lanes: SwimLane[] = [
 
 ### Customizing Styles
 
-Styles cascade: `defaultSwimLaneStyle` → `lane.style` → `item.style`. Each level is a partial override.
+Styles cascade: `defaultSwimLaneStyle` → `theme` → `lane.style` → `item.style`. Each level is a partial override.
+
+> **Border shortcut:** The `swimLaneItemBorderColor` and `swimLaneItemBorderWidth` theme properties let you control item borders globally without touching individual lane or item styles. Set `swimLaneItemBorderWidth: 0` in your theme to remove all borders at once.
 
 ```tsx
 const lanes: SwimLane[] = [
