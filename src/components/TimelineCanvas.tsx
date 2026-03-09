@@ -85,12 +85,12 @@ function nextTic(t: number, scale: number): number {
   return Math.ceil(t / scale + 0.5) * scale;
 }
 
-// Resolve the effective style for a swim lane item (defaults → lane → item).
-function resolveItemStyle(lane: SwimLane, item: SwimLaneItem): SwimLaneItemStyle {
+// Resolve the effective style for a swim lane item (item → lane → theme → defaults).
+function resolveItemStyle(lane: SwimLane, item: SwimLaneItem, theme?: TimelineTheme): SwimLaneItemStyle {
   return {
     color:       item.style?.color       ?? lane.style?.color       ?? defaultSwimLaneStyle.color,
-    borderColor: item.style?.borderColor ?? lane.style?.borderColor ?? defaultSwimLaneStyle.borderColor,
-    borderWidth: item.style?.borderWidth ?? lane.style?.borderWidth ?? defaultSwimLaneStyle.borderWidth,
+    borderColor: item.style?.borderColor ?? lane.style?.borderColor ?? theme?.swimLaneItemBorderColor ?? defaultSwimLaneStyle.borderColor,
+    borderWidth: item.style?.borderWidth ?? lane.style?.borderWidth ?? theme?.swimLaneItemBorderWidth ?? defaultSwimLaneStyle.borderWidth,
     opacity:     item.style?.opacity     ?? lane.style?.opacity     ?? defaultSwimLaneStyle.opacity,
     markerShape: item.style?.markerShape ?? lane.style?.markerShape ?? defaultSwimLaneStyle.markerShape,
     markerSize:  item.style?.markerSize  ?? lane.style?.markerSize  ?? defaultSwimLaneStyle.markerSize,
@@ -394,7 +394,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
 
             // Draw items
             for (const item of lane.items) {
-              const itemStyle = resolveItemStyle(lane, item);
+              const itemStyle = resolveItemStyle(lane, item, t);
 
               if (item.interval) {
                 // Interval bar
@@ -742,7 +742,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           if (item.instant) {
             const iMs = Cesium.JulianDate.toDate(item.instant).getTime();
             const mx = ((iMs - startMs) / (endMs - startMs)) * canvasW;
-            const style = resolveItemStyle(lane, item);
+            const style = resolveItemStyle(lane, item, themeRef.current);
             if (Math.abs(canvasX - mx) <= style.markerSize / 2 + 2) {
               return { lane, item };
             }

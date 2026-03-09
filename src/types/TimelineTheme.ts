@@ -14,6 +14,10 @@ export interface TimelineTheme {
   buttonHoverColor: string;
   /** Highlight color for active FF/RW buttons. Defaults to indicatorColor. */
   buttonActiveColor: string;
+  /** Default border color for swim lane items. */
+  swimLaneItemBorderColor: string;
+  /** Default border width for swim lane items (px). Set to 0 to remove borders. */
+  swimLaneItemBorderWidth: number;
 }
 
 export const defaultTheme: TimelineTheme = {
@@ -31,4 +35,6 @@ export const defaultTheme: TimelineTheme = {
   buttonColor: '#666666',
   buttonHoverColor: '#888888',
   buttonActiveColor: '#d69826',
+  swimLaneItemBorderColor: '#666666',
+  swimLaneItemBorderWidth: 1,
 };

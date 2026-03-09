@@ -549,6 +549,7 @@ export const TestApp: React.FC = () => {
               ['buttonColor',         'Button'],
               ['buttonHoverColor',    'Button Hover'],
               ['buttonActiveColor',   'Button Active'],
+              ['swimLaneItemBorderColor', 'Lane Item Border'],
             ] as [keyof TimelineTheme, string][]).map(([key, label]) => (
               <div className="prop-row" key={key}>
                 <label>{label}</label>
@@ -567,7 +568,8 @@ export const TestApp: React.FC = () => {
               ['indicatorLineWidth', 'Indicator Width', 1, 8],
               ['majorTickHeight',    'Major Tick H',    4, 24],
               ['minorTickHeight',    'Minor Tick H',    2, 16],
-              ['fontSize',          'Font Size',        8, 20],
+              ['fontSize',           'Font Size',        8, 20],
+              ['swimLaneItemBorderWidth', 'Lane Item Border W', 0, 6],
             ] as [keyof TimelineTheme, string, number, number][]).map(([key, label, min, max]) => (
               <div className="prop-row" key={key}>
                 <label>{label}</label>
