@@ -36,5 +36,5 @@ export const defaultTheme: TimelineTheme = {
   buttonHoverColor: '#888888',
   buttonActiveColor: '#d69826',
   swimLaneItemBorderColor: '#666666',
-  swimLaneItemBorderWidth: 1,
+  swimLaneItemBorderWidth: 0,
 };
