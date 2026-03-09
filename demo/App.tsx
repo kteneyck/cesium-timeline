@@ -254,10 +254,13 @@ export const TestApp: React.FC = () => {
           overflow: hidden;
         }
 
-        .cesium-container canvas {
-          width: 100%;
-          height: 100%;
-          display: block;
+        /* Force Cesium's internal widgets to fill the container */
+        .cesium-container .cesium-viewer,
+        .cesium-container .cesium-viewer-cesiumWidgetContainer,
+        .cesium-container .cesium-widget,
+        .cesium-container .cesium-widget canvas {
+          width: 100% !important;
+          height: 100% !important;
         }
 
         .loading-message {
