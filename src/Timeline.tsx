@@ -184,7 +184,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   return (
     <div
       className={className}
-      style={{ width: '100%', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, -apple-system, sans-serif' }}
+      style={{ width: '100%', height: `${height}px`, overflow: 'hidden', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, -apple-system, sans-serif' }}
     >
       {showControls && (
         <TimelineControls

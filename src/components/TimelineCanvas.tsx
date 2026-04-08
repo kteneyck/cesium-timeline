@@ -149,7 +149,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   (props, ref) => {
     const {
       currentTime, defaultStartMs, defaultEndMs,
-      height, theme, maxTicks, onTimeChange, onDragStart, onDragEnd,
+      theme, maxTicks, onTimeChange, onDragStart, onDragEnd,
       swimLanes: swimLanesProp, showSwimLanes: showSwimLanesProp,
       onSwimLaneItemClick, onSwimLaneItemHover, onSwimLaneItemDoubleClick,
       onSwimLaneReorder,
@@ -1145,7 +1145,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     return (
       <canvas
         ref={canvasRef}
-        style={{ width: '100%', height: `${height}px`, display: 'block', cursor: 'default' }}
+        style={{ width: '100%', flex: 1, minHeight: 0, display: 'block', cursor: 'default' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleCanvasMouseMove}
         onClick={handleClick}
