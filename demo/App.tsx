@@ -39,6 +39,7 @@ export const TestApp: React.FC = () => {
 
   // Swim lane state
   const [showSwimLanes, setShowSwimLanes] = useState(true);
+  const [swimLaneTransition, setSwimLaneTransition] = useState<'animated' | 'instant'>('animated');
   const [swimLaneLog, setSwimLaneLog] = useState<string[]>([]);
 
   // Demo swim lane data — relative to "now"
@@ -515,6 +516,14 @@ export const TestApp: React.FC = () => {
             </div>
 
             <div className="prop-row">
+              <label>Lane Transition</label>
+              <select value={swimLaneTransition} onChange={e => setSwimLaneTransition(e.target.value as 'animated' | 'instant')}>
+                <option value="animated">Animated</option>
+                <option value="instant">Instant</option>
+              </select>
+            </div>
+
+            <div className="prop-row">
               <label>Tick Interval</label>
               <select value={tickInterval} onChange={e => setTickInterval(+e.target.value)}>
                 <option value={15}>15 Minutes</option>
@@ -618,6 +627,7 @@ export const TestApp: React.FC = () => {
             swimLanes={swimLanes}
             showSwimLanes={showSwimLanes}
             onShowSwimLanesChange={setShowSwimLanes}
+            swimLaneTransition={swimLaneTransition}
             onSwimLaneItemClick={handleSwimLaneClick}
             onSwimLaneItemHover={handleSwimLaneHover}
             onSwimLaneReorder={handleSwimLaneReorder}

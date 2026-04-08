@@ -71,6 +71,12 @@ export interface TimelineProps {
    * Receives the new visibility value. Use this to keep external state in sync.
    */
   onShowSwimLanesChange?: (visible: boolean) => void;
+  /**
+   * Transition used when the timeline expands / collapses swim lanes.
+   * `'animated'` applies a smooth CSS transition (default).
+   * `'instant'` switches height immediately with no animation.
+   */
+  swimLaneTransition?: 'animated' | 'instant';
   /** Fired when the user clicks a swim lane item. */
   onSwimLaneItemClick?: (info: SwimLaneEventInfo) => void;
   /** Fired when the user hovers over (or leaves) a swim lane item. `null` = left. */

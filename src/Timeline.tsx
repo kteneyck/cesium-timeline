@@ -30,6 +30,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   swimLanes,
   showSwimLanes,
   onShowSwimLanesChange,
+  swimLaneTransition = 'animated',
   onSwimLaneItemClick,
   onSwimLaneItemHover,
   onSwimLaneItemDoubleClick,
@@ -218,7 +219,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   return (
     <div
       className={className}
-      style={{ width: '100%', height: `${effectiveHeight}px`, overflow: 'hidden', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, -apple-system, sans-serif', transition: 'height 0.2s ease' }}
+      style={{ width: '100%', height: `${effectiveHeight}px`, overflow: 'hidden', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, -apple-system, sans-serif', transition: swimLaneTransition === 'animated' ? 'height 0.2s ease' : undefined }}
     >
       {showControls && (
         <div ref={controlsRef}>
