@@ -617,6 +617,7 @@ export const TestApp: React.FC = () => {
             theme={theme}
             swimLanes={swimLanes}
             showSwimLanes={showSwimLanes}
+            onShowSwimLanesChange={setShowSwimLanes}
             onSwimLaneItemClick={handleSwimLaneClick}
             onSwimLaneItemHover={handleSwimLaneHover}
             onSwimLaneReorder={handleSwimLaneReorder}

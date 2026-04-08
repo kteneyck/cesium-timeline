@@ -12,6 +12,20 @@ const PauseIcon = () => (
   </svg>
 );
 
+/** Chevron pointing upward (swim lanes expanded — click to collapse). */
+const ChevronDownIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points="3,5 7,9 11,5" />
+  </svg>
+);
+
+/** Chevron pointing downward (swim lanes collapsed — click to expand). */
+const ChevronUpIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points="3,9 7,5 11,9" />
+  </svg>
+);
+
 export const TimelineControls: React.FC<ControlsProps> = ({
   currentTime,
   isPlaying,
@@ -29,6 +43,8 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   onResetSpeed,
   onDateTimeClick,
   theme,
+  swimLanesVisible,
+  onToggleSwimLanes,
 }) => {
   const isRewinding    = multiplier < 0;
   const isFastForward  = multiplier > 1;
@@ -256,8 +272,44 @@ export const TimelineControls: React.FC<ControlsProps> = ({
 
       </div>
 
-      {/* ── Right: spacer to keep transport centered on wide screens ── */}
-      {!isNarrow && <div />}
+      {/* ── Right: swim-lane toggle (or spacer) to keep transport centered on wide screens ── */}
+      {!isNarrow && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+          {onToggleSwimLanes != null && swimLanesVisible != null && (
+            <button
+              onClick={onToggleSwimLanes}
+              style={{
+                ...baseBtn,
+                color: swimLanesVisible ? theme.buttonActiveColor : theme.buttonColor,
+                borderColor: swimLanesVisible ? `${theme.buttonActiveColor}33` : 'transparent',
+              }}
+              onMouseEnter={e => onEnter(e, swimLanesVisible)}
+              onMouseLeave={onLeave}
+              title={swimLanesVisible ? 'Collapse swim lanes' : 'Expand swim lanes'}
+            >
+              {swimLanesVisible ? <ChevronDownIcon /> : <ChevronUpIcon />}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Narrow layout: append swim-lane toggle at the end */}
+      {isNarrow && onToggleSwimLanes != null && swimLanesVisible != null && (
+        <button
+          onClick={onToggleSwimLanes}
+          style={{
+            ...baseBtn,
+            color: swimLanesVisible ? theme.buttonActiveColor : theme.buttonColor,
+            borderColor: swimLanesVisible ? `${theme.buttonActiveColor}33` : 'transparent',
+            marginLeft: '4px',
+          }}
+          onMouseEnter={e => onEnter(e, swimLanesVisible)}
+          onMouseLeave={onLeave}
+          title={swimLanesVisible ? 'Collapse swim lanes' : 'Expand swim lanes'}
+        >
+          {swimLanesVisible ? <ChevronDownIcon /> : <ChevronUpIcon />}
+        </button>
+      )}
     </div>
   );
 };

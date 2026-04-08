@@ -62,8 +62,15 @@ export interface TimelineProps {
   swimLanes?: SwimLane[];
   /**
    * Whether to show swim lanes. Defaults to `true` when `swimLanes` is provided.
+   * When `swimLanes` is provided, a chevron toggle button in the control bar
+   * lets the user expand / collapse the lanes at runtime.
    */
   showSwimLanes?: boolean;
+  /**
+   * Fired when the built-in swim-lane toggle button is clicked.
+   * Receives the new visibility value. Use this to keep external state in sync.
+   */
+  onShowSwimLanesChange?: (visible: boolean) => void;
   /** Fired when the user clicks a swim lane item. */
   onSwimLaneItemClick?: (info: SwimLaneEventInfo) => void;
   /** Fired when the user hovers over (or leaves) a swim lane item. `null` = left. */
@@ -95,4 +102,8 @@ export interface ControlsProps {
   /** Whether to show the ⏭ jump-to-end button (true when endTime prop was provided). */
   hasEndTime: boolean;
   theme: TimelineTheme;
+  /** Whether swim lanes are currently visible. When defined, the chevron toggle is rendered. */
+  swimLanesVisible?: boolean;
+  /** Toggle callback for the swim-lane chevron button. */
+  onToggleSwimLanes?: () => void;
 }

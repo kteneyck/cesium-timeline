@@ -139,7 +139,7 @@ interface TimelineCanvasProps {
 }
 
 // ─── Tick area constants ──────────────────────────────────────────────────────
-const TICK_AREA_HEIGHT = 36; // fixed height for ticks + labels at the bottom
+export const TICK_AREA_HEIGHT = 36; // fixed height for ticks + labels at the bottom
 const LANE_GAP = 1;          // 1px gap between swim lane rows
 const LABEL_PAD_LEFT = 6;   // left padding for lane labels
 const SCROLLBAR_WIDTH = 6;  // thin scrollbar track width

@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import * as Cesium from 'cesium';
 import { TimelineProps, defaultTheme } from './types';
 import { TimelineControls } from './components/TimelineControls';
-import { TimelineCanvas, TimelineCanvasHandle } from './components/TimelineCanvas';
+import { TimelineCanvas, TimelineCanvasHandle, TICK_AREA_HEIGHT } from './components/TimelineCanvas';
 import { toJulianDate } from './utils';
 
 const DEFAULT_FF_SPEEDS = [2, 4, 8, 16, 32, 100, 1];
@@ -29,6 +29,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   className,
   swimLanes,
   showSwimLanes,
+  onShowSwimLanesChange,
   onSwimLaneItemClick,
   onSwimLaneItemHover,
   onSwimLaneItemDoubleClick,
@@ -47,6 +48,39 @@ export const Timeline: React.FC<TimelineProps> = ({
   );
   const [isPlaying,  setIsPlaying]  = useState(clock?.shouldAnimate ?? false);
   const [multiplier, setMultiplier] = useState(clock?.multiplier    ?? 1);
+
+  // Internal swim-lane visibility — defaults to the prop value (or true when lanes are provided).
+  const [swimLanesExpanded, setSwimLanesExpanded] = useState(showSwimLanes ?? true);
+
+  // Sync internal state when the external prop changes.
+  useEffect(() => {
+    if (showSwimLanes != null) setSwimLanesExpanded(showSwimLanes);
+  }, [showSwimLanes]);
+
+  const handleToggleSwimLanes = () => {
+    const next = !swimLanesExpanded;
+    setSwimLanesExpanded(next);
+    onShowSwimLanesChange?.(next);
+  };
+
+  // Only show the toggle when swim lanes are configured.
+  const hasSwimLanes = swimLanes != null && swimLanes.length > 0;
+
+  // Measure the control bar height so we can compute the correct collapsed size.
+  const controlsRef = useRef<HTMLDivElement>(null);
+  const [controlsHeight, setControlsHeight] = useState(0);
+  useEffect(() => {
+    const el = controlsRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setControlsHeight(entry.borderBoxSize[0].blockSize));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [showControls]);
+
+  // When collapsed, only the control bar + tick area need to be visible.
+  const effectiveHeight = hasSwimLanes && !swimLanesExpanded
+    ? controlsHeight + TICK_AREA_HEIGHT
+    : height;
 
   // Ref-based drag flag — avoids stale closures in the clock onTick handler.
   const isDraggingRef = useRef(false);
@@ -184,10 +218,11 @@ export const Timeline: React.FC<TimelineProps> = ({
   return (
     <div
       className={className}
-      style={{ width: '100%', height: `${height}px`, overflow: 'hidden', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, -apple-system, sans-serif' }}
+      style={{ width: '100%', height: `${effectiveHeight}px`, overflow: 'hidden', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, -apple-system, sans-serif', transition: 'height 0.2s ease' }}
     >
       {showControls && (
-        <TimelineControls
+        <div ref={controlsRef}>
+          <TimelineControls
           currentTime={currentTime}
           isPlaying={isPlaying}
           multiplier={multiplier}
@@ -204,7 +239,10 @@ export const Timeline: React.FC<TimelineProps> = ({
           onDateTimeClick={onDateTimeClick}
           dateTimeFormat={dateTimeFormat}
           theme={finalTheme}
+          swimLanesVisible={hasSwimLanes ? swimLanesExpanded : undefined}
+          onToggleSwimLanes={hasSwimLanes ? handleToggleSwimLanes : undefined}
         />
+        </div>
       )}
 
       {enableDrag !== false && (
@@ -213,14 +251,14 @@ export const Timeline: React.FC<TimelineProps> = ({
           currentTime={currentTime}
           defaultStartMs={defaultStartMs}
           defaultEndMs={defaultEndMs}
-          height={height}
+          height={effectiveHeight}
           theme={finalTheme}
           maxTicks={maxTicks}
           onTimeChange={handleTimeChange}
           onDragStart={() => { isDraggingRef.current = true; }}
           onDragEnd={() => { isDraggingRef.current = false; }}
           swimLanes={swimLanes}
-          showSwimLanes={showSwimLanes}
+          showSwimLanes={swimLanesExpanded}
           onSwimLaneItemClick={onSwimLaneItemClick}
           onSwimLaneItemHover={onSwimLaneItemHover}
           onSwimLaneItemDoubleClick={onSwimLaneItemDoubleClick}
