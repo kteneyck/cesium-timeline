@@ -34,6 +34,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   onSwimLaneItemClick,
   onSwimLaneItemHover,
   onSwimLaneItemDoubleClick,
+  onSwimLaneItemContextMenu,
   onSwimLaneReorder,
 }) => {
   const now = () => Date.now();
@@ -263,6 +264,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           onSwimLaneItemClick={onSwimLaneItemClick}
           onSwimLaneItemHover={onSwimLaneItemHover}
           onSwimLaneItemDoubleClick={onSwimLaneItemDoubleClick}
+          onSwimLaneItemContextMenu={onSwimLaneItemContextMenu}
           onSwimLaneReorder={onSwimLaneReorder}
         />
       )}

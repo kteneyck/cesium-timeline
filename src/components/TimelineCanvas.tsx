@@ -135,6 +135,7 @@ interface TimelineCanvasProps {
   onSwimLaneItemClick?: (info: SwimLaneEventInfo) => void;
   onSwimLaneItemHover?: (info: SwimLaneEventInfo | null) => void;
   onSwimLaneItemDoubleClick?: (info: SwimLaneEventInfo) => void;
+  onSwimLaneItemContextMenu?: (info: SwimLaneEventInfo) => void;
   onSwimLaneReorder?: (orderedLaneIds: string[]) => void;
 }
 
@@ -152,6 +153,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       theme, maxTicks, onTimeChange, onDragStart, onDragEnd,
       swimLanes: swimLanesProp, showSwimLanes: showSwimLanesProp,
       onSwimLaneItemClick, onSwimLaneItemHover, onSwimLaneItemDoubleClick,
+      onSwimLaneItemContextMenu,
       onSwimLaneReorder,
     } = props;
 
@@ -186,11 +188,13 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     const onSwimLaneItemClickRef      = useRef(onSwimLaneItemClick);
     const onSwimLaneItemHoverRef      = useRef(onSwimLaneItemHover);
     const onSwimLaneItemDoubleClickRef = useRef(onSwimLaneItemDoubleClick);
+    const onSwimLaneItemContextMenuRef = useRef(onSwimLaneItemContextMenu);
     const onSwimLaneReorderRef        = useRef(onSwimLaneReorder);
 
     useEffect(() => { onSwimLaneItemClickRef.current = onSwimLaneItemClick; }, [onSwimLaneItemClick]);
     useEffect(() => { onSwimLaneItemHoverRef.current = onSwimLaneItemHover; }, [onSwimLaneItemHover]);
     useEffect(() => { onSwimLaneItemDoubleClickRef.current = onSwimLaneItemDoubleClick; }, [onSwimLaneItemDoubleClick]);
+    useEffect(() => { onSwimLaneItemContextMenuRef.current = onSwimLaneItemContextMenu; }, [onSwimLaneItemContextMenu]);
     useEffect(() => { onSwimLaneReorderRef.current = onSwimLaneReorder; }, [onSwimLaneReorder]);
 
     // Sync swim lane prop changes into refs
@@ -826,6 +830,10 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         mouseMode.current = 'slide';
         mouseX.current    = e.clientX;
       } else if (e.button === 2) {
+        // Skip zoom mode when a context menu handler will handle the right-click
+        if (onSwimLaneItemContextMenuRef.current && isInSwimLaneRegion(y, rect.height)) {
+          return;
+        }
         mouseMode.current = 'zoom';
         mouseX.current    = e.clientX;
       }
@@ -1136,6 +1144,19 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       }
     }, [hitTestSwimLane]);
 
+    const handleContextMenu = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const hit = hitTestSwimLane(x, y, rect.width, rect.height);
+      if (hit && onSwimLaneItemContextMenuRef.current) {
+        e.preventDefault();
+        onSwimLaneItemContextMenuRef.current({ laneId: hit.lane.id, item: hit.item, originalEvent: e.nativeEvent });
+      } else {
+        e.preventDefault();
+      }
+    }, [hitTestSwimLane]);
+
     // Cleanup RAFs on unmount
     useEffect(() => () => {
       if (edgeRAF.current !== null) cancelAnimationFrame(edgeRAF.current);
@@ -1154,7 +1175,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           if (hoveredItemRef.current) { hoveredItemRef.current = null; onSwimLaneItemHoverRef.current?.(null); draw(); }
           if (mouseMode.current === 'none' && canvasRef.current) canvasRef.current.style.cursor = 'default';
         }}
-        onContextMenu={e => e.preventDefault()}
+        onContextMenu={handleContextMenu}
       />
     );
   }

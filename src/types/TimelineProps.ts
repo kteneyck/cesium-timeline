@@ -83,6 +83,8 @@ export interface TimelineProps {
   onSwimLaneItemHover?: (info: SwimLaneEventInfo | null) => void;
   /** Fired when the user double-clicks a swim lane item. */
   onSwimLaneItemDoubleClick?: (info: SwimLaneEventInfo) => void;
+  /** Fired when the user right-clicks a swim lane item. */
+  onSwimLaneItemContextMenu?: (info: SwimLaneEventInfo) => void;
   /** Fired when swim lanes are reordered via drag. Returns the new ordered lane IDs. */
   onSwimLaneReorder?: (orderedLaneIds: string[]) => void;
 }
