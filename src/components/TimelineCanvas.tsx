@@ -960,16 +960,19 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       const rect = canvas.getBoundingClientRect();
       const y = e.clientY - rect.top;
 
-      // Vertical scroll in swim lane region
+      // Vertical scroll in swim lane region — only consume the event for
+      // scrolling when the lanes actually overflow; otherwise fall through to zoom.
       if (isInSwimLaneRegion(y, rect.height)) {
         const lanes = swimLanesRef.current;
         let totalH = 0;
         for (const l of lanes) totalH += (l.height ?? DEFAULT_LANE_HEIGHT) + LANE_GAP;
         const laneRegionH = Math.max(0, rect.height - TICK_AREA_HEIGHT);
         const maxScroll = Math.max(0, totalH - laneRegionH);
-        scrollTopRef.current = Math.max(0, Math.min(maxScroll, scrollTopRef.current + e.deltaY));
-        draw();
-        return;
+        if (maxScroll > 0) {
+          scrollTopRef.current = Math.max(0, Math.min(maxScroll, scrollTopRef.current + e.deltaY));
+          draw();
+          return;
+        }
       }
 
       zoomFrom(Math.pow(1.05, e.deltaY > 0 ? -1 : 1));
