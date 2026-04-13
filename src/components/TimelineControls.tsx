@@ -280,8 +280,8 @@ export const TimelineControls: React.FC<ControlsProps> = ({
               onClick={onToggleSwimLanes}
               style={{
                 ...baseBtn,
-                color: swimLanesVisible ? theme.buttonActiveColor : theme.buttonColor,
-                borderColor: swimLanesVisible ? `${theme.buttonActiveColor}33` : 'transparent',
+                color: theme.buttonActiveColor,
+                borderColor: `${theme.buttonActiveColor}33`,
               }}
               onMouseEnter={e => onEnter(e, swimLanesVisible)}
               onMouseLeave={onLeave}
@@ -299,8 +299,8 @@ export const TimelineControls: React.FC<ControlsProps> = ({
           onClick={onToggleSwimLanes}
           style={{
             ...baseBtn,
-            color: swimLanesVisible ? theme.buttonActiveColor : theme.buttonColor,
-            borderColor: swimLanesVisible ? `${theme.buttonActiveColor}33` : 'transparent',
+            color: theme.buttonActiveColor,
+            borderColor: `${theme.buttonActiveColor}33`,
             marginLeft: '4px',
           }}
           onMouseEnter={e => onEnter(e, swimLanesVisible)}
