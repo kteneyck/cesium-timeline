@@ -4,12 +4,19 @@ import { TimelineTheme } from './TimelineTheme';
 import { SwimLane, SwimLaneEventInfo } from './SwimLane';
 
 export interface TimelineProps {
+  /** The start boundary of the timeline range. Defaults to 12 hours before now. */
   startTime?: Cesium.JulianDate | Date;
+  /** The end boundary of the timeline range. Defaults to 12 hours after now. */
   endTime?: Cesium.JulianDate | Date;
+  /** Initial current-time position of the needle. Defaults to `startTime` or now. */
   currentTime?: Cesium.JulianDate | Date;
+  /** Cesium Clock instance to synchronize with. When provided the timeline follows the clock's tick. */
   clock?: Cesium.Clock;
+  /** Fired whenever the current time changes (scrub, playback, or programmatic jump). */
   onTimeChange?: (time: Cesium.JulianDate) => void;
+  /** Fired when playback is toggled. Receives the new playing state. */
   onPlayPause?: (isPlaying: boolean) => void;
+  /** Fired when the playback speed multiplier changes (fast-forward / rewind). */
   onMultiplierChange?: (multiplier: number) => void;
   /**
    * Explicit height in pixels. When omitted the timeline fills its container
@@ -17,10 +24,15 @@ export interface TimelineProps {
    * is applied instead.
    */
   height?: number;
+  /** Tick interval override. When omitted the timeline auto-selects an appropriate scale. */
   tickInterval?: TickInterval | number;
+  /** Whether to render tick labels on the time axis. @default true */
   showLabels?: boolean;
+  /** Whether to render the transport control bar above the canvas. @default true */
   showControls?: boolean;
+  /** When `true`, ticks snap to round time boundaries during scrub. */
   snapToTicks?: boolean;
+  /** Whether the user can scrub / drag the timeline. @default true */
   enableDrag?: boolean;
   /**
    * Format string for the time display in the control bar.
@@ -58,7 +70,9 @@ export interface TimelineProps {
    * Defaults to [1, 2, 4, 8, 16, 32].
    */
   rwSpeeds?: number[];
+  /** Partial theme overrides merged with the default theme. */
   theme?: Partial<TimelineTheme>;
+  /** CSS class name applied to the outermost wrapper div. */
   className?: string;
   /**
    * Swim lane definitions. Each lane is a labeled row rendered inside the
@@ -95,25 +109,37 @@ export interface TimelineProps {
 }
 
 export interface ControlsProps {
+  /** The current time displayed in the control bar. */
   currentTime: Cesium.JulianDate;
+  /** Whether playback is currently active. */
   isPlaying: boolean;
+  /** Current playback speed multiplier (negative = rewind). */
   multiplier: number;
   /** @see TimelineProps.dateTimeFormat */
   dateTimeFormat?: string;
   /** @see TimelineProps.onDateTimeClick */
   onDateTimeClick?: () => void;
+  /** Toggle play / pause. */
   onPlayPause: (isPlaying: boolean) => void;
+  /** Jump to the start of the timeline range. */
   onJumpToStart: () => void;
+  /** Step to the next rewind speed. */
   onRewind: () => void;
+  /** Step to the next fast-forward speed. */
   onFastForward: () => void;
+  /** Jump to the end of the timeline range. */
   onJumpToEnd: () => void;
+  /** Jump to the current wall-clock time and resume 1× playback. */
   onJumpToLive: () => void;
+  /** Reset the playback speed to 1×. */
   onResetSpeed: () => void;
+  /** Whether the needle is near the current wall-clock time (within 10 s). */
   isLive: boolean;
   /** Whether to show the ⏮ jump-to-start button (true when startTime prop was provided). */
   hasStartTime: boolean;
   /** Whether to show the ⏭ jump-to-end button (true when endTime prop was provided). */
   hasEndTime: boolean;
+  /** Resolved theme object applied to control bar elements. */
   theme: TimelineTheme;
   /** Whether swim lanes are currently visible. When defined, the chevron toggle is rendered. */
   swimLanesVisible?: boolean;
