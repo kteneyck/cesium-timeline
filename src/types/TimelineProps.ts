@@ -11,6 +11,11 @@ export interface TimelineProps {
   onTimeChange?: (time: Cesium.JulianDate) => void;
   onPlayPause?: (isPlaying: boolean) => void;
   onMultiplierChange?: (multiplier: number) => void;
+  /**
+   * Explicit height in pixels. When omitted the timeline fills its container
+   * (the outer div uses `height: 100%`). When provided, a fixed pixel height
+   * is applied instead.
+   */
   height?: number;
   tickInterval?: TickInterval | number;
   showLabels?: boolean;

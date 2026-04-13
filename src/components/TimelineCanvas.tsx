@@ -123,7 +123,6 @@ interface TimelineCanvasProps {
   currentTime: Cesium.JulianDate;
   defaultStartMs: number;
   defaultEndMs: number;
-  height: number;
   theme: TimelineTheme;
   maxTicks?: number;
   onTimeChange: (time: Cesium.JulianDate) => void;

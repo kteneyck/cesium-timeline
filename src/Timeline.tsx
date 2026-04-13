@@ -16,7 +16,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   onTimeChange,
   onPlayPause,
   onMultiplierChange,
-  height       = 120,
+  height,
   showControls = true,
   enableDrag   = true,
   dateTimeFormat,
@@ -79,10 +79,14 @@ export const Timeline: React.FC<TimelineProps> = ({
     return () => ro.disconnect();
   }, [showControls]);
 
-  // When collapsed, only the control bar + tick area need to be visible.
-  const effectiveHeight = hasSwimLanes && !swimLanesExpanded
-    ? controlsHeight + TICK_AREA_HEIGHT
-    : height;
+  // When collapsed, use a fixed pixel height for the control bar + tick area.
+  // Otherwise, use the explicit height prop (px) or fall back to 100% of the container.
+  const isCollapsed = hasSwimLanes && !swimLanesExpanded;
+  const heightStyle: string = isCollapsed
+    ? `${controlsHeight + TICK_AREA_HEIGHT}px`
+    : height != null
+      ? `${height}px`
+      : '100%';
 
   // Ref-based drag flag — avoids stale closures in the clock onTick handler.
   const isDraggingRef = useRef(false);
@@ -220,7 +224,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   return (
     <div
       className={className}
-      style={{ width: '100%', height: `${effectiveHeight}px`, overflow: 'hidden', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, -apple-system, sans-serif', transition: swimLaneTransition === 'animated' ? 'height 0.2s ease' : undefined }}
+      style={{ width: '100%', height: heightStyle, overflow: 'hidden', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, -apple-system, sans-serif', transition: swimLaneTransition === 'animated' ? 'height 0.2s ease' : undefined }}
     >
       {showControls && (
         <div ref={controlsRef}>
@@ -253,7 +257,6 @@ export const Timeline: React.FC<TimelineProps> = ({
           currentTime={currentTime}
           defaultStartMs={defaultStartMs}
           defaultEndMs={defaultEndMs}
-          height={effectiveHeight}
           theme={finalTheme}
           maxTicks={maxTicks}
           onTimeChange={handleTimeChange}
