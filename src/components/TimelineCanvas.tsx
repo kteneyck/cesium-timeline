@@ -811,13 +811,18 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       }
 
       // Fire swim lane item click on mousedown (not on click/mouseup)
+      // But if the click is near the needle, prioritise scrub so the user can always drag it.
       if (e.button === 0 && isInSwimLaneRegion(y, rect.height)) {
-        const hit = hitTestSwimLane(x, y, rect.width, rect.height);
-        if (hit) {
-          swimLaneDownTime.current = performance.now();
-          return;
+        const needleX = ((curMsRef.current - startMsRef.current) / (endMsRef.current - startMsRef.current)) * rect.width;
+        const nearNeedle = Math.abs(x - needleX) <= 10;
+        if (!nearNeedle) {
+          const hit = hitTestSwimLane(x, y, rect.width, rect.height);
+          if (hit) {
+            swimLaneDownTime.current = performance.now();
+            return;
+          }
         }
-        // Clicked in swim lane region but not on an item — fall through to scrub
+        // Near the needle or clicked empty space — fall through to scrub
       }
 
       if (e.button === 0) {
