@@ -223,6 +223,9 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     // clientX of the cursor during a scrub drag — used by the edge-scroll RAF
     // to keep the needle pinned to the cursor as the window shifts under it.
     const scrubClientX = useRef(0);
+    // Timestamp of last mousedown on a swim lane item — used to distinguish
+    // a quick click from a long press / drag release.
+    const swimLaneDownTime = useRef(0);
 
     // Touch state
     const touchMode    = useRef<'none' | 'scrub' | 'slide' | 'pinch'>('none');
@@ -807,11 +810,11 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         }
       }
 
-      // Check for click on swim lane item (don't start scrub if clicking an item)
+      // Fire swim lane item click on mousedown (not on click/mouseup)
       if (e.button === 0 && isInSwimLaneRegion(y, rect.height)) {
         const hit = hitTestSwimLane(x, y, rect.width, rect.height);
         if (hit) {
-          // Clicking on a swim lane item — don't start timeline scrub
+          swimLaneDownTime.current = performance.now();
           return;
         }
         // Clicked in swim lane region but not on an item — fall through to scrub
@@ -1128,6 +1131,10 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     }, [draw, hitTestSwimLane, isInSwimLaneRegion, isInLaneLabelArea]);
 
     const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+      // Only treat as a click if the interval between mousedown and mouseup is short
+      const elapsed = performance.now() - swimLaneDownTime.current;
+      if (elapsed > 300) return;
+
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
