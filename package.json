@@ -1,34 +1,21 @@
 {
-  "name": "@bariumstudios/cesium-timeline",
+  "name": "@bariumstudios/cesium-timeline-monorepo",
+  "private": true,
   "version": "0.1.0",
-  "description": "SVG-based timeline component for Cesium with clock integration",
+  "description": "Multi-framework timeline component for Cesium with clock integration",
   "type": "module",
-  "main": "./dist/cesium-timeline.umd.cjs",
-  "module": "./dist/cesium-timeline.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/cesium-timeline.js",
-      "require": "./dist/cesium-timeline.umd.cjs",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "files": [
-    "dist"
+  "workspaces": [
+    "packages/core",
+    "packages/react"
   ],
   "scripts": {
-    "dev": "vite",
+    "build": "npm run build:core && npm run build:react",
+    "build:core": "npm run build -w @bariumstudios/cesium-timeline-core",
+    "build:react": "npm run build -w @bariumstudios/cesium-timeline-react",
     "dev:demo": "vite --config vite.demo.config.ts",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "vitest"
-  },
-  "peerDependencies": {
-    "cesium": "^1.100.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "@types/react": ">=18",
-    "@types/react-dom": ">=18"
+    "test": "vitest",
+    "test:core": "npm test -w @bariumstudios/cesium-timeline-core",
+    "test:react": "npm test -w @bariumstudios/cesium-timeline-react"
   },
   "devDependencies": {
     "@types/react": "19.0.1",

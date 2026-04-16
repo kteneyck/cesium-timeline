@@ -1,0 +1,45 @@
+{
+  "name": "@bariumstudios/cesium-timeline-react",
+  "version": "0.1.0",
+  "description": "React timeline component for Cesium with clock integration",
+  "type": "module",
+  "main": "./dist/cesium-timeline-react.umd.cjs",
+  "module": "./dist/cesium-timeline-react.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/cesium-timeline-react.js",
+      "require": "./dist/cesium-timeline-react.umd.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest"
+  },
+  "peerDependencies": {
+    "cesium": "^1.100.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@types/react": ">=18",
+    "@types/react-dom": ">=18"
+  },
+  "dependencies": {
+    "@bariumstudios/cesium-timeline-core": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.0.1",
+    "@types/react-dom": "19.0.1",
+    "@vitejs/plugin-react": "^4.2.0",
+    "cesium": "^1.100.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0",
+    "vite-plugin-dts": "^4.0.0",
+    "vitest": "^1.1.0"
+  }
+}
