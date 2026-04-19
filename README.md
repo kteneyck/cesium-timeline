@@ -1,33 +1,43 @@
 # @bariumstudios/cesium-timeline
 
-A canvas-based React timeline component with Cesium Clock integration. Provides interactive time scrubbing, smooth edge-scroll, Netflix/Hulu-style playback controls, a LIVE indicator, and a flexible token-based datetime format system.
+A canvas-based timeline component for **React** and **Angular** with Cesium Clock integration. Provides interactive time scrubbing, smooth edge-scroll, Netflix/Hulu-style playback controls, a LIVE indicator, and a flexible token-based datetime format system.
+
+## Packages
+
+| Package | Description |
+|---|---|
+| `@bariumstudios/cesium-timeline-core` | Framework-agnostic types, utils, canvas engine |
+| `@bariumstudios/cesium-timeline-react` | React components (thin wrappers around core) |
+| `@bariumstudios/cesium-timeline-angular` | Angular standalone components (Angular 17+) |
 
 ---
 
 ## Installation
 
+### React
+
 ```bash
-npm install @bariumstudios/cesium-timeline
+npm install @bariumstudios/cesium-timeline-react @bariumstudios/cesium-timeline-core
 ```
 
-Or link locally from a monorepo:
+Peer dependencies: `react` ≥ 19, `cesium` ≥ 1.100
 
-```json
-"@bariumstudios/cesium-timeline": "file:../cesium-timeline"
+### Angular
+
+```bash
+npm install @bariumstudios/cesium-timeline-angular @bariumstudios/cesium-timeline-core
 ```
 
-### Peer Dependencies
-
-- `react` ≥ 18
-- `react-dom` ≥ 18
-- `cesium` ≥ 1.100
+Peer dependencies: `@angular/core` ≥ 17, `cesium` ≥ 1.100
 
 ---
 
 ## Basic Usage
 
+### React
+
 ```tsx
-import { Timeline } from '@bariumstudios/cesium-timeline';
+import { Timeline } from '@bariumstudios/cesium-timeline-react';
 
 const MyComponent = () => {
   const viewer = /* your Cesium Viewer */;
@@ -60,11 +70,52 @@ When `clock` is provided the component subscribes to `clock.onTick` and stays in
 
 When no `clock` is provided the component falls back to `setInterval` and tracks real wall-clock time.
 
+### Angular
+
+```typescript
+import { Component } from '@angular/core';
+import { TimelineComponent } from '@bariumstudios/cesium-timeline-angular';
+import * as Cesium from 'cesium';
+
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [TimelineComponent],
+  template: `
+    <ct-timeline
+      [clock]="viewer.clock"
+      [height]="120"
+      (timeChange)="onTimeChange($event)"
+      (playPause)="onPlayPause($event)"
+      (multiplierChange)="onMultiplierChange($event)"
+    />
+  `,
+})
+export class AppComponent {
+  viewer!: Cesium.Viewer;
+
+  onTimeChange(t: Cesium.JulianDate) {
+    this.viewer.clock.currentTime = t;
+  }
+
+  onPlayPause(playing: boolean) {
+    this.viewer.clock.shouldAnimate = playing;
+  }
+
+  onMultiplierChange(m: number) {
+    this.viewer.clock.multiplier = m;
+  }
+}
+```
+
+Angular components use standalone imports — no NgModule required. Selectors: `ct-timeline`, `ct-timeline-canvas`, `ct-timeline-controls`.
+
 ---
 
 ## Features
 
-- **Canvas rendering** — zero React re-renders during playback or drag; all mutable state lives in refs.
+- **Canvas rendering** — zero framework re-renders during playback or drag; all mutable state lives in refs/class properties.
+- **Shared core engine** — identical visual output in React and Angular via `@bariumstudios/cesium-timeline-core`.
 - **Cesium Clock sync** — subscribes to `clock.onTick`; respects `shouldAnimate`, `multiplier`, and `currentTime`.
 - **Draggable needle** — grab and drag the current-time indicator to scrub; cursor changes to `grab`/`grabbing`.
 - **Click-to-seek** — click anywhere on the timeline to jump to that time.
@@ -185,7 +236,7 @@ The `dateTimeFormat` prop controls the two-line datetime display in the control 
 ### Built-in Presets (`DateTimeFormats`)
 
 ```tsx
-import { DateTimeFormats } from '@bariumstudios/cesium-timeline';
+import { DateTimeFormats } from '@bariumstudios/cesium-timeline-react';
 
 <Timeline dateTimeFormat={DateTimeFormats.TWELVE_HR} ... />
 ```
@@ -227,7 +278,7 @@ The control bar automatically splits the format string into a **time line** (lar
 ### `formatDateTime` Utility
 
 ```tsx
-import { formatDateTime, DateTimeFormats } from '@bariumstudios/cesium-timeline';
+import { formatDateTime, DateTimeFormats } from '@bariumstudios/cesium-timeline-react';
 
 const label = formatDateTime(julianDate, DateTimeFormats.ISO);
 // → "2026-02-24 14:04:07"
@@ -308,32 +359,54 @@ const [pickerOpen, setPickerOpen] = useState(false);
 
 ## Exports
 
+### React
+
 ```tsx
 import {
   Timeline,          // Main component
+  TimelineCanvas,    // Canvas component (imperative handle)
+  TimelineControls,  // Transport controls
+  TimelineSVG,       // SVG-based alternative renderer
+} from '@bariumstudios/cesium-timeline-react';
+```
+
+### Angular
+
+```typescript
+import {
+  TimelineComponent,         // <ct-timeline>
+  TimelineCanvasComponent,   // <ct-timeline-canvas>
+  TimelineControlsComponent, // <ct-timeline-controls>
+} from '@bariumstudios/cesium-timeline-angular';
+```
+
+### Core (re-exported by both React and Angular packages)
+
+```tsx
+import {
   DateTimeFormats,   // Format string presets
   formatDateTime,    // Token-based date formatter
   splitForDisplay,   // Split format string into time/date parts
   toJulianDate,      // Convert Date | JulianDate → JulianDate
   toDate,            // Convert Date | JulianDate → Date
-  toMilliseconds,    // Convert Date | JulianDate → number (ms)
+  toMilliseconds,    // Convert ms → number
   fromMilliseconds,  // Convert ms → JulianDate
   getDurationMs,     // Duration between two dates in ms
   TickInterval,      // Enum: FIFTEEN_MIN | THIRTY_MIN | HOURLY | CUSTOM
-
-  // Swim lane types
-  defaultSwimLaneStyle, // Default style applied to swim lane items
-  DEFAULT_LANE_HEIGHT,  // Default lane row height (24px)
-} from '@bariumstudios/cesium-timeline';
+  defaultTheme,      // Default theme values
+  defaultSwimLaneStyle,
+  DEFAULT_LANE_HEIGHT,
+} from '@bariumstudios/cesium-timeline-core';
 
 // TypeScript types
 import type {
+  TimelineTheme,
   SwimLane,
   SwimLaneItem,
   SwimLaneItemStyle,
   SwimLaneStyle,
   SwimLaneEventInfo,
-} from '@bariumstudios/cesium-timeline';
+} from '@bariumstudios/cesium-timeline-core';
 ```
 
 ---
@@ -345,7 +418,7 @@ import type {
 ```tsx
 import { useRef, useEffect, useMemo, useState } from 'react';
 import * as Cesium from 'cesium';
-import { Timeline, DateTimeFormats } from '@bariumstudios/cesium-timeline';
+import { Timeline, DateTimeFormats } from '@bariumstudios/cesium-timeline-react';
 
 const CesiumWithTimeline = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -461,7 +534,7 @@ end.setHours(23, 59, 59, 999);
 ```tsx
 import { useState } from 'react';
 import * as Cesium from 'cesium';
-import { Timeline } from '@bariumstudios/cesium-timeline';
+import { Timeline } from '@bariumstudios/cesium-timeline-react';
 
 const StandaloneTimeline = () => {
   const [time, setTime] = useState(new Date());
@@ -491,8 +564,8 @@ Lanes are rendered in the upper portion of the canvas. The tick area remains fix
 
 ```tsx
 import * as Cesium from 'cesium';
-import { Timeline } from '@bariumstudios/cesium-timeline';
-import type { SwimLane } from '@bariumstudios/cesium-timeline';
+import { Timeline } from '@bariumstudios/cesium-timeline-react';
+import type { SwimLane } from '@bariumstudios/cesium-timeline-react';
 
 const now = Cesium.JulianDate.now();
 const later = Cesium.JulianDate.addHours(now, 3, new Cesium.JulianDate());
@@ -617,7 +690,7 @@ Three marker shapes are available for instants:
 Swim lane items support click, hover, and double-click events. Each callback receives a `SwimLaneEventInfo` object.
 
 ```tsx
-import type { SwimLaneEventInfo } from '@bariumstudios/cesium-timeline';
+import type { SwimLaneEventInfo } from '@bariumstudios/cesium-timeline-react';
 
 const handleClick = (info: SwimLaneEventInfo) => {
   console.log(`Clicked item ${info.item.id} in lane ${info.laneId}`);
@@ -760,7 +833,32 @@ timelineRef.current?.reorderSwimLanes(['lane-b', 'lane-a', 'lane-c']);
 ```bash
 cd cesium-timeline
 npm install
-npm run build   # outputs to dist/
+
+# Build all packages (core → react → angular)
+npm run build
+
+# Build individually
+npm run build:core
+npm run build:react
+npm run build:angular
+
+# Development
+npm run dev:demo     # React demo with hot reload
+npm run typecheck    # TypeScript check (core + react)
+npm run clean        # Remove all build artifacts
+```
+
+### Project Structure
+
+```
+cesium-timeline/
+├── packages/
+│   ├── core/       → @bariumstudios/cesium-timeline-core     (types, utils, canvas engine)
+│   ├── react/      → @bariumstudios/cesium-timeline-react    (React components)
+│   └── angular/    → @bariumstudios/cesium-timeline-angular  (Angular standalone components)
+├── demo/           → React demo app (npm run dev:demo)
+├── src/            → Original source (preserved, not used by packages)
+└── package.json    → npm workspace root
 ```
 
 ---

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Timeline } from '../src/Timeline';
-import { defaultTheme } from '../src/types';
-import type { TimelineTheme, SwimLane, SwimLaneEventInfo } from '../src/types';
-import { DateTimeFormats } from '../src/utils';
+import { Timeline } from '../packages/react/src/Timeline';
+import { defaultTheme } from '../packages/core/src/types';
+import type { TimelineTheme, SwimLane, SwimLaneEventInfo } from '../packages/core/src/types';
+import { DateTimeFormats } from '../packages/core/src/utils';
 import * as Cesium from 'cesium';
 
 // Set Cesium base URL for assets

@@ -17,7 +17,10 @@
     "dev:demo": "vite --config vite.demo.config.ts",
     "test": "vitest",
     "test:core": "npm test -w @bariumstudios/cesium-timeline-core",
-    "test:react": "npm test -w @bariumstudios/cesium-timeline-react"
+    "test:react": "npm test -w @bariumstudios/cesium-timeline-react",
+    "clean": "rimraf packages/core/dist packages/react/dist dist/angular",
+    "lint": "eslint packages/*/src --ext .ts,.tsx --cache",
+    "typecheck": "tsc --noEmit -p packages/core/tsconfig.json && tsc --noEmit -p packages/react/tsconfig.json"
   },
   "devDependencies": {
     "@types/react": "19.0.1",
