@@ -6,12 +6,14 @@
   "type": "module",
   "workspaces": [
     "packages/core",
-    "packages/react"
+    "packages/react",
+    "packages/angular"
   ],
   "scripts": {
-    "build": "npm run build:core && npm run build:react",
+    "build": "npm run build:core && npm run build:react && npm run build:angular",
     "build:core": "npm run build -w @bariumstudios/cesium-timeline-core",
     "build:react": "npm run build -w @bariumstudios/cesium-timeline-react",
+    "build:angular": "npm run build -w @bariumstudios/cesium-timeline-angular",
     "dev:demo": "vite --config vite.demo.config.ts",
     "test": "vitest",
     "test:core": "npm test -w @bariumstudios/cesium-timeline-core",
