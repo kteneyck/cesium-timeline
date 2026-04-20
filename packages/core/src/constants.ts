@@ -32,5 +32,9 @@ export const LABEL_PAD_LEFT = 6;
 /** Width in pixels for the thin scrollbar track. */
 export const SCROLLBAR_WIDTH = 6;
 
+/** Multiplier applied to wheel deltaY for swim lane vertical scrolling.
+ *  Keeps scrolling smooth when the overflow range is small. */
+export const SWIM_LANE_SCROLL_SPEED = 0.3;
+
 /** Abbreviated month names used for tick labels. */
 export const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];

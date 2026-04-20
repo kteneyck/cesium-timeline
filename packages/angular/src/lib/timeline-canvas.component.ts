@@ -22,6 +22,7 @@ import {
   DEFAULT_LANE_HEIGHT,
   TICK_AREA_HEIGHT,
   LANE_GAP,
+  SWIM_LANE_SCROLL_SPEED,
   MIN_SPAN_MS,
   MAX_SPAN_MS,
   drawTimeline,
@@ -632,7 +633,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       const laneRegionH = Math.max(0, rect.height - TICK_AREA_HEIGHT);
       const maxScroll = Math.max(0, totalH - laneRegionH);
       if (maxScroll > 0) {
-        this.scrollTop = Math.max(0, Math.min(maxScroll, this.scrollTop + e.deltaY));
+        this.scrollTop = Math.max(0, Math.min(maxScroll, this.scrollTop + e.deltaY * SWIM_LANE_SCROLL_SPEED));
         this.draw();
         return;
       }

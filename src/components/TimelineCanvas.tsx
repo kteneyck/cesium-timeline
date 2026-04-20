@@ -143,6 +143,7 @@ export const TICK_AREA_HEIGHT = 36; // fixed height for ticks + labels at the bo
 const LANE_GAP = 1;          // 1px gap between swim lane rows
 const LABEL_PAD_LEFT = 6;   // left padding for lane labels
 const SCROLLBAR_WIDTH = 6;  // thin scrollbar track width
+const SWIM_LANE_SCROLL_SPEED = 0.3; // multiplier for smooth swim lane scrolling
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasProps>(
@@ -976,7 +977,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         const laneRegionH = Math.max(0, rect.height - TICK_AREA_HEIGHT);
         const maxScroll = Math.max(0, totalH - laneRegionH);
         if (maxScroll > 0) {
-          scrollTopRef.current = Math.max(0, Math.min(maxScroll, scrollTopRef.current + e.deltaY));
+          scrollTopRef.current = Math.max(0, Math.min(maxScroll, scrollTopRef.current + e.deltaY * SWIM_LANE_SCROLL_SPEED));
           draw();
           return;
         }

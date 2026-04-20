@@ -28,6 +28,7 @@ import {
   DEFAULT_LANE_HEIGHT,
   TICK_AREA_HEIGHT,
   LANE_GAP,
+  SWIM_LANE_SCROLL_SPEED,
   MIN_SPAN_MS,
   MAX_SPAN_MS,
   drawTimeline,
@@ -532,20 +533,25 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       const rect = canvas.getBoundingClientRect();
       const y = e.clientY - rect.top;
 
-      if (isInSwimLaneRegion(y, rect.height)) {
-        const lanes = swimLanesRef.current;
-        const totalH = totalSwimLaneHeight(lanes);
+      // Vertical scroll in swim lane region — only when lanes overflow.
+      const _showLanes = showSwimLanesRef.current;
+      const _lanes     = swimLanesRef.current;
+      if (_showLanes && _lanes.length > 0) {
         const laneRegionH = Math.max(0, rect.height - TICK_AREA_HEIGHT);
-        const maxScroll = Math.max(0, totalH - laneRegionH);
-        if (maxScroll > 0) {
-          scrollTopRef.current = Math.max(0, Math.min(maxScroll, scrollTopRef.current + e.deltaY));
-          draw();
-          return;
+        if (y >= 0 && y < laneRegionH) {
+          let totalH = 0;
+          for (const l of _lanes) totalH += (l.height ?? DEFAULT_LANE_HEIGHT) + LANE_GAP;
+          const maxScroll = Math.max(0, totalH - laneRegionH);
+          if (maxScroll > 0) {
+            scrollTopRef.current = Math.max(0, Math.min(maxScroll, scrollTopRef.current + e.deltaY * SWIM_LANE_SCROLL_SPEED));
+            draw();
+            return;
+          }
         }
       }
 
       zoomFrom(Math.pow(1.05, e.deltaY > 0 ? -1 : 1));
-    }, [zoomFrom, draw, isInSwimLaneRegion]);
+    }, [zoomFrom, draw]);
 
     // Attach wheel as a non-passive native listener so preventDefault works
     useEffect(() => {
