@@ -8,6 +8,7 @@ import {
   ViewChild,
   ElementRef,
   AfterViewInit,
+  OnInit,
   OnChanges,
   OnDestroy,
   SimpleChanges,
@@ -92,7 +93,7 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
   `,
   styles: [`:host { display: block; }`],
 })
-export class TimelineComponent implements AfterViewInit, OnChanges, OnDestroy {
+export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDestroy {
   // ── Inputs ─────────────────────────────────────────────────────────────
   @Input() startTime?: Cesium.JulianDate | Date;
   @Input() endTime?: Cesium.JulianDate | Date;
@@ -168,7 +169,7 @@ export class TimelineComponent implements AfterViewInit, OnChanges, OnDestroy {
 
   // ── Lifecycle ──────────────────────────────────────────────────────────
 
-  ngAfterViewInit(): void {
+  ngOnInit(): void {
     const now = Date.now();
     this.defaultStartMs = this.startTime
       ? Cesium.JulianDate.toDate(toJulianDate(this.startTime)).getTime()
@@ -184,8 +185,9 @@ export class TimelineComponent implements AfterViewInit, OnChanges, OnDestroy {
     this.multiplierState = this.clock?.multiplier ?? 1;
     this.swimLanesExpanded = this.showSwimLanes ?? true;
     this.finalTheme = { ...defaultTheme, ...this.theme };
+  }
 
-    // Measure controls height
+  ngAfterViewInit(): void {
     const el = this.controlsRef?.nativeElement;
     if (el) {
       this.ro = new ResizeObserver(([entry]) => {
@@ -208,7 +210,7 @@ export class TimelineComponent implements AfterViewInit, OnChanges, OnDestroy {
     if (changes['showSwimLanes'] && this.showSwimLanes != null) {
       this.swimLanesExpanded = this.showSwimLanes;
     }
-    if (changes['clock']) {
+    if (changes['clock'] && !changes['clock'].firstChange) {
       this.cleanupClockSync();
       this.setupClockSync();
     }
