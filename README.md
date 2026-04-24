@@ -856,7 +856,7 @@ cesium-timeline/
 │   ├── core/       → @bariumstudios/cesium-timeline-core     (types, utils, canvas engine)
 │   ├── react/      → @bariumstudios/cesium-timeline-react    (React components)
 │   └── angular/    → @bariumstudios/cesium-timeline-angular  (Angular standalone components)
-├── demo/           → React demo app (npm run dev:demo)
+├── demo-react/     → React demo app (npm run dev:demo)
 ├── src/            → Original source (preserved, not used by packages)
 └── package.json    → npm workspace root
 ```

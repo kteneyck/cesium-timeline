@@ -93,7 +93,7 @@ Today (e.g., Feb 14, 2026)
 ## Files
 
 ```
-demo/
+demo-react/
 ├── index.html      # HTML entry point
 ├── main.tsx        # React entry point
 ├── App.tsx         # Test application component
@@ -189,8 +189,8 @@ The test app is optimized for:
 
 To modify the test app:
 
-1. Edit `demo/App.tsx` to change appearance/behavior
-2. Edit `demo/index.html` to change HTML structure
+1. Edit `demo-react/App.tsx` to change appearance/behavior
+2. Edit `demo-react/index.html` to change HTML structure
 3. Run `npm run dev:demo` to see changes
 4. Build timeline library separately: `npm run build`
 
