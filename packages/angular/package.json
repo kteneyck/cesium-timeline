@@ -1,6 +1,6 @@
 {
   "name": "@kteneyck/cesium-timeline-angular",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "description": "Angular timeline component for Cesium with clock integration",
   "license": "MIT",
   "author": "kteneyck",
