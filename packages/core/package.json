@@ -1,10 +1,17 @@
 {
   "name": "@kteneyck/cesium-timeline-core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Framework-agnostic core logic for the Cesium timeline component",
   "license": "MIT",
   "author": "kteneyck",
-  "keywords": ["cesium", "timeline", "cesiumjs", "gis", "3d", "geospatial"],
+  "keywords": [
+    "cesium",
+    "timeline",
+    "cesiumjs",
+    "gis",
+    "3d",
+    "geospatial"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/kteneyck/cesium-timeline.git",
