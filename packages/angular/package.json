@@ -7,12 +7,12 @@
   "keywords": ["cesium", "timeline", "angular", "cesiumjs", "gis", "3d", "geospatial"],
   "repository": {
     "type": "git",
-    "url": "https://github.com/Hive-Space/cesium-timeline.git",
+    "url": "https://github.com/kteneyck/cesium-timeline.git",
     "directory": "packages/angular"
   },
-  "homepage": "https://github.com/Hive-Space/cesium-timeline#readme",
+  "homepage": "https://github.com/kteneyck/cesium-timeline#readme",
   "bugs": {
-    "url": "https://github.com/Hive-Space/cesium-timeline/issues"
+    "url": "https://github.com/kteneyck/cesium-timeline/issues"
   },
   "publishConfig": {
     "access": "public",
