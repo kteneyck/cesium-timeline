@@ -4,11 +4,11 @@ A canvas-based timeline component for **React** and **Angular** with Cesium Cloc
 
 ## Packages
 
-| Package | Description |
-|---|---|
-| `@kteneyck/cesium-timeline-core` | Framework-agnostic types, utils, canvas engine |
-| `@kteneyck/cesium-timeline-react` | React components (thin wrappers around core) |
-| `@kteneyck/cesium-timeline-angular` | Angular standalone components (Angular 17+) |
+| Package | Description | npm |
+|---|---|---|
+| `@kteneyck/cesium-timeline-core` | Framework-agnostic types, utils, canvas engine | [![npm](https://img.shields.io/npm/v/@kteneyck/cesium-timeline-core)](https://www.npmjs.com/package/@kteneyck/cesium-timeline-core) |
+| `@kteneyck/cesium-timeline-react` | React components (thin wrappers around core) | [![npm](https://img.shields.io/npm/v/@kteneyck/cesium-timeline-react)](https://www.npmjs.com/package/@kteneyck/cesium-timeline-react) |
+| `@kteneyck/cesium-timeline-angular` | Angular standalone components (Angular 17+) | [![npm](https://img.shields.io/npm/v/@kteneyck/cesium-timeline-angular)](https://www.npmjs.com/package/@kteneyck/cesium-timeline-angular) |
 
 ---
 

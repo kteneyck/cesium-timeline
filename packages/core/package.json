@@ -15,7 +15,8 @@
     "url": "https://github.com/Hive-Space/cesium-timeline/issues"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   },
   "type": "module",
   "main": "./dist/cesium-timeline-core.umd.cjs",

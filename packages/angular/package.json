@@ -15,7 +15,8 @@
     "url": "https://github.com/Hive-Space/cesium-timeline/issues"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   },
   "peerDependencies": {
     "@angular/common": "^17.0.0 || ^18.0.0 || ^19.0.0 || ^21.0.0",
