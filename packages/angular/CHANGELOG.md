@@ -4,6 +4,17 @@
 
 ### Minor Changes
 
+- [#5](https://github.com/kteneyck/cesium-timeline/pull/5) [`6e75f1f`](https://github.com/kteneyck/cesium-timeline/commit/6e75f1f8e386a60d29436841a8aabe720d420a60) Thanks [@kteneyck](https://github.com/kteneyck)! - toggle jump to options
+
+### Patch Changes
+
+- Updated dependencies [[`6e75f1f`](https://github.com/kteneyck/cesium-timeline/commit/6e75f1f8e386a60d29436841a8aabe720d420a60)]:
+  - @kteneyck/cesium-timeline-core@0.3.0
+
+## 1.0.0
+
+### Minor Changes
+
 - [`605e41b`](https://github.com/kteneyck/cesium-timeline/commit/605e41bd37ad3784c221f7042c157f53a808f948) Thanks [@kteneyck](https://github.com/kteneyck)! - Update README
 
 - [`e1ffcc6`](https://github.com/kteneyck/cesium-timeline/commit/e1ffcc6a85c62ff2b8c3289a8ff689cf2462e955) Thanks [@kteneyck](https://github.com/kteneyck)! - Update homepage
