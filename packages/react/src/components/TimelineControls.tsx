@@ -4,7 +4,7 @@ import {
   type TimelineTheme,
   formatDateTime,
   splitForDisplay,
-} from '@bariumstudios/cesium-timeline-core';
+} from '@kteneyck/cesium-timeline-core';
 
 /** React-specific controls props (uses Cesium.JulianDate for currentTime). */
 export interface ControlsProps {

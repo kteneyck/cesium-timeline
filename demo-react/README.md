@@ -199,7 +199,7 @@ To modify the test app:
 After testing with this app, integrate the Timeline component into your main application:
 
 ```tsx
-import { Timeline } from '@bariumstudios/cesium-timeline';
+import { Timeline } from '@kteneyck/cesium-timeline';
 
 <Timeline
   startTime={myStartTime}

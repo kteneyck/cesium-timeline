@@ -6,7 +6,7 @@ import {
   generateTicks,
   timeToPosition,
   snapToTick,
-} from '@bariumstudios/cesium-timeline-core';
+} from '@kteneyck/cesium-timeline-core';
 
 interface TimelineSVGProps {
   startTime: Cesium.JulianDate | Date;

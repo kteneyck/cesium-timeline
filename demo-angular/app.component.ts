@@ -16,8 +16,8 @@ import {
   type SwimLaneEventInfo,
   defaultTheme,
   DateTimeFormats,
-} from '@bariumstudios/cesium-timeline-core';
-import { TimelineComponent } from '@bariumstudios/cesium-timeline-angular';
+} from '@kteneyck/cesium-timeline-core';
+import { TimelineComponent } from '@kteneyck/cesium-timeline-angular';
 
 // Configure Cesium assets
 (window as any).CESIUM_BASE_URL = (import.meta as any).env?.CESIUM_BASE_URL ?? '/cesium/';

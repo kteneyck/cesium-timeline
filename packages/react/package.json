@@ -1,7 +1,22 @@
 {
-  "name": "@bariumstudios/cesium-timeline-react",
+  "name": "@kteneyck/cesium-timeline-react",
   "version": "0.1.0",
   "description": "React timeline component for Cesium with clock integration",
+  "license": "MIT",
+  "author": "kteneyck",
+  "keywords": ["cesium", "timeline", "react", "cesiumjs", "gis", "3d", "geospatial"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hive-Space/cesium-timeline.git",
+    "directory": "packages/react"
+  },
+  "homepage": "https://github.com/Hive-Space/cesium-timeline#readme",
+  "bugs": {
+    "url": "https://github.com/Hive-Space/cesium-timeline/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "./dist/cesium-timeline-react.umd.cjs",
   "module": "./dist/cesium-timeline-react.js",
@@ -28,7 +43,7 @@
     "@types/react-dom": ">=18"
   },
   "dependencies": {
-    "@bariumstudios/cesium-timeline-core": "0.1.0"
+    "@kteneyck/cesium-timeline-core": "0.1.0"
   },
   "devDependencies": {
     "@types/react": "19.0.1",

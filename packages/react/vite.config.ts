@@ -23,13 +23,13 @@ export default defineConfig({
       },
     },
     rollupOptions: {
-      external: ['react', 'react-dom', 'cesium', '@bariumstudios/cesium-timeline-core'],
+      external: ['react', 'react-dom', 'cesium', '@kteneyck/cesium-timeline-core'],
       output: {
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM',
           cesium: 'Cesium',
-          '@bariumstudios/cesium-timeline-core': 'CesiumTimelineCore',
+          '@kteneyck/cesium-timeline-core': 'CesiumTimelineCore',
         },
       },
     },

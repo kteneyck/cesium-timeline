@@ -1,11 +1,26 @@
 {
-  "name": "@bariumstudios/cesium-timeline-angular",
+  "name": "@kteneyck/cesium-timeline-angular",
   "version": "0.1.0",
   "description": "Angular timeline component for Cesium with clock integration",
+  "license": "MIT",
+  "author": "kteneyck",
+  "keywords": ["cesium", "timeline", "angular", "cesiumjs", "gis", "3d", "geospatial"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hive-Space/cesium-timeline.git",
+    "directory": "packages/angular"
+  },
+  "homepage": "https://github.com/Hive-Space/cesium-timeline#readme",
+  "bugs": {
+    "url": "https://github.com/Hive-Space/cesium-timeline/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "peerDependencies": {
     "@angular/common": "^17.0.0 || ^18.0.0 || ^19.0.0 || ^21.0.0",
     "@angular/core": "^17.0.0 || ^18.0.0 || ^19.0.0 || ^21.0.0",
-    "@bariumstudios/cesium-timeline-core": "0.1.0",
+    "@kteneyck/cesium-timeline-core": "0.1.0",
     "cesium": "^1.100.0"
   },
   "dependencies": {
@@ -27,5 +42,8 @@
   "scripts": {
     "build": "ng-packagr -p ng-package.json"
   },
+  "files": [
+    "dist"
+  ],
   "sideEffects": false
 }

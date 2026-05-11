@@ -14,7 +14,7 @@ import {
   type TimelineTheme,
   formatDateTime,
   splitForDisplay,
-} from '@bariumstudios/cesium-timeline-core';
+} from '@kteneyck/cesium-timeline-core';
 
 @Component({
   selector: 'ct-timeline-controls',

@@ -4,4 +4,4 @@ export { TimelineCanvasComponent, TICK_AREA_HEIGHT } from './lib/timeline-canvas
 export { TimelineControlsComponent } from './lib/timeline-controls.component';
 
 // Re-export core types and utilities
-export * from '@bariumstudios/cesium-timeline-core';
+export * from '@kteneyck/cesium-timeline-core';

@@ -22,7 +22,7 @@ import {
   defaultTheme,
   toJulianDate,
   TICK_AREA_HEIGHT,
-} from '@bariumstudios/cesium-timeline-core';
+} from '@kteneyck/cesium-timeline-core';
 import { TimelineControlsComponent } from './timeline-controls.component';
 import { TimelineCanvasComponent } from './timeline-canvas.component';
 

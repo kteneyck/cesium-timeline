@@ -25,8 +25,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@bariumstudios/cesium-timeline-core':    path.resolve(__dirname, './packages/core/src/index.ts'),
-      '@bariumstudios/cesium-timeline-angular': path.resolve(__dirname, './packages/angular/src/index.ts'),
+      '@kteneyck/cesium-timeline-core':    path.resolve(__dirname, './packages/core/src/index.ts'),
+      '@kteneyck/cesium-timeline-angular': path.resolve(__dirname, './packages/angular/src/index.ts'),
     },
   },
   define: {

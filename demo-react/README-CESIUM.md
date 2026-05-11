@@ -300,7 +300,7 @@ To use this timeline in the main application:
 
 1. Import the Timeline component:
 ```typescript
-import { Timeline } from '@bariumstudios/cesium-timeline';
+import { Timeline } from '@kteneyck/cesium-timeline';
 ```
 
 2. Pass Cesium clock reference:

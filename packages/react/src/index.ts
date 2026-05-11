@@ -4,5 +4,5 @@ export { TimelineCanvas, type TimelineCanvasHandle, TICK_AREA_HEIGHT } from './c
 export { TimelineControls, type ControlsProps } from './components/TimelineControls';
 export { TimelineSVG } from './components/TimelineSVG';
 
-// Re-export core so consumers only need @bariumstudios/cesium-timeline-react
-export * from '@bariumstudios/cesium-timeline-core';
+// Re-export core so consumers only need @kteneyck/cesium-timeline-react
+export * from '@kteneyck/cesium-timeline-core';

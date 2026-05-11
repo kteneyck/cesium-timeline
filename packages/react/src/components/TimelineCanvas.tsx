@@ -37,7 +37,7 @@ import {
   isInSwimLaneRegion as coreIsInSwimLaneRegion,
   zoomRange,
   totalSwimLaneHeight,
-} from '@bariumstudios/cesium-timeline-core';
+} from '@kteneyck/cesium-timeline-core';
 
 // Re-export for consumers
 export { TICK_AREA_HEIGHT };

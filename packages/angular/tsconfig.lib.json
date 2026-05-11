@@ -18,7 +18,7 @@
     "skipLibCheck": true,
     "experimentalDecorators": true,
     "paths": {
-      "@bariumstudios/cesium-timeline-core": ["../core/src/index.ts"]
+      "@kteneyck/cesium-timeline-core": ["../core/src/index.ts"]
     }
   },
   "angularCompilerOptions": {

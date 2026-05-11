@@ -7,11 +7,11 @@ import {
   defaultTheme,
   toJulianDate,
   TICK_AREA_HEIGHT,
-} from '@bariumstudios/cesium-timeline-core';
+} from '@kteneyck/cesium-timeline-core';
 import { TimelineControls } from './components/TimelineControls';
 import { TimelineCanvas, TimelineCanvasHandle } from './components/TimelineCanvas';
 
-// Re-export so consumers only need @bariumstudios/cesium-timeline-react
+// Re-export so consumers only need @kteneyck/cesium-timeline-react
 export type { TimelineCanvasHandle };
 export { TICK_AREA_HEIGHT };
 

@@ -1,11 +1,11 @@
 # Angular Usage Example
 
-This file shows how to use `@bariumstudios/cesium-timeline-angular` in an Angular application.
+This file shows how to use `@kteneyck/cesium-timeline-angular` in an Angular application.
 
 ## Setup
 
 ```bash
-npm install @bariumstudios/cesium-timeline-angular @bariumstudios/cesium-timeline-core cesium
+npm install @kteneyck/cesium-timeline-angular @kteneyck/cesium-timeline-core cesium
 ```
 
 ## Standalone Component Example
@@ -13,9 +13,9 @@ npm install @bariumstudios/cesium-timeline-angular @bariumstudios/cesium-timelin
 ```typescript
 // app.component.ts
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
-import { TimelineComponent } from '@bariumstudios/cesium-timeline-angular';
-import type { SwimLane, SwimLaneEventInfo, TimelineTheme } from '@bariumstudios/cesium-timeline-core';
-import { defaultTheme } from '@bariumstudios/cesium-timeline-core';
+import { TimelineComponent } from '@kteneyck/cesium-timeline-angular';
+import type { SwimLane, SwimLaneEventInfo, TimelineTheme } from '@kteneyck/cesium-timeline-core';
+import { defaultTheme } from '@kteneyck/cesium-timeline-core';
 import * as Cesium from 'cesium';
 
 @Component({
