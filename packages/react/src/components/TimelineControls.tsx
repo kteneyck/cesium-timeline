@@ -23,6 +23,8 @@ export interface ControlsProps {
   isLive: boolean;
   hasStartTime: boolean;
   hasEndTime: boolean;
+  showJumpToStart?: boolean;
+  showJumpToEnd?: boolean;
   theme: TimelineTheme;
   swimLanesVisible?: boolean;
   onToggleSwimLanes?: () => void;
@@ -60,6 +62,8 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   isLive,
   hasStartTime,
   hasEndTime,
+  showJumpToStart = true,
+  showJumpToEnd = true,
   onPlayPause,
   onJumpToStart,
   onRewind,
@@ -227,13 +231,14 @@ export const TimelineControls: React.FC<ControlsProps> = ({
       {/* ── Center: Transport buttons ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '2px', ...(isNarrow ? { flex: 1, justifyContent: 'center' } : {}) }}>
 
-        {hasStartTime && (
+        {showJumpToStart && (
           <button
-            onClick={onJumpToStart}
-            style={btn(false)}
-            onMouseEnter={e => onEnter(e, false)}
-            onMouseLeave={onLeave}
-            title="Jump to start"
+            onClick={hasStartTime ? onJumpToStart : undefined}
+            disabled={!hasStartTime}
+            style={{ ...btn(false), opacity: hasStartTime ? 1 : 0.3, cursor: hasStartTime ? 'pointer' : 'default' }}
+            onMouseEnter={hasStartTime ? e => onEnter(e, false) : undefined}
+            onMouseLeave={hasStartTime ? onLeave : undefined}
+            title={hasStartTime ? 'Jump to start' : 'No start time set'}
           >⏮</button>
         )}
 
@@ -281,13 +286,14 @@ export const TimelineControls: React.FC<ControlsProps> = ({
           ) : '▶▶'}
         </button>
 
-        {hasEndTime && (
+        {showJumpToEnd && (
           <button
-            onClick={onJumpToEnd}
-            style={btn(false)}
-            onMouseEnter={e => onEnter(e, false)}
-            onMouseLeave={onLeave}
-            title="Jump to end"
+            onClick={hasEndTime ? onJumpToEnd : undefined}
+            disabled={!hasEndTime}
+            style={{ ...btn(false), opacity: hasEndTime ? 1 : 0.3, cursor: hasEndTime ? 'pointer' : 'default' }}
+            onMouseEnter={hasEndTime ? e => onEnter(e, false) : undefined}
+            onMouseLeave={hasEndTime ? onLeave : undefined}
+            title={hasEndTime ? 'Jump to end' : 'No end time set'}
           >⏭</button>
         )}
 

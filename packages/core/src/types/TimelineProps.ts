@@ -34,6 +34,10 @@ export interface TimelineBaseProps {
   showLabels?: boolean;
   /** Whether to render the transport control bar above the canvas. @default true */
   showControls?: boolean;
+  /** Whether to show the ⏮ jump-to-start button in the control bar. @default true */
+  showJumpToStart?: boolean;
+  /** Whether to show the ⏭ jump-to-end button in the control bar. @default true */
+  showJumpToEnd?: boolean;
   /** When `true`, ticks snap to round time boundaries during scrub. */
   snapToTicks?: boolean;
   /** Whether the user can scrub / drag the timeline. @default true */
@@ -138,10 +142,14 @@ export interface ControlsBaseProps {
   onResetSpeed: () => void;
   /** Whether the needle is near the current wall-clock time (within 10 s). */
   isLive: boolean;
-  /** Whether to show the ⏮ jump-to-start button (true when startTime prop was provided). */
+  /** Whether to enable the ⏮ jump-to-start button (true when startTime prop was provided). */
   hasStartTime: boolean;
-  /** Whether to show the ⏭ jump-to-end button (true when endTime prop was provided). */
+  /** Whether to enable the ⏭ jump-to-end button (true when endTime prop was provided). */
   hasEndTime: boolean;
+  /** Whether to show the ⏮ jump-to-start button at all. @default true */
+  showJumpToStart?: boolean;
+  /** Whether to show the ⏭ jump-to-end button at all. @default true */
+  showJumpToEnd?: boolean;
   /** Resolved theme object applied to control bar elements. */
   theme: TimelineTheme;
   /** Whether swim lanes are currently visible. When defined, the chevron toggle is rendered. */

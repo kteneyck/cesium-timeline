@@ -28,6 +28,8 @@ export interface TimelineProps {
   onMultiplierChange?: (multiplier: number) => void;
   height?: number;
   showControls?: boolean;
+  showJumpToStart?: boolean;
+  showJumpToEnd?: boolean;
   enableDrag?: boolean;
   dateTimeFormat?: string;
   onDateTimeClick?: () => void;
@@ -58,6 +60,8 @@ export const Timeline: React.FC<TimelineProps> = ({
   onMultiplierChange,
   height,
   showControls = true,
+  showJumpToStart,
+  showJumpToEnd,
   enableDrag = true,
   dateTimeFormat,
   onDateTimeClick,
@@ -272,6 +276,8 @@ export const Timeline: React.FC<TimelineProps> = ({
             isLive={isLive}
             hasStartTime={providedStart != null}
             hasEndTime={providedEnd != null}
+            showJumpToStart={showJumpToStart}
+            showJumpToEnd={showJumpToEnd}
             onPlayPause={handlePlayPause}
             onJumpToStart={handleJumpToStart}
             onRewind={handleRewindSpeed}

@@ -54,6 +54,8 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
             [isLive]="isLive"
             [hasStartTime]="startTime != null"
             [hasEndTime]="endTime != null"
+            [showJumpToStart]="showJumpToStart"
+            [showJumpToEnd]="showJumpToEnd"
             [dateTimeFormat]="dateTimeFormat"
             [theme]="finalTheme"
             [swimLanesVisible]="hasSwimLanes ? swimLanesExpanded : undefined"
@@ -101,6 +103,8 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
   @Input() clock?: Cesium.Clock;
   @Input() height?: number;
   @Input() showControls = true;
+  @Input() showJumpToStart?: boolean;
+  @Input() showJumpToEnd?: boolean;
   @Input() enableDrag = true;
   @Input() dateTimeFormat?: string;
   @Input() jumpToTime?: Cesium.JulianDate | Date;

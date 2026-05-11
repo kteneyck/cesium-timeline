@@ -89,12 +89,15 @@ import {
         [style.flex]="isNarrow ? '1' : undefined"
         [style.justify-content]="isNarrow ? 'center' : undefined"
       >
-        @if (hasStartTime) {
+        @if (showJumpToStart !== false) {
           <button
-            (click)="jumpToStart.emit()"
+            (click)="hasStartTime && jumpToStart.emit()"
+            [disabled]="!hasStartTime"
             [style.color]="theme.buttonColor"
+            [style.opacity]="hasStartTime ? 1 : 0.3"
+            [style.cursor]="hasStartTime ? 'pointer' : 'default'"
             class="ct-btn"
-            title="Jump to start"
+            [title]="hasStartTime ? 'Jump to start' : 'No start time set'"
           >⏮</button>
         }
 
@@ -144,12 +147,15 @@ import {
           }
         </button>
 
-        @if (hasEndTime) {
+        @if (showJumpToEnd !== false) {
           <button
-            (click)="jumpToEnd.emit()"
+            (click)="hasEndTime && jumpToEnd.emit()"
+            [disabled]="!hasEndTime"
             [style.color]="theme.buttonColor"
+            [style.opacity]="hasEndTime ? 1 : 0.3"
+            [style.cursor]="hasEndTime ? 'pointer' : 'default'"
             class="ct-btn"
-            title="Jump to end"
+            [title]="hasEndTime ? 'Jump to end' : 'No end time set'"
           >⏭</button>
         }
       </div>
@@ -236,6 +242,8 @@ export class TimelineControlsComponent implements AfterViewInit, OnDestroy {
   @Input() isLive = false;
   @Input() hasStartTime = false;
   @Input() hasEndTime = false;
+  @Input() showJumpToStart?: boolean;
+  @Input() showJumpToEnd?: boolean;
   @Input() theme!: TimelineTheme;
   @Input() swimLanesVisible?: boolean;
 
