@@ -1,5 +1,16 @@
 # @kteneyck/cesium-timeline-react
 
+## 0.3.0
+
+### Minor Changes
+
+- [#5](https://github.com/kteneyck/cesium-timeline/pull/5) [`6e75f1f`](https://github.com/kteneyck/cesium-timeline/commit/6e75f1f8e386a60d29436841a8aabe720d420a60) Thanks [@kteneyck](https://github.com/kteneyck)! - toggle jump to options
+
+### Patch Changes
+
+- Updated dependencies [[`6e75f1f`](https://github.com/kteneyck/cesium-timeline/commit/6e75f1f8e386a60d29436841a8aabe720d420a60)]:
+  - @kteneyck/cesium-timeline-core@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes

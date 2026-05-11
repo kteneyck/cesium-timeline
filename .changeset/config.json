@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
   "changelog": ["@changesets/changelog-github", { "repo": "kteneyck/cesium-timeline" }],
   "commit": false,
-  "fixed": [],
+  "fixed": [["@kteneyck/cesium-timeline-core", "@kteneyck/cesium-timeline-react", "@kteneyck/cesium-timeline-angular"]],
   "linked": [],
   "access": "public",
   "baseBranch": "main",
