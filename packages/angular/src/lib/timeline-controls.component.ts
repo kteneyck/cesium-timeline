@@ -12,6 +12,9 @@ import {
 import * as Cesium from 'cesium';
 import {
   type TimelineTheme,
+  type TimelineLabels,
+  DEFAULT_LABELS,
+  resolveLabel,
   formatDateTime,
   getTimezoneAbbr,
   splitForDisplay,
@@ -36,7 +39,7 @@ import {
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         <div
           (click)="dateTimeClick.emit()"
-          [title]="dateTimeClick.observed ? 'Click to jump to a date/time' : ''"
+          [title]="dateTimeClick.observed ? l.dateTimeClickTooltip : ''"
           [style.color]="theme.labelColor"
           style="font-family:monospace;line-height:1.15;border-radius:4px;padding:2px 4px;transition:background 0.15s"
           [style.cursor]="dateTimeClick.observed ? 'pointer' : 'default'"
@@ -70,9 +73,9 @@ import {
             [style.border-color]="theme.buttonActiveColor"
             [style.opacity]="isLive ? 1 : 0.55"
             style="background:none;border:1px solid;cursor:pointer;font-size:11px;font-weight:bold;letter-spacing:0.05em;width:52px;min-width:52px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;padding:0;font-family:system-ui,-apple-system,sans-serif;transition:opacity 0.15s"
-            [title]="isLive ? 'Currently live' : 'Jump to live (now)'"
+            [title]="isLive ? l.liveActiveTooltip : l.liveTooltip"
           >
-            {{ isLive ? '● LIVE' : 'LIVE' }}
+            {{ isLive ? l.liveActiveLabel : l.liveLabel }}
           </button>
 
           <!-- Speed badge -->
@@ -83,7 +86,7 @@ import {
                 [style.color]="theme.buttonActiveColor"
                 [style.border-color]="theme.buttonActiveColor + '44'"
                 style="background:none;border:1px solid;cursor:pointer;font-size:11px;width:52px;min-width:52px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;padding:0;font-family:system-ui,-apple-system,sans-serif;transition:background-color 0.15s"
-                title="Reset to 1× speed"
+                [title]="l.resetSpeedTooltip"
               >
                 {{ isRewinding ? '◀ ' + absMultiplier + '×' : absMultiplier + '× ▶' }}
               </button>
@@ -106,7 +109,7 @@ import {
             [style.opacity]="hasStartTime ? 1 : 0.3"
             [style.cursor]="hasStartTime ? 'pointer' : 'default'"
             class="ct-btn"
-            [title]="hasStartTime ? 'Jump to start' : 'No start time set'"
+            [title]="hasStartTime ? l.jumpToStartTooltip : l.noStartTimeTooltip"
           >⏮</button>
         }
 
@@ -115,7 +118,7 @@ import {
           [style.color]="isRewinding ? theme.buttonActiveColor : theme.buttonColor"
           [style.border-color]="isRewinding ? theme.buttonActiveColor + '33' : 'transparent'"
           class="ct-btn ct-btn-wide"
-          [title]="isRewinding ? 'Reverse ' + absMultiplier + '× — click to speed up' : 'Rewind'"
+          [title]="isRewinding ? resolveRewindActive(absMultiplier) : l.rewindTooltip"
         >
           @if (isRewinding) {
             <span style="font-size:11px;font-weight:bold">{{ absMultiplier }}×</span>◀◀
@@ -130,7 +133,7 @@ import {
           [style.border-color]="theme.buttonActiveColor + '55'"
           [style.padding-left]="isPlaying ? '0' : '2px'"
           class="ct-btn ct-btn-play"
-          [title]="isPlaying ? 'Pause' : (isRewinding ? 'Play (reset to 1×)' : 'Play')"
+          [title]="isPlaying ? l.pauseTooltip : (isRewinding ? l.playFromRewindTooltip : l.playTooltip)"
         >
           @if (isPlaying) {
             <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor">
@@ -147,7 +150,7 @@ import {
           [style.color]="isFastForward ? theme.buttonActiveColor : theme.buttonColor"
           [style.border-color]="isFastForward ? theme.buttonActiveColor + '33' : 'transparent'"
           class="ct-btn ct-btn-wide"
-          [title]="isFastForward ? absMultiplier + '× speed — click to increase' : 'Fast forward'"
+          [title]="isFastForward ? resolveFastForwardActive(absMultiplier) : l.fastForwardTooltip"
         >
           @if (isFastForward) {
             ▶▶<span style="font-size:11px;font-weight:bold">{{ absMultiplier }}×</span>
@@ -164,7 +167,7 @@ import {
             [style.opacity]="hasEndTime ? 1 : 0.3"
             [style.cursor]="hasEndTime ? 'pointer' : 'default'"
             class="ct-btn"
-            [title]="hasEndTime ? 'Jump to end' : 'No end time set'"
+            [title]="hasEndTime ? l.jumpToEndTooltip : l.noEndTimeTooltip"
           >⏭</button>
         }
       </div>
@@ -178,7 +181,7 @@ import {
               [style.color]="theme.buttonActiveColor"
               [style.border-color]="theme.buttonActiveColor + '33'"
               class="ct-btn"
-              [title]="swimLanesVisible ? 'Collapse swim lanes' : 'Expand swim lanes'"
+              [title]="swimLanesVisible ? l.collapseSwimLanesTooltip : l.expandSwimLanesTooltip"
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 @if (swimLanesVisible) {
@@ -199,7 +202,7 @@ import {
           [style.border-color]="theme.buttonActiveColor + '33'"
           class="ct-btn"
           style="margin-left:4px"
-          [title]="swimLanesVisible ? 'Collapse swim lanes' : 'Expand swim lanes'"
+          [title]="swimLanesVisible ? l.collapseSwimLanesTooltip : l.expandSwimLanesTooltip"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             @if (swimLanesVisible) {
@@ -256,6 +259,7 @@ export class TimelineControlsComponent implements AfterViewInit, OnDestroy {
   @Input() showJumpToEnd?: boolean;
   @Input() theme!: TimelineTheme;
   @Input() swimLanesVisible?: boolean;
+  @Input() labels?: Partial<TimelineLabels>;
 
   @Output() dateTimeClick = new EventEmitter<void>();
   @Output() playPause = new EventEmitter<boolean>();
@@ -283,6 +287,12 @@ export class TimelineControlsComponent implements AfterViewInit, OnDestroy {
   get formattedTime(): string { return formatDateTime(this.currentTime, this.timeFormat, this.timezone); }
   get formattedDate(): string { return formatDateTime(this.currentTime, this.dateFormat, this.timezone); }
   get timezoneAbbr(): string | null { return getTimezoneAbbr(this.currentTime, this.timezone); }
+
+  /** Merged labels — defaults overridden by whatever the consumer provides. */
+  get l(): Required<TimelineLabels> { return { ...DEFAULT_LABELS, ...this.labels }; }
+
+  resolveRewindActive(multiplier: number): string { return resolveLabel(this.l.rewindActiveTooltip, multiplier); }
+  resolveFastForwardActive(multiplier: number): string { return resolveLabel(this.l.fastForwardActiveTooltip, multiplier); }
 
   ngAfterViewInit(): void {
     const el = this.containerRef?.nativeElement;

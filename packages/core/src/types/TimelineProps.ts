@@ -2,6 +2,7 @@ import * as Cesium from 'cesium';
 import { TickInterval } from './TickInterval';
 import { TimelineTheme } from './TimelineTheme';
 import { SwimLane, SwimLaneEventInfo } from './SwimLane';
+import { TimelineLabels } from './TimelineLabels';
 
 /**
  * Framework-agnostic base props for the timeline component.
@@ -118,6 +119,12 @@ export interface TimelineBaseProps {
   onSwimLaneItemContextMenu?: (info: SwimLaneEventInfo) => void;
   /** Fired when swim lanes are reordered via drag. Returns the new ordered lane IDs. */
   onSwimLaneReorder?: (orderedLaneIds: string[]) => void;
+  /**
+   * Overrides for control-bar labels and tooltips.
+   * Useful for localisation or custom verbiage — provide only the strings you
+   * want to change; everything else falls back to the English defaults.
+   */
+  labels?: Partial<TimelineLabels>;
 }
 
 /**
@@ -166,4 +173,9 @@ export interface ControlsBaseProps {
   swimLanesVisible?: boolean;
   /** Toggle callback for the swim-lane chevron button. */
   onToggleSwimLanes?: () => void;
+  /**
+   * Overrides for control-bar labels and tooltips.
+   * @see TimelineBaseProps.labels
+   */
+  labels?: Partial<TimelineLabels>;
 }

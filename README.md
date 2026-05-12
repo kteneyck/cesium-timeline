@@ -135,6 +135,7 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 - **Max tick limit** — `maxTicks` prop prevents the canvas from becoming overloaded at wide zoom levels by coarsening the tick scale automatically.
 - **Swim lanes** — display time intervals and instants as horizontal rows inside the canvas. Supports customizable styling, click/hover/double-click event hooks, drag-to-reorder, and vertical scrolling when lanes overflow.
 - **Fully themeable** — 16 theme properties cover every color, size, and font setting, including swim lane item border defaults.
+- **Localizable labels** — every control-bar label and tooltip is overridable via the `labels` prop; dynamic tooltips accept a `(multiplier: number) => string` callback. See [Labels & i18n](#labels--i18n).
 - **Responsive** — fills container width; `ResizeObserver` redraws on resize.
 
 ---
@@ -173,6 +174,7 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 | `onSwimLaneItemHover` | `(info: SwimLaneEventInfo \| null) => void` | — | Fires when mouse enters/leaves a swim lane item |
 | `onSwimLaneItemDoubleClick` | `(info: SwimLaneEventInfo) => void` | — | Fires when a swim lane item is double-clicked |
 | `onSwimLaneReorder` | `(orderedIds: string[]) => void` | — | Fires when swim lanes are reordered via drag. Receives the new lane id order. |
+| `labels` | `Partial<TimelineLabels>` | English defaults | Override any control-bar label or tooltip string. See [Labels & i18n](#labels--i18n). |
 
 ---
 
@@ -412,6 +414,88 @@ const [pickerOpen, setPickerOpen] = useState(false);
 
 ---
 
+## Labels & i18n
+
+Every label and tooltip in the control bar is overridable via the `labels` prop. Pass a `Partial<TimelineLabels>` object — only the keys you provide are changed; everything else falls back to the English defaults.
+
+### `TimelineLabels` reference
+
+| Key | Default (English) | Notes |
+|-----|-------------------|-------|
+| `dateTimeClickTooltip` | `"Click to jump to a date/time"` | Tooltip on the datetime display when `onDateTimeClick` is wired up |
+| `liveLabel` | `"LIVE"` | LIVE button text when not at live time |
+| `liveActiveLabel` | `"● LIVE"` | LIVE button text when at live time |
+| `liveTooltip` | `"Jump to live (now)"` | LIVE button tooltip when not at live time |
+| `liveActiveTooltip` | `"Currently live"` | LIVE button tooltip when at live time |
+| `resetSpeedTooltip` | `"Reset to 1× speed"` | Tooltip on the speed-reset badge |
+| `jumpToStartTooltip` | `"Jump to start"` | ⏮ button tooltip when a start time is set |
+| `noStartTimeTooltip` | `"No start time set"` | ⏮ button tooltip when no start time is set |
+| `jumpToEndTooltip` | `"Jump to end"` | ⏭ button tooltip when an end time is set |
+| `noEndTimeTooltip` | `"No end time set"` | ⏭ button tooltip when no end time is set |
+| `rewindTooltip` | `"Rewind"` | ◀◀ button tooltip at normal speed |
+| `rewindActiveTooltip` | `(n) => "Reverse N× — click to speed up…"` | ◀◀ button tooltip while rewinding — receives the current multiplier |
+| `playTooltip` | `"Play"` | ▶ button tooltip when stopped |
+| `playFromRewindTooltip` | `"Play (reset to 1×)"` | ▶ button tooltip when coming out of rewind |
+| `pauseTooltip` | `"Pause"` | ▶ button tooltip when playing |
+| `fastForwardTooltip` | `"Fast forward"` | ▶▶ button tooltip at normal speed |
+| `fastForwardActiveTooltip` | `(n) => "N× speed — click to increase…"` | ▶▶ button tooltip while fast-forwarding — receives the current multiplier |
+| `collapseSwimLanesTooltip` | `"Collapse swim lanes"` | Chevron button tooltip when lanes are visible |
+| `expandSwimLanesTooltip` | `"Expand swim lanes"` | Chevron button tooltip when lanes are hidden |
+
+Dynamic fields (`rewindActiveTooltip`, `fastForwardActiveTooltip`) accept either a **static string** or a **function** `(multiplier: number) => string`. Use a function when you want to embed the speed value in your translated string.
+
+### React example
+
+```tsx
+import { Timeline } from '@kteneyck/cesium-timeline-react';
+import type { TimelineLabels } from '@kteneyck/cesium-timeline-core';
+
+const frLabels: Partial<TimelineLabels> = {
+  playTooltip: 'Lecture',
+  pauseTooltip: 'Pause',
+  liveLabel: 'EN DIRECT',
+  liveActiveLabel: '● EN DIRECT',
+  liveTooltip: 'Aller en direct',
+  liveActiveTooltip: 'Vous êtes en direct',
+  rewindTooltip: 'Retour rapide',
+  rewindActiveTooltip: (n) => `Retour ${n}× — cliquer pour accélérer`,
+  fastForwardTooltip: 'Avance rapide',
+  fastForwardActiveTooltip: (n) => `${n}× — cliquer pour augmenter la vitesse`,
+  collapseSwimLanesTooltip: 'Réduire les pistes',
+  expandSwimLanesTooltip: 'Développer les pistes',
+};
+
+<Timeline clock={viewer.clock} labels={frLabels} height={120} />
+```
+
+### Angular example
+
+```typescript
+// component.ts
+import type { TimelineLabels } from '@kteneyck/cesium-timeline-core';
+
+@Component({ ... })
+export class AppComponent {
+  frLabels: Partial<TimelineLabels> = {
+    playTooltip: 'Lecture',
+    pauseTooltip: 'Pause',
+    liveLabel: 'EN DIRECT',
+    liveActiveLabel: '● EN DIRECT',
+    liveTooltip: 'Aller en direct',
+    liveActiveTooltip: 'Vous êtes en direct',
+    rewindActiveTooltip: (n) => `Retour ${n}× — cliquer pour accélérer`,
+    fastForwardActiveTooltip: (n) => `${n}× — cliquer pour augmenter la vitesse`,
+  };
+}
+```
+
+```html
+<!-- component.html -->
+<ct-timeline [clock]="clock" [labels]="frLabels" [height]="120" />
+```
+
+---
+
 ## Exports
 
 ### React
@@ -441,6 +525,7 @@ import {
 import {
   DateTimeFormats,   // Format string presets
   Timezones,         // { LOCAL: 'local', UTC: 'UTC' } convenience constants
+  DEFAULT_LABELS,    // Default English label/tooltip strings
   formatDateTime,    // Token-based date formatter (date, format, timezone?)
   getTimezoneAbbr,   // Short timezone abbreviation for a date (date, timezone?)
   splitForDisplay,   // Split format string into time/date parts
@@ -458,6 +543,7 @@ import {
 // TypeScript types
 import type {
   TimelineTheme,
+  TimelineLabels,
   SwimLane,
   SwimLaneItem,
   SwimLaneItemStyle,

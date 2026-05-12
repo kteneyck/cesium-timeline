@@ -1,7 +1,10 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import * as Cesium from 'cesium';
 import {
   type TimelineTheme,
+  type TimelineLabels,
+  DEFAULT_LABELS,
+  resolveLabel,
   formatDateTime,
   getTimezoneAbbr,
   splitForDisplay,
@@ -31,6 +34,8 @@ export interface ControlsProps {
   theme: TimelineTheme;
   swimLanesVisible?: boolean;
   onToggleSwimLanes?: () => void;
+  /** Overrides for control-bar labels and tooltips (i18n / custom verbiage). */
+  labels?: Partial<TimelineLabels>;
 }
 
 const NARROW_BREAKPOINT = 520;
@@ -79,11 +84,17 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   theme,
   swimLanesVisible,
   onToggleSwimLanes,
+  labels: labelOverrides,
 }) => {
   const isRewinding    = multiplier < 0;
   const isFastForward  = multiplier > 1;
   const isNormalSpeed  = multiplier === 1;
   const absMultiplier  = Math.abs(multiplier);
+
+  const L = useMemo(
+    () => ({ ...DEFAULT_LABELS, ...labelOverrides }),
+    [labelOverrides],
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [isNarrow, setIsNarrow] = useState(false);
@@ -149,7 +160,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
         <div
           onClick={onDateTimeClick}
-          title={onDateTimeClick ? 'Click to jump to a date/time' : undefined}
+          title={onDateTimeClick ? L.dateTimeClickTooltip : undefined}
           style={{
             color: theme.labelColor,
             fontFamily: 'monospace',
@@ -216,9 +227,9 @@ export const TimelineControls: React.FC<ControlsProps> = ({
             }}
             onMouseEnter={e => { e.currentTarget.style.opacity = '1'; }}
             onMouseLeave={e => { e.currentTarget.style.opacity = isLive ? '1' : '0.55'; }}
-            title={isLive ? 'Currently live' : 'Jump to live (now)'}
+            title={isLive ? L.liveActiveTooltip : L.liveTooltip}
           >
-            {isLive ? '● LIVE' : 'LIVE'}
+            {isLive ? L.liveActiveLabel : L.liveLabel}
           </button>
 
           {/* Speed reset badge — same slot height whether visible or not */}
@@ -237,7 +248,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
                 }}
                 onMouseEnter={e => onEnter(e, true)}
                 onMouseLeave={onLeave}
-                title="Reset to 1× speed"
+                title={L.resetSpeedTooltip}
               >
                 {isRewinding ? `◀ ${absMultiplier}×` : `${absMultiplier}× ▶`}
               </button>
@@ -256,7 +267,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
             style={{ ...btn(false), opacity: hasStartTime ? 1 : 0.3, cursor: hasStartTime ? 'pointer' : 'default' }}
             onMouseEnter={hasStartTime ? e => onEnter(e, false) : undefined}
             onMouseLeave={hasStartTime ? onLeave : undefined}
-            title={hasStartTime ? 'Jump to start' : 'No start time set'}
+            title={hasStartTime ? L.jumpToStartTooltip : L.noStartTimeTooltip}
           >⏮</button>
         )}
 
@@ -265,7 +276,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
           style={{ ...btn(isRewinding), width: '64px', minWidth: '64px', gap: '3px' }}
           onMouseEnter={e => onEnter(e, isRewinding)}
           onMouseLeave={onLeave}
-          title={isRewinding ? `Reverse ${absMultiplier}× — click to speed up, press play to stop` : 'Rewind'}
+          title={isRewinding ? resolveLabel(L.rewindActiveTooltip, absMultiplier) : L.rewindTooltip}
         >
           {isRewinding ? (
             <><span style={{ fontSize: '11px', fontWeight: 'bold' }}>{absMultiplier}×</span>◀◀</>
@@ -287,7 +298,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
           }}
           onMouseEnter={e => onEnter(e, true)}
           onMouseLeave={onLeave}
-          title={isPlaying ? 'Pause' : (isRewinding ? 'Play (reset to 1×)' : 'Play')}
+          title={isPlaying ? L.pauseTooltip : (isRewinding ? L.playFromRewindTooltip : L.playTooltip)}
         >
           {isPlaying ? <PauseIcon /> : '▶'}
         </button>
@@ -297,7 +308,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
           style={{ ...btn(isFastForward), width: '64px', minWidth: '64px', gap: '3px' }}
           onMouseEnter={e => onEnter(e, isFastForward)}
           onMouseLeave={onLeave}
-          title={isFastForward ? `${absMultiplier}× speed — click to increase, click again at max to reset` : 'Fast forward'}
+          title={isFastForward ? resolveLabel(L.fastForwardActiveTooltip, absMultiplier) : L.fastForwardTooltip}
         >
           {isFastForward ? (
             <>▶▶<span style={{ fontSize: '11px', fontWeight: 'bold' }}>{absMultiplier}×</span></>
@@ -311,7 +322,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
             style={{ ...btn(false), opacity: hasEndTime ? 1 : 0.3, cursor: hasEndTime ? 'pointer' : 'default' }}
             onMouseEnter={hasEndTime ? e => onEnter(e, false) : undefined}
             onMouseLeave={hasEndTime ? onLeave : undefined}
-            title={hasEndTime ? 'Jump to end' : 'No end time set'}
+            title={hasEndTime ? L.jumpToEndTooltip : L.noEndTimeTooltip}
           >⏭</button>
         )}
 
@@ -330,7 +341,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
               }}
               onMouseEnter={e => onEnter(e, swimLanesVisible)}
               onMouseLeave={onLeave}
-              title={swimLanesVisible ? 'Collapse swim lanes' : 'Expand swim lanes'}
+              title={swimLanesVisible ? L.collapseSwimLanesTooltip : L.expandSwimLanesTooltip}
             >
               {swimLanesVisible ? <ChevronDownIcon /> : <ChevronUpIcon />}
             </button>
@@ -349,7 +360,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
           }}
           onMouseEnter={e => onEnter(e, swimLanesVisible)}
           onMouseLeave={onLeave}
-          title={swimLanesVisible ? 'Collapse swim lanes' : 'Expand swim lanes'}
+          title={swimLanesVisible ? L.collapseSwimLanesTooltip : L.expandSwimLanesTooltip}
         >
           {swimLanesVisible ? <ChevronDownIcon /> : <ChevronUpIcon />}
         </button>

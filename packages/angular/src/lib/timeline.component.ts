@@ -17,6 +17,7 @@ import {
 import * as Cesium from 'cesium';
 import {
   type TimelineTheme,
+  type TimelineLabels,
   type SwimLane,
   type SwimLaneEventInfo,
   defaultTheme,
@@ -69,6 +70,7 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
             (resetSpeed)="applyMultiplier(1)"
             (dateTimeClick)="dateTimeClick.emit()"
             (toggleSwimLanes)="handleToggleSwimLanes()"
+            [labels]="labels"
           />
         </div>
       }
@@ -119,6 +121,8 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
   @Input() swimLanes?: SwimLane[];
   @Input() showSwimLanes?: boolean;
   @Input() swimLaneTransition: 'animated' | 'instant' = 'animated';
+  /** Overrides for control-bar labels and tooltips (i18n / custom verbiage). */
+  @Input() labels?: Partial<TimelineLabels>;
 
   // ── Outputs ────────────────────────────────────────────────────────────
   @Output() timeChange = new EventEmitter<Cesium.JulianDate>();
