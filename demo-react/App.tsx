@@ -28,6 +28,24 @@ export const TestApp: React.FC = () => {
   const [enableDrag, setEnableDrag] = useState(true);
   const [tickInterval, setTickInterval] = useState<number>(60);
   const [dateTimeFormat, setDateTimeFormat] = useState(DateTimeFormats.DEFAULT);
+  const [timezone, setTimezone] = useState('local');
+
+  const TIMEZONE_OPTIONS: [string, string][] = [
+    ['local',                 'Local (browser)'],
+    ['UTC',                   'UTC'],
+    ['America/New_York',      'New York (ET)'],
+    ['America/Chicago',       'Chicago (CT)'],
+    ['America/Denver',        'Denver (MT)'],
+    ['America/Los_Angeles',   'Los Angeles (PT)'],
+    ['Europe/London',         'London (GMT/BST)'],
+    ['Europe/Berlin',         'Berlin (CET/CEST)'],
+    ['Europe/Moscow',         'Moscow (MSK)'],
+    ['Asia/Dubai',            'Dubai (GST)'],
+    ['Asia/Kolkata',          'India (IST)'],
+    ['Asia/Tokyo',            'Tokyo (JST)'],
+    ['Australia/Sydney',      'Sydney (AEST)'],
+    ['Pacific/Auckland',      'Auckland (NZST)'],
+  ];
 
   // Theme
   const [theme, setTheme] = useState<TimelineTheme>({ ...defaultTheme, backgroundColor: '#2a2a2a' });
@@ -533,6 +551,15 @@ export const TestApp: React.FC = () => {
             </div>
 
             <div className="prop-row">
+              <label>Timezone</label>
+              <select value={timezone} onChange={e => setTimezone(e.target.value)}>
+                {TIMEZONE_OPTIONS.map(([tz, label]) => (
+                  <option key={tz} value={tz}>{label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="prop-row">
               <label>Date/Time Format</label>
               <select value={dateTimeFormat} onChange={e => setDateTimeFormat(e.target.value)}>
                 {Object.entries(DateTimeFormats).map(([key, fmt]) => (
@@ -621,6 +648,7 @@ export const TestApp: React.FC = () => {
             height={timelineHeight}
             tickInterval={tickInterval}
             dateTimeFormat={dateTimeFormat}
+            timezone={timezone === 'local' ? undefined : timezone}
             onDateTimeClick={handleDateTimeClick}
             jumpToTime={jumpToTime}
             theme={theme}

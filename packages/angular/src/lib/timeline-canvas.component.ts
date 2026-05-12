@@ -63,6 +63,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
   @Input() defaultEndMs!: number;
   @Input() theme!: TimelineTheme;
   @Input() maxTicks?: number;
+  @Input() timezone?: string;
   @Input() swimLanes?: SwimLane[];
   @Input() showSwimLanes?: boolean;
 
@@ -152,7 +153,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
         this.draw();
       }
     }
-    if (changes['theme'] || changes['maxTicks']) {
+    if (changes['theme'] || changes['maxTicks'] || changes['timezone']) {
       this.draw();
     }
     if (changes['swimLanes']) {
@@ -291,6 +292,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       currentMs: this.curMs,
       theme: this.theme,
       maxTicks: this.maxTicks,
+      timezone: this.timezone,
       swimLanes: this.swimLanesState,
       showSwimLanes: this.showSwimLanesState,
       scrollTop: this.scrollTop,

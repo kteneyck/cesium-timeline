@@ -57,6 +57,7 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
             [showJumpToStart]="showJumpToStart"
             [showJumpToEnd]="showJumpToEnd"
             [dateTimeFormat]="dateTimeFormat"
+            [timezone]="timezone"
             [theme]="finalTheme"
             [swimLanesVisible]="hasSwimLanes ? swimLanesExpanded : undefined"
             (playPause)="handlePlayPause($event)"
@@ -79,6 +80,7 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
           [defaultEndMs]="defaultEndMs"
           [theme]="finalTheme"
           [maxTicks]="maxTicks"
+          [timezone]="timezone"
           [swimLanes]="swimLanes"
           [showSwimLanes]="swimLanesExpanded"
           (timeChange)="handleTimeChange($event)"
@@ -113,6 +115,7 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
   @Input() rwSpeeds: number[] = DEFAULT_RW_SPEEDS;
   @Input() theme?: Partial<TimelineTheme>;
   @Input() cssClass?: string;
+  @Input() timezone?: string;
   @Input() swimLanes?: SwimLane[];
   @Input() showSwimLanes?: boolean;
   @Input() swimLaneTransition: 'animated' | 'instant' = 'animated';

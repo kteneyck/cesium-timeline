@@ -13,6 +13,7 @@ import * as Cesium from 'cesium';
 import {
   type TimelineTheme,
   formatDateTime,
+  getTimezoneAbbr,
   splitForDisplay,
 } from '@kteneyck/cesium-timeline-core';
 
@@ -46,8 +47,16 @@ import {
             </div>
           }
           @if (dateFormat) {
-            <div [style.color]="theme.buttonActiveColor" style="font-size:1.15em;letter-spacing:0.03em">
-              {{ formattedDate }}
+            <div style="display:flex;align-items:center;gap:6px">
+              <span [style.color]="theme.buttonActiveColor" style="font-size:1.15em;letter-spacing:0.03em">
+                {{ formattedDate }}
+              </span>
+              @if (timezoneAbbr) {
+                <span
+                  [style.color]="theme.labelColor"
+                  style="font-size:1.04em;font-weight:bold;letter-spacing:0.04em;opacity:0.7"
+                >{{ timezoneAbbr }}</span>
+              }
             </div>
           }
         </div>
@@ -239,6 +248,7 @@ export class TimelineControlsComponent implements AfterViewInit, OnDestroy {
   @Input() isPlaying = false;
   @Input() multiplier = 1;
   @Input() dateTimeFormat?: string;
+  @Input() timezone?: string;
   @Input() isLive = false;
   @Input() hasStartTime = false;
   @Input() hasEndTime = false;
@@ -270,8 +280,9 @@ export class TimelineControlsComponent implements AfterViewInit, OnDestroy {
 
   get timeFormat(): string { return splitForDisplay(this.dateTimeFormat).timeFormat; }
   get dateFormat(): string { return splitForDisplay(this.dateTimeFormat).dateFormat; }
-  get formattedTime(): string { return formatDateTime(this.currentTime, this.timeFormat); }
-  get formattedDate(): string { return formatDateTime(this.currentTime, this.dateFormat); }
+  get formattedTime(): string { return formatDateTime(this.currentTime, this.timeFormat, this.timezone); }
+  get formattedDate(): string { return formatDateTime(this.currentTime, this.dateFormat, this.timezone); }
+  get timezoneAbbr(): string | null { return getTimezoneAbbr(this.currentTime, this.timezone); }
 
   ngAfterViewInit(): void {
     const el = this.containerRef?.nativeElement;

@@ -50,6 +50,87 @@ export const DateTimeFormats = {
   TIME_12:   'hh:mm:ss A',
 } as const;
 
+/** Convenience constants for the `timezone` prop. */
+export const Timezones = {
+  /** Use the browser's local timezone (default behavior). */
+  LOCAL: 'local',
+  /** Coordinated Universal Time. */
+  UTC: 'UTC',
+} as const;
+
+/** Decomposed date/time fields extracted in a specific timezone. `mo` is 0-indexed. */
+export interface DateParts {
+  yr: number;
+  mo: number;
+  day: number;
+  hr24: number;
+  hr12: number;
+  min: number;
+  sec: number;
+  ms: number;
+  ampm: 'AM' | 'PM';
+}
+
+/**
+ * Extract date/time components in the given timezone.
+ * When `timezone` is `undefined` or `'local'`, the browser's local time methods are used.
+ * Otherwise, `Intl.DateTimeFormat#formatToParts` is used for timezone-accurate extraction.
+ */
+export function getDateParts(date: Date, timezone?: string): DateParts {
+  if (!timezone || timezone === 'local') {
+    const yr   = date.getFullYear();
+    const mo   = date.getMonth();
+    const day  = date.getDate();
+    const hr24 = date.getHours();
+    const hr12 = hr24 % 12 || 12;
+    const min  = date.getMinutes();
+    const sec  = date.getSeconds();
+    const ms   = date.getMilliseconds();
+    return { yr, mo, day, hr24, hr12, min, sec, ms, ampm: hr24 < 12 ? 'AM' : 'PM' };
+  }
+
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+
+  const p: Record<string, string> = {};
+  for (const part of fmt.formatToParts(date)) {
+    if (part.type !== 'literal') p[part.type] = part.value;
+  }
+
+  const yr   = parseInt(p.year);
+  const mo   = parseInt(p.month) - 1;
+  const day  = parseInt(p.day);
+  let   hr24 = parseInt(p.hour);
+  if (hr24 === 24) hr24 = 0; // Intl occasionally returns 24 at midnight
+  const hr12 = hr24 % 12 || 12;
+  const min  = parseInt(p.minute);
+  const sec  = parseInt(p.second);
+  const ms   = date.getMilliseconds(); // sub-second is timezone-independent
+  return { yr, mo, day, hr24, hr12, min, sec, ms, ampm: hr24 < 12 ? 'AM' : 'PM' };
+}
+
+/**
+ * Return the short timezone abbreviation for the given date in the given timezone,
+ * e.g. `"UTC"`, `"EST"`, `"PDT"`. Returns `null` when timezone is `undefined` or `'local'`.
+ */
+export function getTimezoneAbbr(date: Cesium.JulianDate | Date, timezone?: string): string | null {
+  if (!timezone || timezone === 'local') return null;
+  const d = toDate(date);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    timeZoneName: 'short',
+  }).formatToParts(d);
+  return parts.find(p => p.type === 'timeZoneName')?.value ?? null;
+}
+
 /**
  * Format a date using a token-based format string.
  *
@@ -74,18 +155,11 @@ export const DateTimeFormats = {
  */
 export function formatDateTime(
   date: Cesium.JulianDate | Date,
-  format: string = DateTimeFormats.DEFAULT
+  format: string = DateTimeFormats.DEFAULT,
+  timezone?: string
 ): string {
-  const d    = toDate(date);
-  const yr   = d.getFullYear();
-  const mo   = d.getMonth();
-  const day  = d.getDate();
-  const hr24 = d.getHours();
-  const hr12 = hr24 % 12 || 12;
-  const min  = d.getMinutes();
-  const sec  = d.getSeconds();
-  const ms   = d.getMilliseconds();
-  const ampm = hr24 < 12 ? 'AM' : 'PM';
+  const d = toDate(date);
+  const { yr, mo, day, hr24, hr12, min, sec, ms, ampm } = getDateParts(d, timezone);
 
   const pad2 = (n: number) => String(n).padStart(2, '0');
   const pad3 = (n: number) => String(n).padStart(3, '0');
