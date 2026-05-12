@@ -243,6 +243,15 @@ function makeSwimLanes(): SwimLane[] {
               }
             </select>
           </div>
+
+          <div class="prop-row">
+            <label>Timezone</label>
+            <select [(ngModel)]="timezone">
+              @for (opt of timezoneOptions; track opt[0]) {
+                <option [value]="opt[0]">{{ opt[1] }}</option>
+              }
+            </select>
+          </div>
         </div>
 
         <div class="divider"></div>
@@ -303,6 +312,7 @@ function makeSwimLanes(): SwimLane[] {
           [showControls]="showControls"
           [enableDrag]="enableDrag"
           [dateTimeFormat]="dateTimeFormat"
+          [timezone]="timezone === 'local' ? undefined : timezone"
           [jumpToTime]="jumpToTime"
           [theme]="theme"
           [swimLanes]="swimLanes"
@@ -347,6 +357,24 @@ export class AppComponent implements OnInit, OnDestroy {
   showSwimLanes  = true;
   swimLaneTransition: 'animated' | 'instant' = 'animated';
   dateTimeFormat = DateTimeFormats.DEFAULT;
+  timezone = 'local';
+
+  readonly timezoneOptions: [string, string][] = [
+    ['local',               'Local (browser)'],
+    ['UTC',                 'UTC'],
+    ['America/New_York',    'New York (ET)'],
+    ['America/Chicago',     'Chicago (CT)'],
+    ['America/Denver',      'Denver (MT)'],
+    ['America/Los_Angeles', 'Los Angeles (PT)'],
+    ['Europe/London',       'London (GMT/BST)'],
+    ['Europe/Berlin',       'Berlin (CET/CEST)'],
+    ['Europe/Moscow',       'Moscow (MSK)'],
+    ['Asia/Dubai',          'Dubai (GST)'],
+    ['Asia/Kolkata',        'India (IST)'],
+    ['Asia/Tokyo',          'Tokyo (JST)'],
+    ['Australia/Sydney',    'Sydney (AEST)'],
+    ['Pacific/Auckland',    'Auckland (NZST)'],
+  ];
   theme: TimelineTheme = { ...defaultTheme, backgroundColor: '#2a2a2a' };
 
   // Swim lanes (fixed data built once)

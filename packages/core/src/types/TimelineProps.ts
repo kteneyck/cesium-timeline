@@ -76,6 +76,14 @@ export interface TimelineBaseProps {
    * Defaults to [1, 2, 4, 8, 16, 32].
    */
   rwSpeeds?: number[];
+  /**
+   * IANA timezone string used for all datetime display on the timeline.
+   * Examples: `'UTC'`, `'America/New_York'`, `'Europe/London'`.
+   * Use `'local'` (default) to use the browser's local timezone.
+   * When set to a value other than `'local'`, a timezone abbreviation label
+   * (e.g. "UTC", "EST", "PDT") is shown to the right of the date display.
+   */
+  timezone?: string;
   /** Partial theme overrides merged with the default theme. */
   theme?: Partial<TimelineTheme>;
   /**
@@ -124,6 +132,8 @@ export interface ControlsBaseProps {
   multiplier: number;
   /** @see TimelineBaseProps.dateTimeFormat */
   dateTimeFormat?: string;
+  /** @see TimelineBaseProps.timezone */
+  timezone?: string;
   /** @see TimelineBaseProps.onDateTimeClick */
   onDateTimeClick?: () => void;
   /** Toggle play / pause. */

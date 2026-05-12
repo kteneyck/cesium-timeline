@@ -3,6 +3,7 @@ import * as Cesium from 'cesium';
 import {
   type TimelineTheme,
   formatDateTime,
+  getTimezoneAbbr,
   splitForDisplay,
 } from '@kteneyck/cesium-timeline-core';
 
@@ -13,6 +14,8 @@ export interface ControlsProps {
   multiplier: number;
   dateTimeFormat?: string;
   onDateTimeClick?: () => void;
+  /** @see TimelineBaseProps.timezone */
+  timezone?: string;
   onPlayPause: (isPlaying: boolean) => void;
   onJumpToStart: () => void;
   onRewind: () => void;
@@ -59,6 +62,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   isPlaying,
   multiplier,
   dateTimeFormat,
+  timezone,
   isLive,
   hasStartTime,
   hasEndTime,
@@ -160,16 +164,30 @@ export const TimelineControls: React.FC<ControlsProps> = ({
         >
           {(() => {
             const { timeFormat, dateFormat } = splitForDisplay(dateTimeFormat);
+            const tzAbbr = getTimezoneAbbr(currentTime, timezone);
             return (
               <>
                 {timeFormat && (
                   <div style={{ fontSize: '2em', fontWeight: 'bold', letterSpacing: '0.02em' }}>
-                    {formatDateTime(currentTime, timeFormat)}
+                    {formatDateTime(currentTime, timeFormat, timezone)}
                   </div>
                 )}
                 {dateFormat && (
-                  <div style={{ fontSize: '1.15em', letterSpacing: '0.03em', color: theme.buttonActiveColor }}>
-                    {formatDateTime(currentTime, dateFormat)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '1.15em', letterSpacing: '0.03em', color: theme.buttonActiveColor }}>
+                      {formatDateTime(currentTime, dateFormat, timezone)}
+                    </span>
+                    {tzAbbr && (
+                      <span style={{
+                        fontSize: '0.9em',
+                        color: theme.labelColor,
+                        opacity: 0.7,
+                        fontWeight: 'bold',
+                        letterSpacing: '0.04em',
+                      }}>
+                        {tzAbbr}
+                      </span>
+                    )}
                   </div>
                 )}
               </>

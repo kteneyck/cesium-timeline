@@ -25,6 +25,7 @@ import {
   MIN_SPAN_MS,
   MAX_SPAN_MS,
 } from '../constants';
+import { getDateParts } from '../utils/timeConversion';
 
 // ─── State passed into the draw function ──────────────────────────────────────
 
@@ -39,6 +40,8 @@ export interface TimelineRenderState {
   showSwimLanes: boolean;
   scrollTop: number;
   reorderState: ReorderState | null;
+  /** @see TimelineBaseProps.timezone */
+  timezone?: string;
 }
 
 /** Drag-to-reorder visual state. */
@@ -62,15 +65,9 @@ export function twoD(n: number): string {
   return n < 10 ? `0${n}` : `${n}`;
 }
 
-export function makeLabel(ms: number, durationSec: number): string {
-  const d   = new Date(ms);
-  const y   = d.getFullYear();
-  const mo  = d.getMonth();
-  const dy  = d.getDate();
-  const h   = d.getHours();
-  const mi  = d.getMinutes();
-  const s   = d.getSeconds();
-  const ms2 = d.getMilliseconds();
+export function makeLabel(ms: number, durationSec: number, timezone?: string): string {
+  const d  = new Date(ms);
+  const { yr: y, mo, day: dy, hr24: h, min: mi, sec: s, ms: ms2 } = getDateParts(d, timezone);
   if (durationSec > 315360000) return `${y}`;
   if (durationSec > 31536000)  return `${MONTHS[mo]} ${y}`;
   if (durationSec > 604800)    return `${MONTHS[mo]} ${dy}`;
@@ -82,15 +79,25 @@ export function makeLabel(ms: number, durationSec: number): string {
 }
 
 /** Pick a round epoch near startMs so tick offsets are clean integers (mirrors Cesium). */
-export function calcEpochMs(startMs: number, durationSec: number): number {
-  const d  = new Date(startMs);
-  const y  = d.getFullYear();
-  const mo = d.getMonth();
-  const dy = d.getDate();
-  if (durationSec > 315360000) return new Date(Math.floor(y / 100) * 100, 0).getTime();
-  if (durationSec > 31536000)  return new Date(Math.floor(y / 10)  * 10,  0).getTime();
-  if (durationSec > 86400)     return new Date(y, 0).getTime();
-  return new Date(y, mo, dy).getTime();
+export function calcEpochMs(startMs: number, durationSec: number, timezone?: string): number {
+  const d = new Date(startMs);
+
+  if (!timezone || timezone === 'local') {
+    const y  = d.getFullYear();
+    const mo = d.getMonth();
+    const dy = d.getDate();
+    if (durationSec > 315360000) return new Date(Math.floor(y / 100) * 100, 0).getTime();
+    if (durationSec > 31536000)  return new Date(Math.floor(y / 10)  * 10,  0).getTime();
+    if (durationSec > 86400)     return new Date(y, 0).getTime();
+    return new Date(y, mo, dy).getTime();
+  }
+
+  const { yr: y, hr24: h, min: mi, sec: s } = getDateParts(d, timezone);
+  if (durationSec > 315360000) return Date.UTC(Math.floor(y / 100) * 100, 0, 1);
+  if (durationSec > 31536000)  return Date.UTC(Math.floor(y / 10)  * 10,  0, 1);
+  if (durationSec > 86400)     return Date.UTC(y, 0, 1);
+  // Start of the current day in the target timezone: subtract elapsed time-of-day.
+  return startMs - (h * 3600 + mi * 60 + s) * 1000;
 }
 
 /** Advance to next tick boundary (identical to Cesium's getNextTic). */
@@ -245,7 +252,7 @@ export function drawTimeline(
 ): number {
   const {
     startMs, endMs, currentMs, theme: t, maxTicks,
-    swimLanes: lanes, showSwimLanes, reorderState: rs,
+    swimLanes: lanes, showSwimLanes, reorderState: rs, timezone,
   } = state;
   let { scrollTop } = state;
 
@@ -428,7 +435,7 @@ export function drawTimeline(
 
   // ── Pick tick scales (Cesium algorithm) ───────────────────────
   ctx.font = `${t.fontSize}px monospace`;
-  const sampleLabel = makeLabel(startMs + durationSec * 500, durationSec);
+  const sampleLabel = makeLabel(startMs + durationSec * 500, durationSec, timezone);
   const sampleW     = ctx.measureText(sampleLabel).width + 24;
 
   const idealTic = Math.max((sampleW / w) * durationSec, durationSec / 1000);
@@ -469,7 +476,7 @@ export function drawTimeline(
   }
 
   // Epoch: a round reference time so tick offsets are clean integers.
-  const epochMs  = calcEpochMs(startMs, durationSec);
+  const epochMs  = calcEpochMs(startMs, durationSec, timezone);
   const startOff = (startMs - epochMs) / 1000;
   const endOff   = startOff + durationSec;
 
@@ -530,7 +537,7 @@ export function drawTimeline(
     ctx.lineTo(x, h);
     ctx.stroke();
 
-    const label     = makeLabel(ticMs, durationSec);
+    const label     = makeLabel(ticMs, durationSec, timezone);
     const textW     = ctx.measureText(label).width;
     const labelLeft = x - textW / 2;
     if (labelLeft > lastLabelRight) {

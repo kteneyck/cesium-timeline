@@ -39,6 +39,8 @@ export interface TimelineProps {
   rwSpeeds?: number[];
   theme?: Partial<TimelineTheme>;
   className?: string;
+  /** @see TimelineBaseProps.timezone */
+  timezone?: string;
   swimLanes?: SwimLane[];
   showSwimLanes?: boolean;
   onShowSwimLanesChange?: (visible: boolean) => void;
@@ -71,6 +73,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   rwSpeeds = DEFAULT_RW_SPEEDS,
   theme: customTheme,
   className,
+  timezone,
   swimLanes,
   showSwimLanes,
   onShowSwimLanesChange,
@@ -287,6 +290,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             onResetSpeed={() => applyMultiplier(1)}
             onDateTimeClick={onDateTimeClick}
             dateTimeFormat={dateTimeFormat}
+            timezone={timezone}
             theme={finalTheme}
             swimLanesVisible={hasSwimLanes ? swimLanesExpanded : undefined}
             onToggleSwimLanes={hasSwimLanes ? handleToggleSwimLanes : undefined}
@@ -302,6 +306,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           defaultEndMs={defaultEndMs}
           theme={finalTheme}
           maxTicks={maxTicks}
+          timezone={timezone}
           onTimeChange={handleTimeChange}
           onDragStart={() => { isDraggingRef.current = true; }}
           onDragEnd={() => { isDraggingRef.current = false; }}

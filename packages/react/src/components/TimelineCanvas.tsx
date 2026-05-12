@@ -70,6 +70,8 @@ interface TimelineCanvasProps {
   defaultEndMs: number;
   theme: TimelineTheme;
   maxTicks?: number;
+  /** @see TimelineBaseProps.timezone */
+  timezone?: string;
   onTimeChange: (time: Cesium.JulianDate) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
@@ -88,7 +90,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   (props, ref) => {
     const {
       currentTime, defaultStartMs, defaultEndMs,
-      theme, maxTicks, onTimeChange, onDragStart, onDragEnd,
+      theme, maxTicks, timezone, onTimeChange, onDragStart, onDragEnd,
       swimLanes: swimLanesProp, showSwimLanes: showSwimLanesProp,
       onSwimLaneItemClick, onSwimLaneItemHover, onSwimLaneItemDoubleClick,
       onSwimLaneItemContextMenu,
@@ -100,6 +102,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     // All mutable rendering state in refs — no React re-renders triggered from here.
     const themeRef    = useRef(theme);
     const maxTicksRef = useRef(maxTicks);
+    const timezoneRef = useRef(timezone);
     const startMsRef  = useRef(defaultStartMs);
     const endMsRef    = useRef(defaultEndMs);
     const curMsRef    = useRef(Cesium.JulianDate.toDate(currentTime).getTime());
@@ -107,6 +110,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     // Keep theme/maxTicks refs current
     useEffect(() => { themeRef.current = theme; }, [theme]);
     useEffect(() => { maxTicksRef.current = maxTicks; }, [maxTicks]);
+    useEffect(() => { timezoneRef.current = timezone; draw(); }, [timezone]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Swim lane state (ref-based — no React re-renders) ──────────────────
     const swimLanesRef     = useRef<SwimLane[]>(swimLanesProp ?? []);
@@ -174,6 +178,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       currentMs: curMsRef.current,
       theme: themeRef.current,
       maxTicks: maxTicksRef.current,
+      timezone: timezoneRef.current,
       swimLanes: swimLanesRef.current,
       showSwimLanes: showSwimLanesRef.current,
       scrollTop: scrollTopRef.current,
