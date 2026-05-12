@@ -24,7 +24,8 @@
   },
   "publishConfig": {
     "access": "public",
-    "registry": "https://registry.npmjs.org"
+    "registry": "https://registry.npmjs.org",
+    "directory": "dist"
   },
   "peerDependencies": {
     "@angular/common": "^17.0.0 || ^18.0.0 || ^19.0.0 || ^21.0.0",
@@ -51,8 +52,5 @@
   "scripts": {
     "build": "ng-packagr -p ng-package.json"
   },
-  "files": [
-    "dist"
-  ],
   "sideEffects": false
 }
