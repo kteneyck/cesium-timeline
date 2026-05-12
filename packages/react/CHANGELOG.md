@@ -1,5 +1,16 @@
 # @kteneyck/cesium-timeline-react
 
+## 0.5.0
+
+### Minor Changes
+
+- [#10](https://github.com/kteneyck/cesium-timeline/pull/10) [`2cc1328`](https://github.com/kteneyck/cesium-timeline/commit/2cc132891876bdbfc259cd250bc900244d01a078) Thanks [@kteneyck](https://github.com/kteneyck)! - fix angular lib exports
+
+### Patch Changes
+
+- Updated dependencies [[`2cc1328`](https://github.com/kteneyck/cesium-timeline/commit/2cc132891876bdbfc259cd250bc900244d01a078)]:
+  - @kteneyck/cesium-timeline-core@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
