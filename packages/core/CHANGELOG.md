@@ -1,5 +1,11 @@
 # @kteneyck/cesium-timeline-core
 
+## 0.6.0
+
+### Minor Changes
+
+- [#13](https://github.com/kteneyck/cesium-timeline/pull/13) [`5ba84be`](https://github.com/kteneyck/cesium-timeline/commit/5ba84be332f98a652533349dc112469ed64d10e0) Thanks [@kteneyck](https://github.com/kteneyck)! - add language support
+
 ## 0.5.0
 
 ### Minor Changes
