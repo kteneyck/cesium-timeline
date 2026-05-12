@@ -1,5 +1,16 @@
 # @kteneyck/cesium-timeline-angular
 
+## 1.0.0
+
+### Minor Changes
+
+- [#8](https://github.com/kteneyck/cesium-timeline/pull/8) [`3c9f960`](https://github.com/kteneyck/cesium-timeline/commit/3c9f96097697833953e5a73c43136cf5846fd416) Thanks [@kteneyck](https://github.com/kteneyck)! - add timezone support
+
+### Patch Changes
+
+- Updated dependencies [[`3c9f960`](https://github.com/kteneyck/cesium-timeline/commit/3c9f96097697833953e5a73c43136cf5846fd416)]:
+  - @kteneyck/cesium-timeline-core@1.0.0
+
 ## 0.3.0
 
 ### Minor Changes

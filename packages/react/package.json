@@ -1,6 +1,6 @@
 {
   "name": "@kteneyck/cesium-timeline-react",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "React timeline component for Cesium with clock integration",
   "license": "MIT",
   "author": "kteneyck",
@@ -52,7 +52,7 @@
     "@types/react-dom": ">=18"
   },
   "dependencies": {
-    "@kteneyck/cesium-timeline-core": "0.3.0"
+    "@kteneyck/cesium-timeline-core": "1.0.0"
   },
   "devDependencies": {
     "@types/react": "19.0.1",
