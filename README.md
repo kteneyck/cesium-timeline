@@ -123,7 +123,7 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 - **Auto-scroll during playback** — visible window pans automatically when the needle reaches 10% from either edge.
 - **Infinite scrolling window** — timeline is not clamped to `startTime`/`endTime`; the window can pan anywhere.
 - **Adaptive tick labels** — label granularity adapts to zoom level: milliseconds → seconds → HH:MM:SS → HH:MM → Month Day → Month Year → Year. Tick dates are shown only when the visible window spans more than 24 hours.
-- **Local time labels** — ticks and dates reflect the user's local timezone, not UTC.
+- **Configurable timezone** — tick labels and the datetime display can show any IANA timezone (e.g. `"UTC"`, `"America/New_York"`) or the browser's local time. A short abbreviation (e.g. `UTC`, `EST`, `PDT`) is displayed to the right of the date line whenever a non-local timezone is active.
 - **Netflix/Hulu-style controls** — transport buttons (⏮ ◀◀ ▶/⏸ ▶▶ ⏭) always stay centered; speed badge and LIVE button in the left column never cause layout shift.
 - **Conditional start/end buttons** — ⏮ and ⏭ are only rendered when `startTime` and `endTime` props are explicitly provided.
 - **Speed cycling** — FF cycles through `ffSpeeds` (default `2×→4×→8×→16×→32×→1×`); RW cycles through `rwSpeeds` (default `−1×→−2×→−4×→−8×→−16×→−32×`). Both arrays are fully configurable.
@@ -159,6 +159,7 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 | `ffSpeeds` | `number[]` | `[2,4,8,16,32,1]` | Speed steps cycled by the ▶▶ button. Last entry wraps back to first. |
 | `rwSpeeds` | `number[]` | `[1,2,4,8,16,32]` | Absolute-value speed steps cycled by the ◀◀ button (negated internally). |
 | `dateTimeFormat` | `string` | `'MMM DD YYYY HH:mm:ss'` | Token-based format string for the controls datetime display |
+| `timezone` | `string` | browser local | IANA timezone name (e.g. `'UTC'`, `'America/New_York'`) or `'local'` for the browser's timezone. Controls both tick labels and the datetime display. When set, a short abbreviation (e.g. `UTC`, `EST`) appears to the right of the date. |
 | `onDateTimeClick` | `() => void` | — | Called when the user clicks the datetime display. Use to open your own date picker. |
 | `jumpToTime` | `JulianDate \| Date` | — | Set to programmatically jump the timeline to a moment (pans canvas + sets time). |
 | `theme` | `Partial<TimelineTheme>` | `defaultTheme` | Theme overrides (merged with defaults) |
@@ -225,6 +226,60 @@ const theme = useMemo(() => {
 }, []);
 
 <Timeline clock={viewer.clock} theme={theme} />
+```
+
+---
+
+## Timezone
+
+By default the timeline displays all times in the **browser's local timezone**. Pass the `timezone` prop to use UTC or any [IANA timezone](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) instead.
+
+```tsx
+// UTC
+<Timeline clock={viewer.clock} timezone="UTC" ... />
+
+// A named IANA zone
+<Timeline clock={viewer.clock} timezone="America/New_York" ... />
+
+// Back to local (or simply omit the prop)
+<Timeline clock={viewer.clock} timezone="local" ... />
+```
+
+Both the **canvas tick labels** and the **control bar datetime display** update to reflect the chosen timezone. When a non-local timezone is active a short abbreviation (e.g. `UTC`, `EST`, `PDT`) is shown to the right of the date line. The abbreviation is DST-aware — it automatically switches between `EST` and `EDT`, `PST` and `PDT`, etc.
+
+### `Timezones` constants
+
+```tsx
+import { Timezones } from '@kteneyck/cesium-timeline-react';
+
+<Timeline timezone={Timezones.UTC} ... />   // "UTC"
+<Timeline timezone={Timezones.LOCAL} ... /> // "local" (default behavior)
+```
+
+### `getTimezoneAbbr` utility
+
+Returns the short abbreviation for a given date and timezone, or `null` for local.
+
+```tsx
+import { getTimezoneAbbr } from '@kteneyck/cesium-timeline-react';
+
+getTimezoneAbbr(new Date(), 'UTC');               // → "UTC"
+getTimezoneAbbr(new Date(), 'America/Chicago');   // → "CDT" or "CST"
+getTimezoneAbbr(new Date());                      // → null  (local)
+```
+
+### `formatDateTime` with timezone
+
+The `formatDateTime` utility accepts an optional third argument:
+
+```tsx
+import { formatDateTime, DateTimeFormats } from '@kteneyck/cesium-timeline-react';
+
+formatDateTime(new Date(), DateTimeFormats.ISO, 'UTC');
+// → "2026-02-24 14:04:07"  (always in UTC regardless of local browser timezone)
+
+formatDateTime(new Date(), DateTimeFormats.DEFAULT, 'America/Los_Angeles');
+// → "Feb 24 2026 06:04:07"
 ```
 
 ---
@@ -385,7 +440,9 @@ import {
 ```tsx
 import {
   DateTimeFormats,   // Format string presets
-  formatDateTime,    // Token-based date formatter
+  Timezones,         // { LOCAL: 'local', UTC: 'UTC' } convenience constants
+  formatDateTime,    // Token-based date formatter (date, format, timezone?)
+  getTimezoneAbbr,   // Short timezone abbreviation for a date (date, timezone?)
   splitForDisplay,   // Split format string into time/date parts
   toJulianDate,      // Convert Date | JulianDate → JulianDate
   toDate,            // Convert Date | JulianDate → Date
