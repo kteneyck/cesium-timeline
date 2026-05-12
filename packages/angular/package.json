@@ -30,10 +30,10 @@
   "peerDependencies": {
     "@angular/common": "^17.0.0 || ^18.0.0 || ^19.0.0 || ^21.0.0",
     "@angular/core": "^17.0.0 || ^18.0.0 || ^19.0.0 || ^21.0.0",
-    "@kteneyck/cesium-timeline-core": "0.4.0",
     "cesium": "^1.100.0"
   },
   "dependencies": {
+    "@kteneyck/cesium-timeline-core": "0.4.0",
     "tslib": "^2.6.0"
   },
   "devDependencies": {
