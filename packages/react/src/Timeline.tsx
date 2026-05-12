@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import * as Cesium from 'cesium';
 import {
   type TimelineTheme,
+  type TimelineLabels,
   type SwimLane,
   type SwimLaneEventInfo,
   defaultTheme,
@@ -50,6 +51,12 @@ export interface TimelineProps {
   onSwimLaneItemDoubleClick?: (info: SwimLaneEventInfo) => void;
   onSwimLaneItemContextMenu?: (info: SwimLaneEventInfo) => void;
   onSwimLaneReorder?: (orderedLaneIds: string[]) => void;
+  /**
+   * Overrides for control-bar labels and tooltips.
+   * Useful for localisation or custom verbiage — provide only the strings you
+   * want to change; everything else falls back to the English defaults.
+   */
+  labels?: Partial<TimelineLabels>;
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
@@ -83,6 +90,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   onSwimLaneItemDoubleClick,
   onSwimLaneItemContextMenu,
   onSwimLaneReorder,
+  labels,
 }) => {
   const now = () => Date.now();
   const defaultStartMs = providedStart
@@ -294,6 +302,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             theme={finalTheme}
             swimLanesVisible={hasSwimLanes ? swimLanesExpanded : undefined}
             onToggleSwimLanes={hasSwimLanes ? handleToggleSwimLanes : undefined}
+            labels={labels}
           />
         </div>
       )}
