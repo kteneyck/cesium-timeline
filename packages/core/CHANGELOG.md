@@ -1,5 +1,11 @@
 # @kteneyck/cesium-timeline-core
 
+## 0.7.0
+
+### Minor Changes
+
+- [#18](https://github.com/kteneyck/cesium-timeline/pull/18) [`a1d6458`](https://github.com/kteneyck/cesium-timeline/commit/a1d64585ac3bd202979636ae404b788f59653232) Thanks [@kteneyck](https://github.com/kteneyck)! - add angular 20 support
+
 ## 0.6.0
 
 ### Minor Changes
