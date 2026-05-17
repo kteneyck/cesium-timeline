@@ -83,6 +83,7 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
           [theme]="finalTheme"
           [maxTicks]="maxTicks"
           [timezone]="timezone"
+          [dateTimeFormat]="dateTimeFormat"
           [swimLanes]="swimLanes"
           [showSwimLanes]="swimLanesExpanded"
           (timeChange)="handleTimeChange($event)"
@@ -355,7 +356,11 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
     this.currentTimeState = t;
     this.applyMultiplier(1);
     const nowMs = Date.now();
-    this.canvasComp?.zoomTo(nowMs - 12 * 3600 * 1000, nowMs + 12 * 3600 * 1000);
+    if (this.canvasComp) {
+      const { startMs, endMs } = this.canvasComp.getVisibleRange();
+      const span = endMs - startMs;
+      this.canvasComp.zoomTo(nowMs - span / 2, nowMs + span / 2);
+    }
     this.cdr.markForCheck();
   }
 

@@ -260,7 +260,11 @@ export const Timeline: React.FC<TimelineProps> = ({
     setCurrentTime(t);
     applyMultiplier(1);
     const nowMs = Date.now();
-    canvasRef.current?.zoomTo(nowMs - 12 * 3600 * 1000, nowMs + 12 * 3600 * 1000);
+    if (canvasRef.current) {
+      const { startMs, endMs } = canvasRef.current.getVisibleRange();
+      const span = endMs - startMs;
+      canvasRef.current.zoomTo(nowMs - span / 2, nowMs + span / 2);
+    }
   };
 
   const isLive = Math.abs(Cesium.JulianDate.toDate(currentTime).getTime() - Date.now()) < 10_000;
@@ -316,6 +320,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           theme={finalTheme}
           maxTicks={maxTicks}
           timezone={timezone}
+          dateTimeFormat={dateTimeFormat}
           onTimeChange={handleTimeChange}
           onDragStart={() => { isDraggingRef.current = true; }}
           onDragEnd={() => { isDraggingRef.current = false; }}
