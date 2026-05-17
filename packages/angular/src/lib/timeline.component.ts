@@ -83,6 +83,7 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
           [theme]="finalTheme"
           [maxTicks]="maxTicks"
           [timezone]="timezone"
+          [dateTimeFormat]="dateTimeFormat"
           [swimLanes]="swimLanes"
           [showSwimLanes]="swimLanesExpanded"
           (timeChange)="handleTimeChange($event)"

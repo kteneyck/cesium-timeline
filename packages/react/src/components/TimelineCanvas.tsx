@@ -72,6 +72,8 @@ interface TimelineCanvasProps {
   maxTicks?: number;
   /** @see TimelineBaseProps.timezone */
   timezone?: string;
+  /** @see TimelineBaseProps.dateTimeFormat */
+  dateTimeFormat?: string;
   onTimeChange: (time: Cesium.JulianDate) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
@@ -90,7 +92,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   (props, ref) => {
     const {
       currentTime, defaultStartMs, defaultEndMs,
-      theme, maxTicks, timezone, onTimeChange, onDragStart, onDragEnd,
+      theme, maxTicks, timezone, dateTimeFormat, onTimeChange, onDragStart, onDragEnd,
       swimLanes: swimLanesProp, showSwimLanes: showSwimLanesProp,
       onSwimLaneItemClick, onSwimLaneItemHover, onSwimLaneItemDoubleClick,
       onSwimLaneItemContextMenu,
@@ -100,9 +102,10 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     // All mutable rendering state in refs — no React re-renders triggered from here.
-    const themeRef    = useRef(theme);
-    const maxTicksRef = useRef(maxTicks);
-    const timezoneRef = useRef(timezone);
+    const themeRef          = useRef(theme);
+    const maxTicksRef       = useRef(maxTicks);
+    const timezoneRef       = useRef(timezone);
+    const dateTimeFormatRef = useRef(dateTimeFormat);
     const startMsRef  = useRef(defaultStartMs);
     const endMsRef    = useRef(defaultEndMs);
     const curMsRef    = useRef(Cesium.JulianDate.toDate(currentTime).getTime());
@@ -111,6 +114,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     useEffect(() => { themeRef.current = theme; }, [theme]);
     useEffect(() => { maxTicksRef.current = maxTicks; }, [maxTicks]);
     useEffect(() => { timezoneRef.current = timezone; draw(); }, [timezone]); // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => { dateTimeFormatRef.current = dateTimeFormat; draw(); }, [dateTimeFormat]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Swim lane state (ref-based — no React re-renders) ──────────────────
     const swimLanesRef     = useRef<SwimLane[]>(swimLanesProp ?? []);
@@ -179,6 +183,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       theme: themeRef.current,
       maxTicks: maxTicksRef.current,
       timezone: timezoneRef.current,
+      use12h: /h/.test(dateTimeFormatRef.current ?? ''),
       swimLanes: swimLanesRef.current,
       showSwimLanes: showSwimLanesRef.current,
       scrollTop: scrollTopRef.current,

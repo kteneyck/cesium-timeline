@@ -320,6 +320,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           theme={finalTheme}
           maxTicks={maxTicks}
           timezone={timezone}
+          dateTimeFormat={dateTimeFormat}
           onTimeChange={handleTimeChange}
           onDragStart={() => { isDraggingRef.current = true; }}
           onDragEnd={() => { isDraggingRef.current = false; }}

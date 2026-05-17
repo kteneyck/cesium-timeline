@@ -42,6 +42,8 @@ export interface TimelineRenderState {
   reorderState: ReorderState | null;
   /** @see TimelineBaseProps.timezone */
   timezone?: string;
+  /** When true, tick labels use 12-hour (hh:mm AM/PM) format instead of 24-hour. */
+  use12h?: boolean;
 }
 
 /** Drag-to-reorder visual state. */
@@ -65,17 +67,19 @@ export function twoD(n: number): string {
   return n < 10 ? `0${n}` : `${n}`;
 }
 
-export function makeLabel(ms: number, durationSec: number, timezone?: string): string {
+export function makeLabel(ms: number, durationSec: number, timezone?: string, use12h?: boolean): string {
   const d  = new Date(ms);
-  const { yr: y, mo, day: dy, hr24: h, min: mi, sec: s, ms: ms2 } = getDateParts(d, timezone);
+  const { yr: y, mo, day: dy, hr24: h, hr12: h12, min: mi, sec: s, ms: ms2, ampm } = getDateParts(d, timezone);
+  const hour   = use12h ? h12 : h;
+  const suffix = use12h ? ` ${ampm}` : '';
   if (durationSec > 315360000) return `${y}`;
   if (durationSec > 31536000)  return `${MONTHS[mo]} ${y}`;
   if (durationSec > 604800)    return `${MONTHS[mo]} ${dy}`;
-  if (durationSec > 86400)     return `${MONTHS[mo]} ${dy} ${twoD(h)}:${twoD(mi)}`;
-  if (durationSec > 3600)      return `${twoD(h)}:${twoD(mi)}`;
-  if (durationSec > 60)        return `${twoD(h)}:${twoD(mi)}:${twoD(s)}`;
+  if (durationSec > 86400)     return `${MONTHS[mo]} ${dy} ${twoD(hour)}:${twoD(mi)}${suffix}`;
+  if (durationSec > 3600)      return `${twoD(hour)}:${twoD(mi)}${suffix}`;
+  if (durationSec > 60)        return `${twoD(hour)}:${twoD(mi)}:${twoD(s)}${suffix}`;
   const msStr = ms2 > 0 ? `.${String(ms2).padStart(3, '0')}` : '';
-  return `${twoD(h)}:${twoD(mi)}:${twoD(s)}${msStr}`;
+  return `${twoD(hour)}:${twoD(mi)}:${twoD(s)}${msStr}${suffix}`;
 }
 
 /** Pick a round epoch near startMs so tick offsets are clean integers (mirrors Cesium). */
@@ -252,7 +256,7 @@ export function drawTimeline(
 ): number {
   const {
     startMs, endMs, currentMs, theme: t, maxTicks,
-    swimLanes: lanes, showSwimLanes, reorderState: rs, timezone,
+    swimLanes: lanes, showSwimLanes, reorderState: rs, timezone, use12h,
   } = state;
   let { scrollTop } = state;
 
@@ -435,7 +439,7 @@ export function drawTimeline(
 
   // ── Pick tick scales (Cesium algorithm) ───────────────────────
   ctx.font = `${t.fontSize}px monospace`;
-  const sampleLabel = makeLabel(startMs + durationSec * 500, durationSec, timezone);
+  const sampleLabel = makeLabel(startMs + durationSec * 500, durationSec, timezone, use12h);
   const sampleW     = ctx.measureText(sampleLabel).width + 24;
 
   const idealTic = Math.max((sampleW / w) * durationSec, durationSec / 1000);
@@ -537,7 +541,7 @@ export function drawTimeline(
     ctx.lineTo(x, h);
     ctx.stroke();
 
-    const label     = makeLabel(ticMs, durationSec, timezone);
+    const label     = makeLabel(ticMs, durationSec, timezone, use12h);
     const textW     = ctx.measureText(label).width;
     const labelLeft = x - textW / 2;
     if (labelLeft > lastLabelRight) {
