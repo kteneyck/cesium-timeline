@@ -321,6 +321,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           maxTicks={maxTicks}
           timezone={timezone}
           dateTimeFormat={dateTimeFormat}
+          months={labels?.months}
           onTimeChange={handleTimeChange}
           onDragStart={() => { isDraggingRef.current = true; }}
           onDragEnd={() => { isDraggingRef.current = false; }}

@@ -74,6 +74,8 @@ interface TimelineCanvasProps {
   timezone?: string;
   /** @see TimelineBaseProps.dateTimeFormat */
   dateTimeFormat?: string;
+  /** Abbreviated month names for tick labels. Falls back to English when omitted. */
+  months?: string[];
   onTimeChange: (time: Cesium.JulianDate) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
@@ -92,7 +94,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
   (props, ref) => {
     const {
       currentTime, defaultStartMs, defaultEndMs,
-      theme, maxTicks, timezone, dateTimeFormat, onTimeChange, onDragStart, onDragEnd,
+      theme, maxTicks, timezone, dateTimeFormat, months, onTimeChange, onDragStart, onDragEnd,
       swimLanes: swimLanesProp, showSwimLanes: showSwimLanesProp,
       onSwimLaneItemClick, onSwimLaneItemHover, onSwimLaneItemDoubleClick,
       onSwimLaneItemContextMenu,
@@ -106,6 +108,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     const maxTicksRef       = useRef(maxTicks);
     const timezoneRef       = useRef(timezone);
     const dateTimeFormatRef = useRef(dateTimeFormat);
+    const monthsRef         = useRef(months);
     const startMsRef  = useRef(defaultStartMs);
     const endMsRef    = useRef(defaultEndMs);
     const curMsRef    = useRef(Cesium.JulianDate.toDate(currentTime).getTime());
@@ -115,6 +118,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     useEffect(() => { maxTicksRef.current = maxTicks; }, [maxTicks]);
     useEffect(() => { timezoneRef.current = timezone; draw(); }, [timezone]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => { dateTimeFormatRef.current = dateTimeFormat; draw(); }, [dateTimeFormat]); // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => { monthsRef.current = months; draw(); }, [months]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Swim lane state (ref-based — no React re-renders) ──────────────────
     const swimLanesRef     = useRef<SwimLane[]>(swimLanesProp ?? []);
@@ -184,6 +188,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       maxTicks: maxTicksRef.current,
       timezone: timezoneRef.current,
       use12h: /h/.test(dateTimeFormatRef.current ?? ''),
+      months: monthsRef.current,
       swimLanes: swimLanesRef.current,
       showSwimLanes: showSwimLanesRef.current,
       scrollTop: scrollTopRef.current,

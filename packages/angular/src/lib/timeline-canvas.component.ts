@@ -65,6 +65,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
   @Input() maxTicks?: number;
   @Input() timezone?: string;
   @Input() dateTimeFormat?: string;
+  @Input() months?: string[];
   @Input() swimLanes?: SwimLane[];
   @Input() showSwimLanes?: boolean;
 
@@ -295,6 +296,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       maxTicks: this.maxTicks,
       timezone: this.timezone,
       use12h: /h/.test(this.dateTimeFormat ?? ''),
+      months: this.months,
       swimLanes: this.swimLanesState,
       showSwimLanes: this.showSwimLanesState,
       scrollTop: this.scrollTop,
