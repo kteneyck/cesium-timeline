@@ -79,6 +79,22 @@ export interface TimelineLabels {
   collapseSwimLanesTooltip: string;
   /** Tooltip on the chevron button when swim lanes are currently hidden (click will expand). */
   expandSwimLanesTooltip: string;
+
+  // ── Canvas tick labels ────────────────────────────────────────────────────
+  /**
+   * Abbreviated month names used for timeline tick labels (Jan–Dec zoom levels).
+   * Provide all 12 entries in calendar order (January first) to translate the
+   * month labels shown on the canvas.
+   *
+   * @example
+   * ```ts
+   * // French
+   * months: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun',
+   *          'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
+   * ```
+   */
+  months: [string, string, string, string, string, string,
+           string, string, string, string, string, string];
 }
 
 /** Resolves a label field that may be a static string or a multiplier callback. */
@@ -117,4 +133,7 @@ export const DEFAULT_LABELS: Required<TimelineLabels> = {
 
   collapseSwimLanesTooltip: 'Collapse swim lanes',
   expandSwimLanesTooltip: 'Expand swim lanes',
+
+  months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
 };
