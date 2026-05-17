@@ -43,14 +43,17 @@
     "@angular/core": "^21.0.0",
     "@angular/platform-browser": "^21.0.0",
     "cesium": "^1.100.0",
+    "jsdom": "^26.0.0",
     "ng-packagr": "^21.0.0",
     "rxjs": "^7.8.0",
     "tslib": "^2.6.0",
     "typescript": "~5.9.0",
+    "vitest": "^4.0.0",
     "zone.js": "^0.15.0"
   },
   "scripts": {
-    "build": "ng-packagr -p ng-package.json"
+    "build": "ng-packagr -p ng-package.json",
+    "test": "vitest run --config vitest.config.ts"
   },
   "sideEffects": false
 }

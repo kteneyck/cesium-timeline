@@ -179,3 +179,69 @@ describe('Timezones', () => {
     expect(Timezones.UTC).toBe('UTC');
   });
 });
+
+// ─── DST & timezone edge cases ────────────────────────────────────────────────
+
+describe('getDateParts — timezone edge cases', () => {
+  it('handles DST spring-forward in America/New_York without crashing', () => {
+    // 2026-03-08 07:00 UTC = 02:00 EST → clocks spring forward to 03:00 EDT
+    const dst = new Date(Date.UTC(2026, 2, 8, 7, 0, 0));
+    expect(() => getDateParts(dst, 'America/New_York')).not.toThrow();
+    const p = getDateParts(dst, 'America/New_York');
+    expect(typeof p.hr24).toBe('number');
+  });
+
+  it('handles midnight boundary in Asia/Tokyo', () => {
+    // 2026-01-01 15:00 UTC = 2026-01-02 00:00 JST
+    const midnight = new Date(Date.UTC(2026, 0, 1, 15, 0, 0));
+    const p = getDateParts(midnight, 'Asia/Tokyo');
+    expect(p.hr24).toBe(0);
+    expect(p.day).toBe(2);
+  });
+
+  it('hr12 is 12 at noon (12h edge case)', () => {
+    const noon = new Date(Date.UTC(2026, 5, 15, 12, 0, 0));
+    const p = getDateParts(noon, 'UTC');
+    expect(p.hr12).toBe(12);
+    expect(p.ampm).toBe('PM');
+  });
+
+  it('hr12 is 12 at midnight (12h edge case)', () => {
+    const midnight = new Date(Date.UTC(2026, 5, 15, 0, 0, 0));
+    const p = getDateParts(midnight, 'UTC');
+    expect(p.hr12).toBe(12);
+    expect(p.ampm).toBe('AM');
+  });
+});
+
+// ─── All DateTimeFormats presets ──────────────────────────────────────────────
+
+describe('formatDateTime — all presets do not throw', () => {
+  it.each(Object.entries(DateTimeFormats))('%s', (_name, fmt) => {
+    expect(() => formatDateTime(REF_DATE, fmt as string, 'UTC')).not.toThrow();
+    const result = formatDateTime(REF_DATE, fmt as string, 'UTC');
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
+  });
+});
+
+// ─── splitForDisplay — additional formats ─────────────────────────────────────
+
+describe('splitForDisplay — additional formats', () => {
+  it('splits 12-hour format', () => {
+    const { timeFormat, dateFormat } = splitForDisplay(DateTimeFormats.TWELVE_HR);
+    expect(timeFormat).toBeTruthy();
+    expect(dateFormat).toBeTruthy();
+  });
+
+  it('handles TIME_12 (time-only 12h)', () => {
+    const { timeFormat, dateFormat } = splitForDisplay(DateTimeFormats.TIME_12);
+    expect(timeFormat).toBeTruthy();
+    expect(dateFormat).toBe('');
+  });
+
+  it('returns empty dateFormat for time-only format string', () => {
+    const { dateFormat } = splitForDisplay('HH:mm:ss');
+    expect(dateFormat).toBe('');
+  });
+});
