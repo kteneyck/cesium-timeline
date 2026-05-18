@@ -51,6 +51,7 @@ export interface TimelineProps {
   onSwimLaneItemDoubleClick?: (info: SwimLaneEventInfo) => void;
   onSwimLaneItemContextMenu?: (info: SwimLaneEventInfo) => void;
   onSwimLaneReorder?: (orderedLaneIds: string[]) => void;
+  onRangeSelect?: (start: Cesium.JulianDate, end: Cesium.JulianDate) => void;
   /**
    * Overrides for control-bar labels and tooltips.
    * Useful for localisation or custom verbiage — provide only the strings you
@@ -90,6 +91,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   onSwimLaneItemDoubleClick,
   onSwimLaneItemContextMenu,
   onSwimLaneReorder,
+  onRangeSelect,
   labels,
 }) => {
   const now = () => Date.now();
@@ -332,6 +334,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           onSwimLaneItemDoubleClick={onSwimLaneItemDoubleClick}
           onSwimLaneItemContextMenu={onSwimLaneItemContextMenu}
           onSwimLaneReorder={onSwimLaneReorder}
+          onRangeSelect={onRangeSelect}
         />
       )}
     </div>

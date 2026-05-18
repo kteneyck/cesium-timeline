@@ -80,6 +80,7 @@ interface TimelineCanvasProps {
   onTimeChange: (time: Cesium.JulianDate) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
+  onRangeSelect?: (start: Cesium.JulianDate, end: Cesium.JulianDate) => void;
   // Swim lane props
   swimLanes?: SwimLane[];
   showSwimLanes?: boolean;
@@ -96,6 +97,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     const {
       currentTime, defaultStartMs, defaultEndMs,
       theme, maxTicks, timezone, dateTimeFormat, months, onTimeChange, onDragStart, onDragEnd,
+      onRangeSelect,
       swimLanes: swimLanesProp, showSwimLanes: showSwimLanesProp,
       onSwimLaneItemClick, onSwimLaneItemHover, onSwimLaneItemDoubleClick,
       onSwimLaneItemContextMenu,
@@ -163,7 +165,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     const followRateRef  = useRef(0);
 
     // Mouse state
-    const mouseMode    = useRef<'none' | 'scrub' | 'slide' | 'zoom'>('none');
+    const mouseMode    = useRef<'none' | 'scrub' | 'slide' | 'zoom' | 'rangeSelectPending' | 'rangeSelect'>('none');
     const mouseX       = useRef(0);
     // clientX of the cursor during a scrub drag — used by the edge-scroll RAF
     // to keep the needle pinned to the cursor as the window shifts under it.
@@ -171,6 +173,13 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     // Timestamp of last mousedown on a swim lane item — used to distinguish
     // a quick click from a long press / drag release.
     const swimLaneDownTime = useRef(0);
+
+    // Range-selection state
+    const rangeAnchorMs  = useRef(0);   // time at mousedown (anchor point)
+    const rangeAnchorX   = useRef(0);   // canvas-relative X at mousedown
+    const rangeSelectionRef = useRef<{ startMs: number; endMs: number } | null>(null);
+    const onRangeSelectRef  = useRef(onRangeSelect);
+    useEffect(() => { onRangeSelectRef.current = onRangeSelect; }, [onRangeSelect]);
 
     // Touch state
     const touchMode      = useRef<'none' | 'scrub' | 'slide' | 'pinch'>('none');
@@ -199,6 +208,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       showSwimLanes: showSwimLanesRef.current,
       scrollTop: scrollTopRef.current,
       reorderState: reorderStateRef.current,
+      rangeSelection: rangeSelectionRef.current,
     }), []);
 
     // ── Imperative handle (called by Timeline parent) ──────────────────────
@@ -419,14 +429,28 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       }
 
       if (e.button === 0) {
-        mouseMode.current  = 'scrub';
-        scrubClientX.current = e.clientX;
-        e.currentTarget.style.cursor = 'grabbing';
-        onDragStart?.();
-        const ms   = startMsRef.current + (x / rect.width) * (endMsRef.current - startMsRef.current);
-        curMsRef.current = ms;
-        draw();
-        onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
+        const needleX = ((curMsRef.current - startMsRef.current) / (endMsRef.current - startMsRef.current)) * rect.width;
+        const nearNeedle = Math.abs(x - needleX) <= 10;
+        const inTickArea = y >= rect.height - TICK_AREA_HEIGHT;
+
+        if (!nearNeedle && inTickArea) {
+          // Tick area, away from needle — could be a click or range-select drag.
+          // Don't commit the needle yet; wait to see if the user drags.
+          mouseMode.current    = 'rangeSelectPending';
+          rangeAnchorX.current = x;
+          rangeAnchorMs.current = startMsRef.current + (x / rect.width) * (endMsRef.current - startMsRef.current);
+          e.currentTarget.style.cursor = 'crosshair';
+          onDragStart?.();
+        } else {
+          mouseMode.current  = 'scrub';
+          scrubClientX.current = e.clientX;
+          e.currentTarget.style.cursor = 'grabbing';
+          onDragStart?.();
+          const ms   = startMsRef.current + (x / rect.width) * (endMsRef.current - startMsRef.current);
+          curMsRef.current = ms;
+          draw();
+          onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
+        }
       } else if (e.button === 1) {
         mouseMode.current = 'slide';
         mouseX.current    = e.clientX;
@@ -488,6 +512,21 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           curMsRef.current = ms;
           draw();
           onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
+        } else if (mouseMode.current === 'rangeSelectPending' || mouseMode.current === 'rangeSelect') {
+          const x = e.clientX - rect.left;
+          const dx = Math.abs(x - rangeAnchorX.current);
+          if (mouseMode.current === 'rangeSelectPending' && dx >= 3) {
+            mouseMode.current = 'rangeSelect';
+          }
+          if (mouseMode.current === 'rangeSelect') {
+            const cx = Math.max(0, Math.min(w, x));
+            const curMs = startMsRef.current + (cx / w) * (endMsRef.current - startMsRef.current);
+            rangeSelectionRef.current = {
+              startMs: rangeAnchorMs.current,
+              endMs: curMs,
+            };
+            draw();
+          }
         } else if (mouseMode.current === 'slide') {
           const dx = mouseX.current - e.clientX;
           mouseX.current = e.clientX;
@@ -526,6 +565,38 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         }
 
         stopEdgeScroll();
+
+        if (mouseMode.current === 'rangeSelectPending') {
+          // Short click — move needle to anchor position
+          curMsRef.current = rangeAnchorMs.current;
+          rangeSelectionRef.current = null;
+          mouseMode.current = 'none';
+          if (canvasRef.current) canvasRef.current.style.cursor = 'default';
+          draw();
+          onTimeChange(Cesium.JulianDate.fromDate(new Date(rangeAnchorMs.current)));
+          onDragEnd?.();
+          return;
+        }
+
+        if (mouseMode.current === 'rangeSelect') {
+          const sel = rangeSelectionRef.current;
+          rangeSelectionRef.current = null;
+          if (sel) {
+            const selStart = Math.min(sel.startMs, sel.endMs);
+            const selEnd   = Math.max(sel.startMs, sel.endMs);
+            startMsRef.current = selStart;
+            endMsRef.current   = selEnd;
+            const startJd = Cesium.JulianDate.fromDate(new Date(selStart));
+            const endJd   = Cesium.JulianDate.fromDate(new Date(selEnd));
+            onRangeSelectRef.current?.(startJd, endJd);
+          }
+          mouseMode.current = 'none';
+          if (canvasRef.current) canvasRef.current.style.cursor = 'default';
+          draw();
+          onDragEnd?.();
+          return;
+        }
+
         mouseMode.current = 'none';
         if (canvasRef.current) canvasRef.current.style.cursor = 'default';
         onDragEnd?.();
@@ -727,7 +798,13 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         draw();
       }
 
-      e.currentTarget.style.cursor = nearNeedle ? 'grab' : 'default';
+      if (nearNeedle) {
+        e.currentTarget.style.cursor = 'grab';
+      } else if (y >= rect.height - TICK_AREA_HEIGHT) {
+        e.currentTarget.style.cursor = 'crosshair';
+      } else {
+        e.currentTarget.style.cursor = 'default';
+      }
     }, [draw, hitTestSwimLane, isInSwimLaneRegion, isInLaneLabelArea]);
 
     const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {

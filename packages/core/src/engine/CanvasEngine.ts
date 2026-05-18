@@ -46,6 +46,11 @@ export interface TimelineRenderState {
   use12h?: boolean;
   /** Abbreviated month names for tick labels. Falls back to English when omitted. */
   months?: string[];
+  /**
+   * Active range selection (set while the user is dragging to select a range).
+   * When non-null, a highlight is rendered over the selected time span in the tick area.
+   */
+  rangeSelection?: { startMs: number; endMs: number } | null;
 }
 
 /** Drag-to-reorder visual state. */
@@ -281,6 +286,7 @@ export function drawTimeline(
   const {
     startMs, endMs, currentMs, theme: t, maxTicks,
     swimLanes: lanes, showSwimLanes, reorderState: rs, timezone, use12h, months,
+    rangeSelection,
   } = state;
   let { scrollTop } = state;
 
@@ -573,6 +579,18 @@ export function drawTimeline(
       ctx.fillText(label, x, h - t.majorTickHeight - 4);
       lastLabelRight = labelLeft + textW + 5;
     }
+  }
+
+  // ── Range-selection highlight ─────────────────────────────────
+  if (rangeSelection) {
+    const selX1 = ((rangeSelection.startMs - startMs) / (endMs - startMs)) * w;
+    const selX2 = ((rangeSelection.endMs   - startMs) / (endMs - startMs)) * w;
+    const rx = Math.min(selX1, selX2);
+    const rw = Math.abs(selX2 - selX1);
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = t.indicatorColor;
+    ctx.fillRect(rx, 0, rw, h);
+    ctx.globalAlpha = 1;
   }
 
   // ── Needle ────────────────────────────────────────────────────

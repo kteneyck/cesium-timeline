@@ -446,4 +446,30 @@ describe('drawTimeline', () => {
     const ctx = makeCtx();
     expect(drawTimeline(ctx, 800, 200, { ...baseState, startMs: 100, endMs: 100 })).toBe(0);
   });
+
+  it('draws range-selection highlight when rangeSelection is set', () => {
+    const ctx = makeCtx();
+    const selStart = baseState.startMs + 1_800_000; // 30 min in
+    const selEnd   = baseState.startMs + 2_700_000; // 45 min in
+    drawTimeline(ctx, 800, 200, {
+      ...baseState,
+      rangeSelection: { startMs: selStart, endMs: selEnd },
+    });
+    // fillRect is called for background + highlight; confirm at least 2 calls
+    expect((ctx.fillRect as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('does not draw range-selection highlight when rangeSelection is null', () => {
+    const ctxWith = makeCtx();
+    const ctxWithout = makeCtx();
+    drawTimeline(ctxWith, 800, 200, {
+      ...baseState,
+      rangeSelection: { startMs: baseState.startMs + 500_000, endMs: baseState.startMs + 1_000_000 },
+    });
+    drawTimeline(ctxWithout, 800, 200, { ...baseState, rangeSelection: null });
+    // With highlight: more fillRect calls than without
+    const callsWith    = (ctxWith.fillRect    as ReturnType<typeof vi.fn>).mock.calls.length;
+    const callsWithout = (ctxWithout.fillRect as ReturnType<typeof vi.fn>).mock.calls.length;
+    expect(callsWith).toBeGreaterThan(callsWithout);
+  });
 });
