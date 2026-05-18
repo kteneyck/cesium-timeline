@@ -1,5 +1,19 @@
 # @kteneyck/cesium-timeline-react
 
+## 0.8.0
+
+### Minor Changes
+
+- [`9ea7a68`](https://github.com/kteneyck/cesium-timeline/commit/9ea7a6898dae94b33a98a72503c91c5cf5f88e5f) Thanks [@kteneyck](https://github.com/kteneyck)! - Fix timetime scale reset when LIVE button activated
+  Support different timeline labels format
+  Support alternate month labels format
+  Fix pinch to zoom centering
+
+### Patch Changes
+
+- Updated dependencies [[`9ea7a68`](https://github.com/kteneyck/cesium-timeline/commit/9ea7a6898dae94b33a98a72503c91c5cf5f88e5f)]:
+  - @kteneyck/cesium-timeline-core@0.8.0
+
 ## 0.7.0
 
 ### Minor Changes
