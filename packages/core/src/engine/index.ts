@@ -7,6 +7,7 @@ export {
   resolveItemStyle,
   clampSpan,
   zoomRange,
+  zoomAroundMs,
   totalSwimLaneHeight,
   hitTestSwimLane,
   hitTestLaneLabel,

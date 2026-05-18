@@ -146,6 +146,27 @@ export function zoomRange(
   };
 }
 
+/**
+ * Compute a new visible range after zooming by `amount` around a specific
+ * pivot time. The pivot stays at the same fractional position on-screen,
+ * which is the expected behaviour for pinch-to-zoom (pivot = midpoint between
+ * the two fingers) and mouse-wheel zoom anchored to the cursor.
+ */
+export function zoomAroundMs(
+  startMs: number,
+  endMs: number,
+  amount: number,
+  pivotMs: number
+): { startMs: number; endMs: number } {
+  const span     = endMs - startMs;
+  const newSpan  = clampSpan(span * amount);
+  const fraction = span > 0 ? (pivotMs - startMs) / span : 0.5;
+  return {
+    startMs: pivotMs - fraction * newSpan,
+    endMs:   pivotMs + (1 - fraction) * newSpan,
+  };
+}
+
 /** Compute the total content height of all swim lanes. */
 export function totalSwimLaneHeight(lanes: SwimLane[]): number {
   let total = 0;

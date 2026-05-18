@@ -6,6 +6,7 @@ import {
   nextTic,
   clampSpan,
   zoomRange,
+  zoomAroundMs,
   calcEpochMs,
   resolveItemStyle,
   totalSwimLaneHeight,
@@ -189,6 +190,44 @@ describe('zoomRange', () => {
 
   it('clamps result when zoom would go below MIN_SPAN_MS', () => {
     const { startMs, endMs } = zoomRange(start, end, 1e-12);
+    expect(endMs - startMs).toBe(MIN_SPAN_MS);
+  });
+});
+
+// ── zoomAroundMs ──────────────────────────────────────────────────────────────
+
+describe('zoomAroundMs', () => {
+  const start = 1_000_000_000_000;
+  const end   = start + 3_600_000; // 1-hour window
+
+  it('keeps pivot at the same fractional position after zoom in', () => {
+    const pivot    = start + 900_000; // 25% into the range
+    const fraction = (pivot - start) / (end - start);
+    const { startMs, endMs } = zoomAroundMs(start, end, 0.5, pivot);
+    const newFraction = (pivot - startMs) / (endMs - startMs);
+    expect(newFraction).toBeCloseTo(fraction, 5);
+  });
+
+  it('keeps pivot at the same fractional position after zoom out', () => {
+    const pivot    = start + 2_700_000; // 75% into the range
+    const fraction = (pivot - start) / (end - start);
+    const { startMs, endMs } = zoomAroundMs(start, end, 2, pivot);
+    const newFraction = (pivot - startMs) / (endMs - startMs);
+    expect(newFraction).toBeCloseTo(fraction, 5);
+  });
+
+  it('reduces span when zooming in', () => {
+    const { startMs, endMs } = zoomAroundMs(start, end, 0.5, (start + end) / 2);
+    expect(endMs - startMs).toBeLessThan(end - start);
+  });
+
+  it('clamps result when zoom would exceed MAX_SPAN_MS', () => {
+    const { startMs, endMs } = zoomAroundMs(start, end, 1e12, (start + end) / 2);
+    expect(endMs - startMs).toBe(MAX_SPAN_MS);
+  });
+
+  it('clamps result when zoom would go below MIN_SPAN_MS', () => {
+    const { startMs, endMs } = zoomAroundMs(start, end, 1e-12, (start + end) / 2);
     expect(endMs - startMs).toBe(MIN_SPAN_MS);
   });
 });

@@ -30,6 +30,7 @@ import {
   hitTestLaneLabel as coreHitTestLaneLabel,
   isInSwimLaneRegion as coreIsInSwimLaneRegion,
   zoomRange,
+  zoomAroundMs,
   totalSwimLaneHeight,
 } from '@kteneyck/cesium-timeline-core';
 
@@ -100,6 +101,11 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
   private touchMode: 'none' | 'scrub' | 'slide' | 'pinch' = 'none';
   private touchX = 0;
   private pinchDist = 0;
+  // Canvas-relative X of the midpoint between the two pinch fingers (pixels).
+  private pinchMidX = 0;
+  // Needle position saved just before a single-finger scrub begins, so it can
+  // be restored if a second finger lands and the gesture becomes a pinch-zoom.
+  private prePinchCurMs = 0;
 
   // Edge-scroll animation
   private edgeRAF: number | null = null;
@@ -659,6 +665,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       const x = e.touches[0].clientX - rect.left;
       const cx = Math.max(0, Math.min(rect.width, x));
       const ms = this.startMs + (cx / rect.width) * (this.endMs - this.startMs);
+      this.prePinchCurMs = this.curMs;
       this.touchMode = 'scrub';
       this.touchX = e.touches[0].clientX;
       this.scrubClientX = e.touches[0].clientX;
@@ -669,8 +676,16 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
         this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(ms)));
       });
     } else if (e.touches.length >= 2) {
+      // If we were scrubbing, undo the needle move — pinch-zoom should not
+      // change the current time.
+      if (this.touchMode === 'scrub') {
+        this.curMs = this.prePinchCurMs;
+        this.draw();
+        this.ngZone.run(() => this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(this.prePinchCurMs))));
+      }
       this.touchMode = 'pinch';
       this.pinchDist = this.getTouchDist(e.touches[0], e.touches[1]);
+      this.pinchMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
     }
   }
 
@@ -707,10 +722,16 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       }
     } else if (this.touchMode === 'pinch' && e.touches.length >= 2) {
       const newDist = this.getTouchDist(e.touches[0], e.touches[1]);
+      const newMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
       if (newDist > 0 && this.pinchDist > 0) {
-        this.zoomFrom(this.pinchDist / newDist);
+        const pivotMs = this.startMs + (this.pinchMidX / rect.width) * (this.endMs - this.startMs);
+        const result  = zoomAroundMs(this.startMs, this.endMs, this.pinchDist / newDist, pivotMs);
+        this.startMs = result.startMs;
+        this.endMs   = result.endMs;
+        this.draw();
       }
       this.pinchDist = newDist;
+      this.pinchMidX = newMidX;
     }
   }
 

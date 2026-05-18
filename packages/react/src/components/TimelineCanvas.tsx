@@ -36,6 +36,7 @@ import {
   hitTestLaneLabel as coreHitTestLaneLabel,
   isInSwimLaneRegion as coreIsInSwimLaneRegion,
   zoomRange,
+  zoomAroundMs,
   totalSwimLaneHeight,
 } from '@kteneyck/cesium-timeline-core';
 
@@ -172,9 +173,14 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     const swimLaneDownTime = useRef(0);
 
     // Touch state
-    const touchMode    = useRef<'none' | 'scrub' | 'slide' | 'pinch'>('none');
-    const touchX       = useRef(0);
-    const pinchDist    = useRef(0);
+    const touchMode      = useRef<'none' | 'scrub' | 'slide' | 'pinch'>('none');
+    const touchX         = useRef(0);
+    const pinchDist      = useRef(0);
+    // Canvas-relative X of the midpoint between the two pinch fingers (pixels).
+    const pinchMidX      = useRef(0);
+    // Needle position saved just before a single-finger scrub begins, so it can
+    // be restored if a second finger lands and the gesture becomes a pinch-zoom.
+    const prePinchCurMs  = useRef(0);
 
     const getTouchDist = (a: Touch, b: Touch) =>
       Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
@@ -589,6 +595,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           const x  = e.touches[0].clientX - rect.left;
           const cx = Math.max(0, Math.min(rect.width, x));
           const ms = startMsRef.current + (cx / rect.width) * (endMsRef.current - startMsRef.current);
+          prePinchCurMs.current = curMsRef.current;
           touchMode.current    = 'scrub';
           touchX.current       = e.touches[0].clientX;
           scrubClientX.current = e.touches[0].clientX;
@@ -597,8 +604,16 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           onDragStart?.();
           onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
         } else if (e.touches.length >= 2) {
+          // If we were scrubbing, undo the needle move — pinch-zoom should not
+          // change the current time.
+          if (touchMode.current === 'scrub') {
+            curMsRef.current = prePinchCurMs.current;
+            draw();
+            onTimeChange(Cesium.JulianDate.fromDate(new Date(prePinchCurMs.current)));
+          }
           touchMode.current = 'pinch';
           pinchDist.current = getTouchDist(e.touches[0], e.touches[1]);
+          pinchMidX.current = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
         }
       };
 
@@ -635,10 +650,16 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
 
         } else if (touchMode.current === 'pinch' && e.touches.length >= 2) {
           const newDist = getTouchDist(e.touches[0], e.touches[1]);
+          const newMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
           if (newDist > 0 && pinchDist.current > 0) {
-            zoomFrom(pinchDist.current / newDist);
+            const pivotMs = startMsRef.current + (pinchMidX.current / rect.width) * (endMsRef.current - startMsRef.current);
+            const result  = zoomAroundMs(startMsRef.current, endMsRef.current, pinchDist.current / newDist, pivotMs);
+            startMsRef.current = result.startMs;
+            endMsRef.current   = result.endMs;
+            draw();
           }
           pinchDist.current = newDist;
+          pinchMidX.current = newMidX;
         }
       };
 
