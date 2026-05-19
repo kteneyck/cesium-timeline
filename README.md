@@ -133,6 +133,7 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 - **Clickable datetime** — pass `onDateTimeClick` to open your own date picker; pass the result back via `jumpToTime` to pan the canvas and set the time.
 - **Token-based datetime format** — built-in presets plus custom format strings with 17 supported tokens.
 - **Max tick limit** — `maxTicks` prop prevents the canvas from becoming overloaded at wide zoom levels by coarsening the tick scale automatically.
+- **Ghost / preview needle** — while hovering over the timeline a semi-transparent (15% opacity) preview needle tracks the cursor so you can see exactly where a click or zoom-to-selection drag would land before committing. The ghost disappears when the cursor leaves the canvas or an interaction begins.
 - **Zoom to selection** — drag in the tick area (away from the needle) to draw a time-range highlight with a crosshair cursor; on release the visible window zooms to exactly the selected span and fires `onRangeSelect` (React) / `rangeSelect` (Angular) with the resulting start and end times.
 - **Swim lanes** — display time intervals and instants as horizontal rows inside the canvas. Supports customizable styling, click/hover/double-click event hooks, drag-to-reorder, and vertical scrolling when lanes overflow.
 - **Fully themeable** — 16 theme properties cover every color, size, and font setting, including swim lane item border defaults.
@@ -756,6 +757,36 @@ onRangeSelect(range: { start: Cesium.JulianDate; end: Cesium.JulianDate }) {
   this.viewer.clock.currentTime = range.start;
 }
 ```
+
+---
+
+## Ghost / Preview Needle
+
+When the user hovers over the timeline canvas a **ghost needle** (a semi-transparent version of the current-time indicator) tracks the cursor position in real time. It renders at **15% opacity** using the same `indicatorColor` and `indicatorLineWidth` as the real needle, giving a clear preview of where a click-to-seek or zoom-to-selection drag would begin — without moving the actual current time.
+
+### Behaviour summary
+
+| State | Ghost visible? |
+|---|---|
+| Mouse idle over canvas | ✅ Follows cursor |
+| Dragging (scrub / range-select / slide / zoom) | ❌ Hidden |
+| Mouse leaves canvas | ❌ Hidden |
+
+### Theming the ghost needle
+
+The ghost needle inherits `indicatorColor` and `indicatorLineWidth` from your theme — no additional configuration is needed. To change its appearance, update those two theme properties:
+
+```tsx
+<Timeline
+  clock={viewer.clock}
+  theme={{
+    indicatorColor: '#ffd54f',
+    indicatorLineWidth: 3,
+  }}
+/>
+```
+
+The ghost will render as the same colour at 15% opacity, and the real needle will render at full opacity.
 
 ---
 

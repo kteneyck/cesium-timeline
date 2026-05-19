@@ -181,6 +181,9 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     const onRangeSelectRef  = useRef(onRangeSelect);
     useEffect(() => { onRangeSelectRef.current = onRangeSelect; }, [onRangeSelect]);
 
+    // Ghost needle (hover preview)
+    const hoverMsRef = useRef<number | null>(null);
+
     // Touch state
     const touchMode      = useRef<'none' | 'scrub' | 'slide' | 'pinch'>('none');
     const touchX         = useRef(0);
@@ -209,6 +212,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       scrollTop: scrollTopRef.current,
       reorderState: reorderStateRef.current,
       rangeSelection: rangeSelectionRef.current,
+      hoverMs: hoverMsRef.current,
     }), []);
 
     // ── Imperative handle (called by Timeline parent) ──────────────────────
@@ -758,10 +762,23 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
 
     // Show grab cursor only when hovering near the needle.
     const handleCanvasMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (mouseMode.current !== 'none') return;
       const rect   = e.currentTarget.getBoundingClientRect();
       const x      = e.clientX - rect.left;
       const y      = e.clientY - rect.top;
+
+      // Update ghost needle position (always track cursor while idle)
+      if (mouseMode.current === 'none') {
+        const newHoverMs = startMsRef.current + (Math.max(0, Math.min(rect.width, x)) / rect.width) * (endMsRef.current - startMsRef.current);
+        if (hoverMsRef.current !== newHoverMs) {
+          hoverMsRef.current = newHoverMs;
+          // draw() will be called below (cursor logic path) or explicitly here
+        }
+      }
+
+      if (mouseMode.current !== 'none') {
+        hoverMsRef.current = null;
+        return;
+      }
 
       const needleX = ((curMsRef.current - startMsRef.current) / (endMsRef.current - startMsRef.current)) * rect.width;
       const nearNeedle = Math.abs(x - needleX) <= 10;
@@ -774,13 +791,11 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           if (!prev || prev.item.id !== hit.item.id || prev.lane.id !== hit.lane.id) {
             hoveredItemRef.current = hit;
             onSwimLaneItemHoverRef.current?.({ laneId: hit.lane.id, item: hit.item, originalEvent: e.nativeEvent });
-            draw();
           }
         } else {
           if (prev) {
             hoveredItemRef.current = null;
             onSwimLaneItemHoverRef.current?.(null);
-            draw();
           }
           if (nearNeedle) {
             e.currentTarget.style.cursor = 'grab';
@@ -789,13 +804,13 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
             e.currentTarget.style.cursor = labelLane && onSwimLaneReorderRef.current ? 'grab' : 'default';
           }
         }
+        draw();
         return;
       }
 
       if (hoveredItemRef.current) {
         hoveredItemRef.current = null;
         onSwimLaneItemHoverRef.current?.(null);
-        draw();
       }
 
       if (nearNeedle) {
@@ -805,6 +820,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       } else {
         e.currentTarget.style.cursor = 'default';
       }
+      draw();
     }, [draw, hitTestSwimLane, isInSwimLaneRegion, isInLaneLabelArea]);
 
     const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -858,8 +874,10 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
         onMouseLeave={() => {
-          if (hoveredItemRef.current) { hoveredItemRef.current = null; onSwimLaneItemHoverRef.current?.(null); draw(); }
+          if (hoveredItemRef.current) { hoveredItemRef.current = null; onSwimLaneItemHoverRef.current?.(null); }
+          hoverMsRef.current = null;
           if (mouseMode.current === 'none' && canvasRef.current) canvasRef.current.style.cursor = 'default';
+          draw();
         }}
         onContextMenu={handleContextMenu}
       />

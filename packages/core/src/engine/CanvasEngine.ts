@@ -51,6 +51,13 @@ export interface TimelineRenderState {
    * When non-null, a highlight is rendered over the selected time span in the tick area.
    */
   rangeSelection?: { startMs: number; endMs: number } | null;
+  /**
+   * Canvas-relative X position of the cursor (in CSS pixels) while the user is
+   * hovering over the timeline.  When non-null a ghost needle is drawn at this
+   * position with 15 % opacity so the user can preview where a click / drag
+   * would land before committing.
+   */
+  hoverMs?: number | null;
 }
 
 /** Drag-to-reorder visual state. */
@@ -286,7 +293,7 @@ export function drawTimeline(
   const {
     startMs, endMs, currentMs, theme: t, maxTicks,
     swimLanes: lanes, showSwimLanes, reorderState: rs, timezone, use12h, months,
-    rangeSelection,
+    rangeSelection, hoverMs,
   } = state;
   let { scrollTop } = state;
 
@@ -601,6 +608,19 @@ export function drawTimeline(
   ctx.moveTo(needleX, 0);
   ctx.lineTo(needleX, h);
   ctx.stroke();
+
+  // ── Ghost needle (hover preview) ──────────────────────────────
+  if (hoverMs != null) {
+    const ghostX = ((hoverMs - startMs) / (endMs - startMs)) * w;
+    ctx.globalAlpha = 0.15;
+    ctx.strokeStyle = t.indicatorColor;
+    ctx.lineWidth   = t.indicatorLineWidth;
+    ctx.beginPath();
+    ctx.moveTo(ghostX, 0);
+    ctx.lineTo(ghostX, h);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
 
   return scrollTop;
 }
