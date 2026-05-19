@@ -1,5 +1,11 @@
 # @kteneyck/cesium-timeline-core
 
+## 0.9.0
+
+### Minor Changes
+
+- [`3442d39`](https://github.com/kteneyck/cesium-timeline/commit/3442d39a524837fa89eb673d7eb5d20550124427) Thanks [@kteneyck](https://github.com/kteneyck)! - Add zoom to selection feature
+
 ## 0.8.0
 
 ### Minor Changes
