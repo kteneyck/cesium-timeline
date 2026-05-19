@@ -54,7 +54,7 @@ export interface TimelineRenderState {
   /**
    * Canvas-relative X position of the cursor (in CSS pixels) while the user is
    * hovering over the timeline.  When non-null a ghost needle is drawn at this
-   * position with 25 % opacity so the user can preview where a click / drag
+   * position with 15 % opacity so the user can preview where a click / drag
    * would land before committing.
    */
   hoverMs?: number | null;
