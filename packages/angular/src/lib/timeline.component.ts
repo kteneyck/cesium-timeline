@@ -95,6 +95,7 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
           (swimLaneItemDoubleClick)="swimLaneItemDoubleClick.emit($event)"
           (swimLaneItemContextMenu)="swimLaneItemContextMenu.emit($event)"
           (swimLaneReorder)="swimLaneReorder.emit($event)"
+          (rangeSelect)="rangeSelect.emit($event)"
         />
       }
     </div>
@@ -137,6 +138,7 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
   @Output() swimLaneItemDoubleClick = new EventEmitter<SwimLaneEventInfo>();
   @Output() swimLaneItemContextMenu = new EventEmitter<SwimLaneEventInfo>();
   @Output() swimLaneReorder = new EventEmitter<string[]>();
+  @Output() rangeSelect = new EventEmitter<{ start: Cesium.JulianDate; end: Cesium.JulianDate }>();
 
   // ── ViewChild refs ─────────────────────────────────────────────────────
   @ViewChild(TimelineCanvasComponent) canvasComp?: TimelineCanvasComponent;

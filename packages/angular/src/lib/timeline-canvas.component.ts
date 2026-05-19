@@ -78,6 +78,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
   @Output() swimLaneItemDoubleClick = new EventEmitter<SwimLaneEventInfo>();
   @Output() swimLaneItemContextMenu = new EventEmitter<SwimLaneEventInfo>();
   @Output() swimLaneReorder = new EventEmitter<string[]>();
+  @Output() rangeSelect = new EventEmitter<{ start: Cesium.JulianDate; end: Cesium.JulianDate }>();
 
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>;
 
@@ -92,10 +93,15 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
   private reorderState: ReorderState | null = null;
 
   // Mouse state
-  private mouseMode: 'none' | 'scrub' | 'slide' | 'zoom' = 'none';
+  private mouseMode: 'none' | 'scrub' | 'slide' | 'zoom' | 'rangeSelectPending' | 'rangeSelect' = 'none';
   private mouseX = 0;
   private scrubClientX = 0;
   private swimLaneDownTime = 0;
+
+  // Range-selection state
+  private rangeAnchorMs = 0;
+  private rangeAnchorX = 0;
+  private rangeSelection: { startMs: number; endMs: number } | null = null;
 
   // Touch state
   private touchMode: 'none' | 'scrub' | 'slide' | 'pinch' = 'none';
@@ -307,6 +313,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       showSwimLanes: this.showSwimLanesState,
       scrollTop: this.scrollTop,
       reorderState: this.reorderState,
+      rangeSelection: this.rangeSelection,
     });
 
     if (clampedScrollTop !== this.scrollTop) {
@@ -426,14 +433,26 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     }
 
     if (e.button === 0) {
-      this.mouseMode = 'scrub';
-      this.scrubClientX = e.clientX;
-      canvas.style.cursor = 'grabbing';
-      this.ngZone.run(() => this.dragStart.emit());
-      const ms = this.startMs + (x / rect.width) * (this.endMs - this.startMs);
-      this.curMs = ms;
-      this.draw();
-      this.ngZone.run(() => this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(ms))));
+      const needleX = ((this.curMs - this.startMs) / (this.endMs - this.startMs)) * rect.width;
+      const nearNeedle = Math.abs(x - needleX) <= 10;
+      const inTickArea = y >= rect.height - TICK_AREA_HEIGHT;
+
+      if (!nearNeedle && inTickArea) {
+        this.mouseMode = 'rangeSelectPending';
+        this.rangeAnchorX = x;
+        this.rangeAnchorMs = this.startMs + (x / rect.width) * (this.endMs - this.startMs);
+        canvas.style.cursor = 'crosshair';
+        this.ngZone.run(() => this.dragStart.emit());
+      } else {
+        this.mouseMode = 'scrub';
+        this.scrubClientX = e.clientX;
+        canvas.style.cursor = 'grabbing';
+        this.ngZone.run(() => this.dragStart.emit());
+        const ms = this.startMs + (x / rect.width) * (this.endMs - this.startMs);
+        this.curMs = ms;
+        this.draw();
+        this.ngZone.run(() => this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(ms))));
+      }
     } else if (e.button === 1) {
       this.mouseMode = 'slide';
       this.mouseX = e.clientX;
@@ -486,6 +505,18 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       this.curMs = ms;
       this.draw();
       this.ngZone.run(() => this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(ms))));
+    } else if (this.mouseMode === 'rangeSelectPending' || this.mouseMode === 'rangeSelect') {
+      const x = e.clientX - rect.left;
+      const dx = Math.abs(x - this.rangeAnchorX);
+      if (this.mouseMode === 'rangeSelectPending' && dx >= 3) {
+        this.mouseMode = 'rangeSelect';
+      }
+      if (this.mouseMode === 'rangeSelect') {
+        const cx = Math.max(0, Math.min(w, x));
+        const curMs = this.startMs + (cx / w) * (this.endMs - this.startMs);
+        this.rangeSelection = { startMs: this.rangeAnchorMs, endMs: curMs };
+        this.draw();
+      }
     } else if (this.mouseMode === 'slide') {
       const dx = this.mouseX - e.clientX;
       this.mouseX = e.clientX;
@@ -525,6 +556,42 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     }
 
     this.stopEdgeScroll();
+
+    if (this.mouseMode === 'rangeSelectPending') {
+      // Short click — commit needle to anchor position
+      this.curMs = this.rangeAnchorMs;
+      this.rangeSelection = null;
+      this.mouseMode = 'none';
+      const canvas = this.canvasRef?.nativeElement;
+      if (canvas) canvas.style.cursor = 'default';
+      this.draw();
+      this.ngZone.run(() => {
+        this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(this.rangeAnchorMs)));
+        this.dragEnd.emit();
+      });
+      return;
+    }
+
+    if (this.mouseMode === 'rangeSelect') {
+      const sel = this.rangeSelection;
+      this.rangeSelection = null;
+      if (sel) {
+        const selStart = Math.min(sel.startMs, sel.endMs);
+        const selEnd   = Math.max(sel.startMs, sel.endMs);
+        this.startMs = selStart;
+        this.endMs   = selEnd;
+        const startJd = Cesium.JulianDate.fromDate(new Date(selStart));
+        const endJd   = Cesium.JulianDate.fromDate(new Date(selEnd));
+        this.ngZone.run(() => this.rangeSelect.emit({ start: startJd, end: endJd }));
+      }
+      this.mouseMode = 'none';
+      const canvas = this.canvasRef?.nativeElement;
+      if (canvas) canvas.style.cursor = 'default';
+      this.draw();
+      this.ngZone.run(() => this.dragEnd.emit());
+      return;
+    }
+
     this.mouseMode = 'none';
     const canvas = this.canvasRef?.nativeElement;
     if (canvas) canvas.style.cursor = 'default';
@@ -575,7 +642,13 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       this.draw();
     }
 
-    canvas.style.cursor = nearNeedle ? 'grab' : 'default';
+    if (nearNeedle) {
+      canvas.style.cursor = 'grab';
+    } else if (y >= rect.height - TICK_AREA_HEIGHT) {
+      canvas.style.cursor = 'crosshair';
+    } else {
+      canvas.style.cursor = 'default';
+    }
   }
 
   onCanvasClick(e: MouseEvent): void {

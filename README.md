@@ -133,6 +133,7 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 - **Clickable datetime** — pass `onDateTimeClick` to open your own date picker; pass the result back via `jumpToTime` to pan the canvas and set the time.
 - **Token-based datetime format** — built-in presets plus custom format strings with 17 supported tokens.
 - **Max tick limit** — `maxTicks` prop prevents the canvas from becoming overloaded at wide zoom levels by coarsening the tick scale automatically.
+- **Zoom to selection** — drag in the tick area (away from the needle) to draw a time-range highlight with a crosshair cursor; on release the visible window zooms to exactly the selected span and fires `onRangeSelect` (React) / `rangeSelect` (Angular) with the resulting start and end times.
 - **Swim lanes** — display time intervals and instants as horizontal rows inside the canvas. Supports customizable styling, click/hover/double-click event hooks, drag-to-reorder, and vertical scrolling when lanes overflow.
 - **Fully themeable** — 16 theme properties cover every color, size, and font setting, including swim lane item border defaults.
 - **Localizable labels** — every control-bar label and tooltip is overridable via the `labels` prop; dynamic tooltips accept a `(multiplier: number) => string` callback. See [Labels & i18n](#labels--i18n).
@@ -174,6 +175,7 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 | `onSwimLaneItemHover` | `(info: SwimLaneEventInfo \| null) => void` | — | Fires when mouse enters/leaves a swim lane item |
 | `onSwimLaneItemDoubleClick` | `(info: SwimLaneEventInfo) => void` | — | Fires when a swim lane item is double-clicked |
 | `onSwimLaneReorder` | `(orderedIds: string[]) => void` | — | Fires when swim lanes are reordered via drag. Receives the new lane id order. |
+| `onRangeSelect` | `(start: JulianDate, end: JulianDate) => void` | — | Fires when the user completes a click-and-drag in the tick area. The visible window zooms to the selected span; receives the resulting start and end times. |
 | `labels` | `Partial<TimelineLabels>` | English defaults | Override any control-bar label or tooltip string. See [Labels & i18n](#labels--i18n). |
 
 ---
@@ -596,6 +598,12 @@ const CesiumWithTimeline = () => {
           onTimeChange={(t) => { clock.currentTime = t; }}
           onPlayPause={(playing) => { clock.shouldAnimate = playing; }}
           onMultiplierChange={(m) => { clock.multiplier = m; }}
+          onRangeSelect={(start, end) => {
+            // Zoom the Cesium clock range to match the selected span
+            clock.startTime = start;
+            clock.stopTime  = end;
+            clock.currentTime = start;
+          }}
         />
       )}
     </div>
@@ -693,6 +701,60 @@ const StandaloneTimeline = () => {
     </>
   );
 };
+```
+
+### Zoom to Selection
+
+Click-and-drag in the tick area (the bottom strip, away from the needle) to draw a time-range highlight. The cursor becomes a crosshair while dragging. On mouse-up the **visible window zooms to exactly the selected span** and `onRangeSelect` fires with the start and end `JulianDate`.
+
+A short click (no drag) in the tick area still moves the needle normally.
+
+```tsx
+import { useState } from 'react';
+import * as Cesium from 'cesium';
+import { Timeline } from '@kteneyck/cesium-timeline-react';
+
+const ZoomableTimeline = () => {
+  const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
+
+  return (
+    <>
+      {selectedRange && (
+        <p>
+          Selected: {selectedRange.start.toISOString()} → {selectedRange.end.toISOString()}
+        </p>
+      )}
+      <Timeline
+        clock={viewer.clock}
+        height={120}
+        onRangeSelect={(start, end) => {
+          setSelectedRange({
+            start: Cesium.JulianDate.toDate(start),
+            end:   Cesium.JulianDate.toDate(end),
+          });
+        }}
+      />
+    </>
+  );
+};
+```
+
+In Angular, listen to the `(rangeSelect)` output — the event payload is `{ start: Cesium.JulianDate, end: Cesium.JulianDate }`:
+
+```html
+<ct-timeline
+  [clock]="viewer.clock"
+  [height]="120"
+  (rangeSelect)="onRangeSelect($event)"
+/>
+```
+
+```typescript
+onRangeSelect(range: { start: Cesium.JulianDate; end: Cesium.JulianDate }) {
+  this.viewer.clock.startTime  = range.start;
+  this.viewer.clock.stopTime   = range.end;
+  this.viewer.clock.currentTime = range.start;
+}
 ```
 
 ---
