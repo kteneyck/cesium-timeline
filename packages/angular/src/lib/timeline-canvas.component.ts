@@ -103,6 +103,9 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
   private rangeAnchorX = 0;
   private rangeSelection: { startMs: number; endMs: number } | null = null;
 
+  // Ghost needle (hover preview)
+  private hoverMs: number | null = null;
+
   // Touch state
   private touchMode: 'none' | 'scrub' | 'slide' | 'pinch' = 'none';
   private touchX = 0;
@@ -314,6 +317,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       scrollTop: this.scrollTop,
       reorderState: this.reorderState,
       rangeSelection: this.rangeSelection,
+      hoverMs: this.hoverMs,
     });
 
     if (clampedScrollTop !== this.scrollTop) {
@@ -599,11 +603,18 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
   }
 
   onCanvasMouseMove(e: MouseEvent): void {
-    if (this.mouseMode !== 'none') return;
     const canvas = this.canvasRef.nativeElement;
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+
+    // Update ghost needle while idle
+    if (this.mouseMode === 'none') {
+      this.hoverMs = this.startMs + (Math.max(0, Math.min(rect.width, x)) / rect.width) * (this.endMs - this.startMs);
+    } else {
+      this.hoverMs = null;
+      return;
+    }
 
     const needleX = ((this.curMs - this.startMs) / (this.endMs - this.startMs)) * rect.width;
     const nearNeedle = Math.abs(x - needleX) <= 10;
@@ -618,13 +629,11 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
           this.ngZone.run(() =>
             this.swimLaneItemHover.emit({ laneId: hit.lane.id, item: hit.item, originalEvent: e })
           );
-          this.draw();
         }
       } else {
         if (prev) {
           this.hoveredItem = null;
           this.ngZone.run(() => this.swimLaneItemHover.emit(null));
-          this.draw();
         }
         if (nearNeedle) {
           canvas.style.cursor = 'grab';
@@ -633,13 +642,13 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
           canvas.style.cursor = labelLane && this.swimLaneReorder.observed ? 'grab' : 'default';
         }
       }
+      this.draw();
       return;
     }
 
     if (this.hoveredItem) {
       this.hoveredItem = null;
       this.ngZone.run(() => this.swimLaneItemHover.emit(null));
-      this.draw();
     }
 
     if (nearNeedle) {
@@ -649,6 +658,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     } else {
       canvas.style.cursor = 'default';
     }
+    this.draw();
   }
 
   onCanvasClick(e: MouseEvent): void {
@@ -697,10 +707,11 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     if (this.hoveredItem) {
       this.hoveredItem = null;
       this.ngZone.run(() => this.swimLaneItemHover.emit(null));
-      this.draw();
     }
+    this.hoverMs = null;
     const canvas = this.canvasRef?.nativeElement;
     if (this.mouseMode === 'none' && canvas) canvas.style.cursor = 'default';
+    this.draw();
   }
 
   // ── Wheel handler ──────────────────────────────────────────────────────
