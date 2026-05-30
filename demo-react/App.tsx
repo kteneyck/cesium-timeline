@@ -156,8 +156,10 @@ export const TestApp: React.FC = () => {
       viewer.clock.startTime = Cesium.JulianDate.fromDate(startOfDay);
       viewer.clock.stopTime = Cesium.JulianDate.fromDate(endOfDay);
       viewer.clock.currentTime = Cesium.JulianDate.fromDate(now);
-      viewer.clock.clockStep = Cesium.ClockStep.SYSTEM_CLOCK_MULTIPLIER;
+      viewer.clock.clockRange = Cesium.ClockRange.UNBOUNDED;
+      viewer.clock.clockStep = Cesium.ClockStep.SYSTEM_CLOCK;
       viewer.clock.multiplier = 1;
+      viewer.clock.shouldAnimate = true;
 
       viewerRef.current = viewer;
       setCesiumClock(viewer.clock);

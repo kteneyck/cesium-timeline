@@ -470,8 +470,10 @@ export class AppComponent implements OnInit, OnDestroy {
       this.viewer.clock.startTime   = Cesium.JulianDate.fromDate(startOfDay);
       this.viewer.clock.stopTime    = Cesium.JulianDate.fromDate(endOfDay);
       this.viewer.clock.currentTime = Cesium.JulianDate.fromDate(now);
-      this.viewer.clock.clockStep   = Cesium.ClockStep.SYSTEM_CLOCK_MULTIPLIER;
+      this.viewer.clock.clockRange  = Cesium.ClockRange.UNBOUNDED;
+      this.viewer.clock.clockStep   = Cesium.ClockStep.SYSTEM_CLOCK;
       this.viewer.clock.multiplier  = 1;
+      this.viewer.clock.shouldAnimate = true;
 
       this.cesiumClock = this.viewer.clock;
       this.currentTime = now;
