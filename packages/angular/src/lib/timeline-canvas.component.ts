@@ -584,9 +584,21 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
         const selEnd   = Math.max(sel.startMs, sel.endMs);
         this.startMs = selStart;
         this.endMs   = selEnd;
+        // If the needle is outside the selected range, clamp it to the nearest
+        // edge so the clock-tick auto-scroll doesn't immediately override the zoom.
+        const clampedMs = Math.max(selStart, Math.min(selEnd, this.curMs));
+        const needleMoved = clampedMs !== this.curMs;
+        if (needleMoved) {
+          this.curMs = clampedMs;
+        }
         const startJd = Cesium.JulianDate.fromDate(new Date(selStart));
         const endJd   = Cesium.JulianDate.fromDate(new Date(selEnd));
-        this.ngZone.run(() => this.rangeSelect.emit({ start: startJd, end: endJd }));
+        this.ngZone.run(() => {
+          this.rangeSelect.emit({ start: startJd, end: endJd });
+          if (needleMoved) {
+            this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(clampedMs)));
+          }
+        });
       }
       this.mouseMode = 'none';
       const canvas = this.canvasRef?.nativeElement;
