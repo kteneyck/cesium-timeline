@@ -590,6 +590,13 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
             const selEnd   = Math.max(sel.startMs, sel.endMs);
             startMsRef.current = selStart;
             endMsRef.current   = selEnd;
+            // If the needle is outside the selected range, clamp it to the nearest
+            // edge so the clock-tick auto-scroll doesn't immediately override the zoom.
+            const clampedMs = Math.max(selStart, Math.min(selEnd, curMsRef.current));
+            if (clampedMs !== curMsRef.current) {
+              curMsRef.current = clampedMs;
+              onTimeChange(Cesium.JulianDate.fromDate(new Date(clampedMs)));
+            }
             const startJd = Cesium.JulianDate.fromDate(new Date(selStart));
             const endJd   = Cesium.JulianDate.fromDate(new Date(selEnd));
             onRangeSelectRef.current?.(startJd, endJd);
