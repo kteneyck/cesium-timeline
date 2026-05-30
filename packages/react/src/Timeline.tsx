@@ -58,6 +58,10 @@ export interface TimelineProps {
    * want to change; everything else falls back to the English defaults.
    */
   labels?: Partial<TimelineLabels>;
+  /** @see TimelineBaseProps.liveButtonSize */
+  liveButtonSize?: 'sm' | 'md' | 'lg';
+  /** @see TimelineBaseProps.liveButtonPosition */
+  liveButtonPosition?: 'left' | 'right';
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
@@ -93,6 +97,8 @@ export const Timeline: React.FC<TimelineProps> = ({
   onSwimLaneReorder,
   onRangeSelect,
   labels,
+  liveButtonSize,
+  liveButtonPosition,
 }) => {
   const now = () => Date.now();
   const defaultStartMs = providedStart
@@ -309,6 +315,8 @@ export const Timeline: React.FC<TimelineProps> = ({
             swimLanesVisible={hasSwimLanes ? swimLanesExpanded : undefined}
             onToggleSwimLanes={hasSwimLanes ? handleToggleSwimLanes : undefined}
             labels={labels}
+            liveButtonSize={liveButtonSize}
+            liveButtonPosition={liveButtonPosition}
           />
         </div>
       )}
