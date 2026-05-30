@@ -125,6 +125,19 @@ export interface TimelineBaseProps {
    * want to change; everything else falls back to the English defaults.
    */
   labels?: Partial<TimelineLabels>;
+  /**
+   * Size of the LIVE button in the control bar.
+   * `'sm'` is compact, `'md'` is the default, `'lg'` is prominent.
+   * @default 'md'
+   */
+  liveButtonSize?: 'sm' | 'md' | 'lg';
+  /**
+   * Which side of the control bar the LIVE button appears on.
+   * `'left'` places it beside the datetime display (default).
+   * `'right'` moves it to the right side of the control bar.
+   * @default 'left'
+   */
+  liveButtonPosition?: 'left' | 'right';
 }
 
 /**
@@ -178,4 +191,8 @@ export interface ControlsBaseProps {
    * @see TimelineBaseProps.labels
    */
   labels?: Partial<TimelineLabels>;
+  /** @see TimelineBaseProps.liveButtonSize */
+  liveButtonSize?: 'sm' | 'md' | 'lg';
+  /** @see TimelineBaseProps.liveButtonPosition */
+  liveButtonPosition?: 'left' | 'right';
 }

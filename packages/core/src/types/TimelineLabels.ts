@@ -110,7 +110,7 @@ export const DEFAULT_LABELS: Required<TimelineLabels> = {
   dateTimeClickTooltip: 'Click to jump to a date/time',
 
   liveLabel: 'LIVE',
-  liveActiveLabel: '● LIVE',
+  liveActiveLabel: 'LIVE',
   liveTooltip: 'Jump to live (now)',
   liveActiveTooltip: 'Currently live',
 

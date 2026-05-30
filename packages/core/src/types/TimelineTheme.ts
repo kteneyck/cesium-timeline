@@ -18,6 +18,8 @@ export interface TimelineTheme {
   swimLaneItemBorderColor: string;
   /** Default border width for swim lane items (px). Set to 0 to remove borders. */
   swimLaneItemBorderWidth: number;
+  /** Color of the red dot shown on the LIVE button when playback is live. */
+  liveDotColor: string;
 }
 
 export const defaultTheme: TimelineTheme = {
@@ -37,4 +39,5 @@ export const defaultTheme: TimelineTheme = {
   buttonActiveColor: '#d69826',
   swimLaneItemBorderColor: '#666666',
   swimLaneItemBorderWidth: 0,
+  liveDotColor: '#e53e3e',
 };

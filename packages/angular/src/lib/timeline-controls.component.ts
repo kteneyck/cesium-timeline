@@ -35,7 +35,7 @@ import {
       [style.border-bottom]="'1px solid ' + theme.controlBarBorder"
       [style.font-family]="'system-ui, -apple-system, sans-serif'"
     >
-      <!-- Left: Datetime + LIVE + speed badge -->
+      <!-- Left: Datetime + LIVE (if position=left) -->
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         <div
           (click)="dateTimeClick.emit()"
@@ -64,35 +64,46 @@ import {
           }
         </div>
 
-        <div style="display:flex;flex-direction:column;gap:2px;justify-content:center">
-          <!-- LIVE button -->
-          <button
-            (click)="jumpToLive.emit()"
-            [style.color]="isLive ? theme.controlBarBackground : theme.buttonActiveColor"
-            [style.background-color]="isLive ? theme.buttonActiveColor : 'transparent'"
-            [style.border-color]="theme.buttonActiveColor"
-            [style.opacity]="isLive ? 1 : 0.55"
-            style="background:none;border:1px solid;cursor:pointer;font-size:11px;font-weight:bold;letter-spacing:0.05em;width:52px;min-width:52px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;padding:0;font-family:system-ui,-apple-system,sans-serif;transition:opacity 0.15s"
-            [title]="isLive ? l.liveActiveTooltip : l.liveTooltip"
-          >
-            {{ isLive ? l.liveActiveLabel : l.liveLabel }}
-          </button>
-
-          <!-- Speed badge -->
-          <div style="height:20px;display:flex;align-items:center">
+        @if (liveButtonPosition === 'left') {
+          <div style="display:flex;align-items:center;gap:4px">
+            <button
+              (click)="jumpToLive.emit()"
+              [style.color]="isLive ? theme.controlBarBackground : theme.buttonActiveColor"
+              [style.background-color]="isLive ? theme.buttonActiveColor : 'transparent'"
+              [style.border-color]="theme.buttonActiveColor"
+              [style.opacity]="isLive ? 1 : 0.55"
+              [style.width.px]="liveSize.width"
+              [style.min-width.px]="liveSize.width"
+              [style.height.px]="liveSize.height"
+              [style.font-size]="liveSize.fontSize"
+              [style.border-radius]="liveSize.borderRadius"
+              style="background:none;border:1px solid;cursor:pointer;font-weight:bold;letter-spacing:0.05em;display:flex;align-items:center;justify-content:center;padding:0;gap:4px;font-family:system-ui,-apple-system,sans-serif;transition:opacity 0.15s"
+              [title]="isLive ? l.liveActiveTooltip : l.liveTooltip"
+            >
+              @if (isLive) {
+                <span
+                  [style.width.px]="liveSize.dot"
+                  [style.height.px]="liveSize.dot"
+                  [style.background-color]="theme.liveDotColor"
+                  style="border-radius:50%;display:inline-block;flex-shrink:0"
+                ></span>
+              }
+              {{ isLive ? l.liveActiveLabel : l.liveLabel }}
+            </button>
             @if (!isNormalSpeed) {
               <button
                 (click)="resetSpeed.emit()"
                 [style.color]="theme.buttonActiveColor"
                 [style.border-color]="theme.buttonActiveColor + '44'"
-                style="background:none;border:1px solid;cursor:pointer;font-size:11px;width:52px;min-width:52px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;padding:0;font-family:system-ui,-apple-system,sans-serif;transition:background-color 0.15s"
+                [style.width.px]="liveSize.width"
+                [style.min-width.px]="liveSize.width"
+                [style.height.px]="liveSize.height"
+                style="background:none;border:1px solid;cursor:pointer;font-size:11px;border-radius:4px;display:flex;align-items:center;justify-content:center;padding:0;font-family:system-ui,-apple-system,sans-serif;transition:background-color 0.15s"
                 [title]="l.resetSpeedTooltip"
-              >
-                {{ isRewinding ? '◀ ' + absMultiplier + '×' : absMultiplier + '× ▶' }}
-              </button>
+              >{{ isRewinding ? '◀ ' + absMultiplier + '×' : absMultiplier + '× ▶' }}</button>
             }
           </div>
-        </div>
+        }
       </div>
 
       <!-- Center: Transport buttons -->
@@ -172,9 +183,49 @@ import {
         }
       </div>
 
-      <!-- Right: swim-lane toggle -->
+      <!-- Right: LIVE (if position=right) + swim-lane toggle -->
       @if (!isNarrow) {
-        <div style="display:flex;justify-content:flex-end;align-items:center">
+        <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px">
+          @if (liveButtonPosition === 'right') {
+            <div style="display:flex;align-items:center;gap:4px">
+              <button
+                (click)="jumpToLive.emit()"
+                [style.color]="isLive ? theme.controlBarBackground : theme.buttonActiveColor"
+                [style.background-color]="isLive ? theme.buttonActiveColor : 'transparent'"
+                [style.border-color]="theme.buttonActiveColor"
+                [style.opacity]="isLive ? 1 : 0.55"
+                [style.width.px]="liveSize.width"
+                [style.min-width.px]="liveSize.width"
+                [style.height.px]="liveSize.height"
+                [style.font-size]="liveSize.fontSize"
+                [style.border-radius]="liveSize.borderRadius"
+                style="background:none;border:1px solid;cursor:pointer;font-weight:bold;letter-spacing:0.05em;display:flex;align-items:center;justify-content:center;padding:0;gap:4px;font-family:system-ui,-apple-system,sans-serif;transition:opacity 0.15s"
+                [title]="isLive ? l.liveActiveTooltip : l.liveTooltip"
+              >
+                @if (isLive) {
+                  <span
+                    [style.width.px]="liveSize.dot"
+                    [style.height.px]="liveSize.dot"
+                    [style.background-color]="theme.liveDotColor"
+                    style="border-radius:50%;display:inline-block;flex-shrink:0"
+                  ></span>
+                }
+                {{ isLive ? l.liveActiveLabel : l.liveLabel }}
+              </button>
+              @if (!isNormalSpeed) {
+                <button
+                  (click)="resetSpeed.emit()"
+                  [style.color]="theme.buttonActiveColor"
+                  [style.border-color]="theme.buttonActiveColor + '44'"
+                  [style.width.px]="liveSize.width"
+                  [style.min-width.px]="liveSize.width"
+                  [style.height.px]="liveSize.height"
+                  style="background:none;border:1px solid;cursor:pointer;font-size:11px;border-radius:4px;display:flex;align-items:center;justify-content:center;padding:0;font-family:system-ui,-apple-system,sans-serif;transition:background-color 0.15s"
+                  [title]="l.resetSpeedTooltip"
+                >{{ isRewinding ? '◀ ' + absMultiplier + '×' : absMultiplier + '× ▶' }}</button>
+              }
+            </div>
+          }
           @if (hasSwimLaneToggle) {
             <button
               (click)="toggleSwimLanes.emit()"
@@ -260,6 +311,8 @@ export class TimelineControlsComponent implements AfterViewInit, OnDestroy {
   @Input() theme!: TimelineTheme;
   @Input() swimLanesVisible?: boolean;
   @Input() labels?: Partial<TimelineLabels>;
+  @Input() liveButtonSize: 'sm' | 'md' | 'lg' = 'md';
+  @Input() liveButtonPosition: 'left' | 'right' = 'left';
 
   @Output() dateTimeClick = new EventEmitter<void>();
   @Output() playPause = new EventEmitter<boolean>();
@@ -281,6 +334,14 @@ export class TimelineControlsComponent implements AfterViewInit, OnDestroy {
   get isNormalSpeed(): boolean { return this.multiplier === 1; }
   get absMultiplier(): number { return Math.abs(this.multiplier); }
   get hasSwimLaneToggle(): boolean { return this.swimLanesVisible != null; }
+
+  private static readonly LIVE_SIZE_MAP = {
+    sm: { width: 44, height: 18, fontSize: '10px', dot: 5, borderRadius: '3px' },
+    md: { width: 56, height: 22, fontSize: '11px', dot: 6, borderRadius: '3px' },
+    lg: { width: 72, height: 30, fontSize: '13px', dot: 8, borderRadius: '4px' },
+  } as const;
+
+  get liveSize() { return TimelineControlsComponent.LIVE_SIZE_MAP[this.liveButtonSize]; }
 
   get timeFormat(): string { return splitForDisplay(this.dateTimeFormat).timeFormat; }
   get dateFormat(): string { return splitForDisplay(this.dateTimeFormat).dateFormat; }
