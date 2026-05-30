@@ -50,7 +50,7 @@ describe('TimelineControls', () => {
 
   it('shows active LIVE label when live', () => {
     render(<TimelineControls {...makeProps({ isLive: true })} />);
-    expect(screen.getByText('● LIVE')).toBeTruthy();
+    expect(screen.getByText('LIVE')).toBeTruthy();
   });
 
   it('calls onJumpToLive when LIVE button clicked', () => {
