@@ -275,7 +275,7 @@ export const Timeline: React.FC<TimelineProps> = ({
     }
   };
 
-  const isLive = Math.abs(Cesium.JulianDate.toDate(currentTime).getTime() - Date.now()) < 10_000;
+  const isLive = Math.abs(Cesium.JulianDate.toDate(currentTime).getTime() - Date.now()) < 2_000;
 
   return (
     <div

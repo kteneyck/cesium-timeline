@@ -368,7 +368,7 @@ The control bar uses a 3-column CSS grid so the transport buttons are always cen
 
 ### LIVE Button
 
-- Shows a red dot and filled background when the current time is within 10 seconds of `Date.now()`.
+- Shows a red dot and filled background when the current time is within 2 seconds of `Date.now()`.
 - Shows `LIVE` (dim outline, no dot) otherwise.
 - Clicking jumps to `Date.now()`, centers the visible window, and resets speed to 1×.
 - **Size** — controlled by the `liveButtonSize` prop: `'sm'` | `'md'` (default) | `'lg'`.

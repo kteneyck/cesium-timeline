@@ -175,7 +175,7 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
   }
 
   get isLive(): boolean {
-    return Math.abs(Cesium.JulianDate.toDate(this.currentTimeState).getTime() - Date.now()) < 10_000;
+    return Math.abs(Cesium.JulianDate.toDate(this.currentTimeState).getTime() - Date.now()) < 2_000;
   }
 
   get isCollapsed(): boolean {

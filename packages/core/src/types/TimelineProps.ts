@@ -170,7 +170,7 @@ export interface ControlsBaseProps {
   onJumpToLive: () => void;
   /** Reset the playback speed to 1×. */
   onResetSpeed: () => void;
-  /** Whether the needle is near the current wall-clock time (within 10 s). */
+  /** Whether the needle is near the current wall-clock time (within 2 s). */
   isLive: boolean;
   /** Whether to enable the ⏮ jump-to-start button (true when startTime prop was provided). */
   hasStartTime: boolean;
