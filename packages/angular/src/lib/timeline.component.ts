@@ -71,6 +71,8 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
             (dateTimeClick)="dateTimeClick.emit()"
             (toggleSwimLanes)="handleToggleSwimLanes()"
             [labels]="labels"
+            [liveButtonSize]="liveButtonSize"
+            [liveButtonPosition]="liveButtonPosition"
           />
         </div>
       }
@@ -126,6 +128,10 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
   @Input() swimLaneTransition: 'animated' | 'instant' = 'animated';
   /** Overrides for control-bar labels and tooltips (i18n / custom verbiage). */
   @Input() labels?: Partial<TimelineLabels>;
+  /** @see TimelineBaseProps.liveButtonSize */
+  @Input() liveButtonSize?: 'sm' | 'md' | 'lg';
+  /** @see TimelineBaseProps.liveButtonPosition */
+  @Input() liveButtonPosition?: 'left' | 'right';
 
   // ── Outputs ────────────────────────────────────────────────────────────
   @Output() timeChange = new EventEmitter<Cesium.JulianDate>();
@@ -169,7 +175,7 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
   }
 
   get isLive(): boolean {
-    return Math.abs(Cesium.JulianDate.toDate(this.currentTimeState).getTime() - Date.now()) < 10_000;
+    return Math.abs(Cesium.JulianDate.toDate(this.currentTimeState).getTime() - Date.now()) < 2_000;
   }
 
   get isCollapsed(): boolean {

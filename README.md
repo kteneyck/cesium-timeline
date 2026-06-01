@@ -17,7 +17,7 @@ A canvas-based timeline component for **React** and **Angular** with Cesium Cloc
 ### React
 
 ```bash
-npm install @kteneyck/cesium-timeline-react @kteneyck/cesium-timeline-core
+npm install @kteneyck/cesium-timeline-react
 ```
 
 Peer dependencies: `react` ≥ 19, `cesium` ≥ 1.100
@@ -25,7 +25,7 @@ Peer dependencies: `react` ≥ 19, `cesium` ≥ 1.100
 ### Angular
 
 ```bash
-npm install @kteneyck/cesium-timeline-angular @kteneyck/cesium-timeline-core
+npm install @kteneyck/cesium-timeline-angular
 ```
 
 Peer dependencies: `@angular/core` ≥ 17, `cesium` ≥ 1.100
@@ -127,7 +127,7 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 - **Netflix/Hulu-style controls** — transport buttons (⏮ ◀◀ ▶/⏸ ▶▶ ⏭) always stay centered; speed badge and LIVE button in the left column never cause layout shift.
 - **Conditional start/end buttons** — ⏮ and ⏭ are only rendered when `startTime` and `endTime` props are explicitly provided.
 - **Speed cycling** — FF cycles through `ffSpeeds` (default `2×→4×→8×→16×→32×→1×`); RW cycles through `rwSpeeds` (default `−1×→−2×→−4×→−8×→−16×→−32×`). Both arrays are fully configurable.
-- **LIVE button** — filled `● LIVE` when within 10 s of wall clock; dim outline `LIVE` otherwise; clicking jumps to `Date.now()` and resets speed to 1×.
+- **LIVE button** — shows a red dot + filled background when within 10 s of wall clock; dim outline otherwise. Clicking jumps to `Date.now()` and resets speed to 1×. Configurable size (`sm`/`md`/`lg`) and position (`left`/`right`). Dot color is themeable via `liveDotColor`.
 - **Speed badge** — shown in the left column when multiplier ≠ 1×; click to reset to 1×.
 - **Two-line datetime display** — time displayed large/bold; date displayed smaller in the theme's active color.
 - **Clickable datetime** — pass `onDateTimeClick` to open your own date picker; pass the result back via `jumpToTime` to pan the canvas and set the time.
@@ -178,6 +178,8 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 | `onSwimLaneReorder` | `(orderedIds: string[]) => void` | — | Fires when swim lanes are reordered via drag. Receives the new lane id order. |
 | `onRangeSelect` | `(start: JulianDate, end: JulianDate) => void` | — | Fires when the user completes a click-and-drag in the tick area. The visible window zooms to the selected span; receives the resulting start and end times. |
 | `labels` | `Partial<TimelineLabels>` | English defaults | Override any control-bar label or tooltip string. See [Labels & i18n](#labels--i18n). |
+| `liveButtonSize` | `'sm' \| 'md' \| 'lg'` | `'md'` | Size of the LIVE button in the control bar. |
+| `liveButtonPosition` | `'left' \| 'right'` | `'left'` | Position of the LIVE button — beside the datetime display (`'left'`) or the opposite side of the control bar (`'right'`). |
 
 ---
 
@@ -216,6 +218,7 @@ Pass a partial `TimelineTheme` object to the `theme` prop. Any omitted propertie
 | `buttonActiveColor` | `#d69826` | Active buttons, LIVE, speed badge, and date line colour |
 | `swimLaneItemBorderColor` | `#666666` | Default border colour for swim lane interval bars. Can be overridden per-lane or per-item. |
 | `swimLaneItemBorderWidth` | `0`       | Default border width (px) for swim lane interval bars. Set to `0` to remove borders globally. Can be overridden per-lane or per-item. |
+| `liveDotColor` | `#e53e3e` | Colour of the dot shown on the LIVE button when playback is live. |
 
 > **Note:** Theme colours must be resolved hex/rgb values. CSS variables like `var(--primary-color)` do **not** work in canvas `ctx.fillStyle`. Use `getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim()` to resolve them first.
 
@@ -365,13 +368,16 @@ The control bar uses a 3-column CSS grid so the transport buttons are always cen
 
 ### LIVE Button
 
-- Shows `● LIVE` (filled background) when the current time is within 10 seconds of `Date.now()`.
-- Shows `LIVE` (dim outline) otherwise.
-- Clicking jumps to `Date.now()`, centers the visible window ±12 h, and resets speed to 1×.
+- Shows a red dot and filled background when the current time is within 2 seconds of `Date.now()`.
+- Shows `LIVE` (dim outline, no dot) otherwise.
+- Clicking jumps to `Date.now()`, centers the visible window, and resets speed to 1×.
+- **Size** — controlled by the `liveButtonSize` prop: `'sm'` | `'md'` (default) | `'lg'`.
+- **Position** — controlled by the `liveButtonPosition` prop: `'left'` (default, beside the datetime display) | `'right'` (right side of the control bar).
+- **Dot color** — controlled by `theme.liveDotColor` (default `#e53e3e`).
 
 ### Speed Badge
 
-- Appears to the right of LIVE when multiplier ≠ 1×.
+- Appears inline beside the LIVE button when multiplier ≠ 1×.
 - Shows `◀ N×` for reverse, `N× ▶` for fast-forward.
 - Clicking resets to 1× speed.
 
@@ -427,7 +433,7 @@ Every label and tooltip in the control bar is overridable via the `labels` prop.
 |-----|-------------------|-------|
 | `dateTimeClickTooltip` | `"Click to jump to a date/time"` | Tooltip on the datetime display when `onDateTimeClick` is wired up |
 | `liveLabel` | `"LIVE"` | LIVE button text when not at live time |
-| `liveActiveLabel` | `"● LIVE"` | LIVE button text when at live time |
+| `liveActiveLabel` | `"LIVE"` | LIVE button text when at live time (red dot is rendered separately) |
 | `liveTooltip` | `"Jump to live (now)"` | LIVE button tooltip when not at live time |
 | `liveActiveTooltip` | `"Currently live"` | LIVE button tooltip when at live time |
 | `resetSpeedTooltip` | `"Reset to 1× speed"` | Tooltip on the speed-reset badge |
@@ -457,7 +463,7 @@ const frLabels: Partial<TimelineLabels> = {
   playTooltip: 'Lecture',
   pauseTooltip: 'Pause',
   liveLabel: 'EN DIRECT',
-  liveActiveLabel: '● EN DIRECT',
+  liveActiveLabel: 'EN DIRECT',
   liveTooltip: 'Aller en direct',
   liveActiveTooltip: 'Vous êtes en direct',
   rewindTooltip: 'Retour rapide',
@@ -483,7 +489,7 @@ export class AppComponent {
     playTooltip: 'Lecture',
     pauseTooltip: 'Pause',
     liveLabel: 'EN DIRECT',
-    liveActiveLabel: '● EN DIRECT',
+    liveActiveLabel: 'EN DIRECT',
     liveTooltip: 'Aller en direct',
     liveActiveTooltip: 'Vous êtes en direct',
     rewindActiveTooltip: (n) => `Retour ${n}× — cliquer pour accélérer`,

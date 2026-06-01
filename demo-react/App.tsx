@@ -29,6 +29,8 @@ export const TestApp: React.FC = () => {
   const [tickInterval, setTickInterval] = useState<number>(60);
   const [dateTimeFormat, setDateTimeFormat] = useState(DateTimeFormats.DEFAULT);
   const [timezone, setTimezone] = useState('local');
+  const [liveButtonSize, setLiveButtonSize] = useState<'sm' | 'md' | 'lg'>('md');
+  const [liveButtonPosition, setLiveButtonPosition] = useState<'left' | 'right'>('left');
 
   const TIMEZONE_OPTIONS: [string, string][] = [
     ['local',                 'Local (browser)'],
@@ -154,8 +156,10 @@ export const TestApp: React.FC = () => {
       viewer.clock.startTime = Cesium.JulianDate.fromDate(startOfDay);
       viewer.clock.stopTime = Cesium.JulianDate.fromDate(endOfDay);
       viewer.clock.currentTime = Cesium.JulianDate.fromDate(now);
-      viewer.clock.clockStep = Cesium.ClockStep.SYSTEM_CLOCK_MULTIPLIER;
+      viewer.clock.clockRange = Cesium.ClockRange.UNBOUNDED;
+      viewer.clock.clockStep = Cesium.ClockStep.SYSTEM_CLOCK;
       viewer.clock.multiplier = 1;
+      viewer.clock.shouldAnimate = true;
 
       viewerRef.current = viewer;
       setCesiumClock(viewer.clock);
@@ -567,6 +571,23 @@ export const TestApp: React.FC = () => {
                 ))}
               </select>
             </div>
+
+            <div className="prop-row">
+              <label>LIVE Button Size</label>
+              <select value={liveButtonSize} onChange={e => setLiveButtonSize(e.target.value as 'sm' | 'md' | 'lg')}>
+                <option value="sm">sm</option>
+                <option value="md">md</option>
+                <option value="lg">lg</option>
+              </select>
+            </div>
+
+            <div className="prop-row">
+              <label>LIVE Button Position</label>
+              <select value={liveButtonPosition} onChange={e => setLiveButtonPosition(e.target.value as 'left' | 'right')}>
+                <option value="left">left</option>
+                <option value="right">right</option>
+              </select>
+            </div>
           </div>
 
           <div className="divider" />
@@ -587,6 +608,7 @@ export const TestApp: React.FC = () => {
               ['buttonHoverColor',    'Button Hover'],
               ['buttonActiveColor',   'Button Active'],
               ['swimLaneItemBorderColor', 'Lane Item Border'],
+              ['liveDotColor',            'Live Dot'],
             ] as [keyof TimelineTheme, string][]).map(([key, label]) => (
               <div className="prop-row" key={key}>
                 <label>{label}</label>
@@ -659,6 +681,8 @@ export const TestApp: React.FC = () => {
             onSwimLaneItemClick={handleSwimLaneClick}
             onSwimLaneItemHover={handleSwimLaneHover}
             onSwimLaneReorder={handleSwimLaneReorder}
+            liveButtonSize={liveButtonSize}
+            liveButtonPosition={liveButtonPosition}
           />
         )}
       </div>

@@ -245,6 +245,23 @@ function makeSwimLanes(): SwimLane[] {
           </div>
 
           <div class="prop-row">
+            <label>LIVE Button Size</label>
+            <select [(ngModel)]="liveButtonSize">
+              <option value="sm">sm</option>
+              <option value="md">md</option>
+              <option value="lg">lg</option>
+            </select>
+          </div>
+
+          <div class="prop-row">
+            <label>LIVE Button Position</label>
+            <select [(ngModel)]="liveButtonPosition">
+              <option value="left">left</option>
+              <option value="right">right</option>
+            </select>
+          </div>
+
+          <div class="prop-row">
             <label>Timezone</label>
             <select [(ngModel)]="timezone">
               @for (opt of timezoneOptions; track opt[0]) {
@@ -318,6 +335,8 @@ function makeSwimLanes(): SwimLane[] {
           [swimLanes]="swimLanes"
           [showSwimLanes]="showSwimLanes"
           [swimLaneTransition]="swimLaneTransition"
+          [liveButtonSize]="liveButtonSize"
+          [liveButtonPosition]="liveButtonPosition"
           (timeChange)="onTimeChange($event)"
           (playPause)="onPlayPause($event)"
           (multiplierChange)="onMultiplierChange($event)"
@@ -358,6 +377,8 @@ export class AppComponent implements OnInit, OnDestroy {
   swimLaneTransition: 'animated' | 'instant' = 'animated';
   dateTimeFormat = DateTimeFormats.DEFAULT;
   timezone = 'local';
+  liveButtonSize: 'sm' | 'md' | 'lg' = 'md';
+  liveButtonPosition: 'left' | 'right' = 'left';
 
   readonly timezoneOptions: [string, string][] = [
     ['local',               'Local (browser)'],
@@ -398,6 +419,7 @@ export class AppComponent implements OnInit, OnDestroy {
     ['buttonHoverColor',     'Button Hover'],
     ['buttonActiveColor',    'Button Active'],
     ['swimLaneItemBorderColor', 'Lane Item Border'],
+    ['liveDotColor',            'Live Dot'],
   ];
   readonly themeSizeRows: [keyof TimelineTheme, string, number, number][] = [
     ['indicatorLineWidth',     'Indicator Width',    1, 8],
@@ -448,8 +470,10 @@ export class AppComponent implements OnInit, OnDestroy {
       this.viewer.clock.startTime   = Cesium.JulianDate.fromDate(startOfDay);
       this.viewer.clock.stopTime    = Cesium.JulianDate.fromDate(endOfDay);
       this.viewer.clock.currentTime = Cesium.JulianDate.fromDate(now);
-      this.viewer.clock.clockStep   = Cesium.ClockStep.SYSTEM_CLOCK_MULTIPLIER;
+      this.viewer.clock.clockRange  = Cesium.ClockRange.UNBOUNDED;
+      this.viewer.clock.clockStep   = Cesium.ClockStep.SYSTEM_CLOCK;
       this.viewer.clock.multiplier  = 1;
+      this.viewer.clock.shouldAnimate = true;
 
       this.cesiumClock = this.viewer.clock;
       this.currentTime = now;
