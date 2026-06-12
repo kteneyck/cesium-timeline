@@ -222,6 +222,12 @@ function makeSwimLanes(): SwimLane[] {
           </div>
 
           <div class="prop-row">
+            <label>Live Mode</label>
+            <button class="toggle-btn" [class.on]="live" [class.off]="!live"
+              (click)="live = !live">{{ live ? 'ON' : 'OFF' }}</button>
+          </div>
+
+          <div class="prop-row">
             <label>Show Swim Lanes</label>
             <button class="toggle-btn" [class.on]="showSwimLanes" [class.off]="!showSwimLanes"
               (click)="showSwimLanes = !showSwimLanes">{{ showSwimLanes ? 'ON' : 'OFF' }}</button>
@@ -337,6 +343,7 @@ function makeSwimLanes(): SwimLane[] {
           [swimLaneTransition]="swimLaneTransition"
           [liveButtonSize]="liveButtonSize"
           [liveButtonPosition]="liveButtonPosition"
+          [live]="live"
           (timeChange)="onTimeChange($event)"
           (playPause)="onPlayPause($event)"
           (multiplierChange)="onMultiplierChange($event)"
@@ -379,6 +386,7 @@ export class AppComponent implements OnInit, OnDestroy {
   timezone = 'local';
   liveButtonSize: 'sm' | 'md' | 'lg' = 'md';
   liveButtonPosition: 'left' | 'right' = 'left';
+  live = false;
 
   readonly timezoneOptions: [string, string][] = [
     ['local',               'Local (browser)'],

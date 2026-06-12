@@ -73,11 +73,12 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
             [labels]="labels"
             [liveButtonSize]="liveButtonSize"
             [liveButtonPosition]="liveButtonPosition"
+            [live]="live"
           />
         </div>
       }
 
-      @if (enableDrag !== false) {
+      @if (enableDrag !== false || live) {
         <ct-timeline-canvas
           [currentTime]="currentTimeState"
           [defaultStartMs]="defaultStartMs"
@@ -89,6 +90,7 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
           [months]="labels?.months"
           [swimLanes]="swimLanes"
           [showSwimLanes]="swimLanesExpanded"
+          [disableNeedleDrag]="live"
           (timeChange)="handleTimeChange($event)"
           (dragStart)="isDragging = true"
           (dragEnd)="isDragging = false"
@@ -132,6 +134,8 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
   @Input() liveButtonSize?: 'sm' | 'md' | 'lg';
   /** @see TimelineBaseProps.liveButtonPosition */
   @Input() liveButtonPosition?: 'left' | 'right';
+  /** @see TimelineBaseProps.live */
+  @Input() live = false;
 
   // ── Outputs ────────────────────────────────────────────────────────────
   @Output() timeChange = new EventEmitter<Cesium.JulianDate>();
@@ -235,7 +239,7 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
       this.cleanupClockSync();
       this.setupClockSync();
     }
-    if (changes['jumpToTime'] && this.jumpToTime) {
+    if (changes['jumpToTime'] && this.jumpToTime && !this.live) {
       const t = toJulianDate(this.jumpToTime);
       this.handleTimeChange(t);
       if (this.canvasComp) {

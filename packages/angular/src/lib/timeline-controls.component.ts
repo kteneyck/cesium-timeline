@@ -38,11 +38,11 @@ import {
       <!-- Left: Datetime + LIVE (if position=left) -->
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         <div
-          (click)="dateTimeClick.emit()"
-          [title]="dateTimeClick.observed ? l.dateTimeClickTooltip : ''"
+          (click)="!live && dateTimeClick.emit()"
+          [title]="(!live && dateTimeClick.observed) ? l.dateTimeClickTooltip : ''"
           [style.color]="theme.labelColor"
           style="font-family:monospace;line-height:1.15;border-radius:4px;padding:2px 4px;transition:background 0.15s"
-          [style.cursor]="dateTimeClick.observed ? 'pointer' : 'default'"
+          [style.cursor]="(!live && dateTimeClick.observed) ? 'pointer' : 'default'"
         >
           @if (timeFormat) {
             <div style="font-size:2em;font-weight:bold;letter-spacing:0.02em">
@@ -67,20 +67,21 @@ import {
         @if (liveButtonPosition === 'left') {
           <div style="display:flex;align-items:center;gap:4px">
             <button
-              (click)="jumpToLive.emit()"
-              [style.color]="isLive ? theme.controlBarBackground : theme.buttonActiveColor"
-              [style.background-color]="isLive ? theme.buttonActiveColor : 'transparent'"
+              (click)="!live && jumpToLive.emit()"
+              [style.color]="(live || isLive) ? theme.controlBarBackground : theme.buttonActiveColor"
+              [style.background-color]="(live || isLive) ? theme.buttonActiveColor : 'transparent'"
               [style.border-color]="theme.buttonActiveColor"
-              [style.opacity]="isLive ? 1 : 0.55"
+              [style.opacity]="1"
               [style.width.px]="liveSize.width"
               [style.min-width.px]="liveSize.width"
               [style.height.px]="liveSize.height"
               [style.font-size]="liveSize.fontSize"
               [style.border-radius]="liveSize.borderRadius"
-              style="background:none;border:1px solid;cursor:pointer;font-weight:bold;letter-spacing:0.05em;display:flex;align-items:center;justify-content:center;padding:0;gap:4px;font-family:system-ui,-apple-system,sans-serif;transition:opacity 0.15s"
-              [title]="isLive ? l.liveActiveTooltip : l.liveTooltip"
+              [style.cursor]="live ? 'default' : 'pointer'"
+              style="background:none;border:1px solid;font-weight:bold;letter-spacing:0.05em;display:flex;align-items:center;justify-content:center;padding:0;gap:4px;font-family:system-ui,-apple-system,sans-serif;transition:opacity 0.15s"
+              [title]="(live || isLive) ? l.liveActiveTooltip : l.liveTooltip"
             >
-              @if (isLive) {
+              @if (live || isLive) {
                 <span
                   [style.width.px]="liveSize.dot"
                   [style.height.px]="liveSize.dot"
@@ -88,9 +89,9 @@ import {
                   style="border-radius:50%;display:inline-block;flex-shrink:0"
                 ></span>
               }
-              {{ isLive ? l.liveActiveLabel : l.liveLabel }}
+              {{ (live || isLive) ? l.liveActiveLabel : l.liveLabel }}
             </button>
-            @if (!isNormalSpeed) {
+            @if (!isNormalSpeed && !live) {
               <button
                 (click)="resetSpeed.emit()"
                 [style.color]="theme.buttonActiveColor"
@@ -112,7 +113,7 @@ import {
         [style.flex]="isNarrow ? '1' : undefined"
         [style.justify-content]="isNarrow ? 'center' : undefined"
       >
-        @if (showJumpToStart !== false) {
+        @if (!live && showJumpToStart !== false) {
           <button
             (click)="hasStartTime && jumpToStart.emit()"
             [disabled]="!hasStartTime"
@@ -124,53 +125,59 @@ import {
           >⏮</button>
         }
 
-        <button
-          (click)="rewind.emit()"
-          [style.color]="isRewinding ? theme.buttonActiveColor : theme.buttonColor"
-          [style.border-color]="isRewinding ? theme.buttonActiveColor + '33' : 'transparent'"
-          class="ct-btn ct-btn-wide"
-          [title]="isRewinding ? resolveRewindActive(absMultiplier) : l.rewindTooltip"
-        >
-          @if (isRewinding) {
-            <span style="font-size:11px;font-weight:bold">{{ absMultiplier }}×</span>◀◀
-          } @else {
-            ◀◀
-          }
-        </button>
+        @if (!live) {
+          <button
+            (click)="rewind.emit()"
+            [style.color]="isRewinding ? theme.buttonActiveColor : theme.buttonColor"
+            [style.border-color]="isRewinding ? theme.buttonActiveColor + '33' : 'transparent'"
+            class="ct-btn ct-btn-wide"
+            [title]="isRewinding ? resolveRewindActive(absMultiplier) : l.rewindTooltip"
+          >
+            @if (isRewinding) {
+              <span style="font-size:11px;font-weight:bold">{{ absMultiplier }}×</span>◀◀
+            } @else {
+              ◀◀
+            }
+          </button>
+        }
 
-        <button
-          (click)="playPause.emit(!isPlaying)"
-          [style.color]="theme.buttonActiveColor"
-          [style.border-color]="theme.buttonActiveColor + '55'"
-          [style.padding-left]="isPlaying ? '0' : '2px'"
-          class="ct-btn ct-btn-play"
-          [title]="isPlaying ? l.pauseTooltip : (isRewinding ? l.playFromRewindTooltip : l.playTooltip)"
-        >
-          @if (isPlaying) {
-            <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor">
-              <rect x="1" y="0" width="4" height="16" rx="1"/>
-              <rect x="9" y="0" width="4" height="16" rx="1"/>
-            </svg>
-          } @else {
-            ▶
-          }
-        </button>
+        @if (!live) {
+          <button
+            (click)="playPause.emit(!isPlaying)"
+            [style.color]="theme.buttonActiveColor"
+            [style.border-color]="theme.buttonActiveColor + '55'"
+            [style.padding-left]="isPlaying ? '0' : '2px'"
+            class="ct-btn ct-btn-play"
+            [title]="isPlaying ? l.pauseTooltip : (isRewinding ? l.playFromRewindTooltip : l.playTooltip)"
+          >
+            @if (isPlaying) {
+              <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor">
+                <rect x="1" y="0" width="4" height="16" rx="1"/>
+                <rect x="9" y="0" width="4" height="16" rx="1"/>
+              </svg>
+            } @else {
+              ▶
+            }
+          </button>
+        }
 
-        <button
-          (click)="fastForward.emit()"
-          [style.color]="isFastForward ? theme.buttonActiveColor : theme.buttonColor"
-          [style.border-color]="isFastForward ? theme.buttonActiveColor + '33' : 'transparent'"
-          class="ct-btn ct-btn-wide"
-          [title]="isFastForward ? resolveFastForwardActive(absMultiplier) : l.fastForwardTooltip"
-        >
-          @if (isFastForward) {
-            ▶▶<span style="font-size:11px;font-weight:bold">{{ absMultiplier }}×</span>
-          } @else {
-            ▶▶
-          }
-        </button>
+        @if (!live) {
+          <button
+            (click)="fastForward.emit()"
+            [style.color]="isFastForward ? theme.buttonActiveColor : theme.buttonColor"
+            [style.border-color]="isFastForward ? theme.buttonActiveColor + '33' : 'transparent'"
+            class="ct-btn ct-btn-wide"
+            [title]="isFastForward ? resolveFastForwardActive(absMultiplier) : l.fastForwardTooltip"
+          >
+            @if (isFastForward) {
+              ▶▶<span style="font-size:11px;font-weight:bold">{{ absMultiplier }}×</span>
+            } @else {
+              ▶▶
+            }
+          </button>
+        }
 
-        @if (showJumpToEnd !== false) {
+        @if (!live && showJumpToEnd !== false) {
           <button
             (click)="hasEndTime && jumpToEnd.emit()"
             [disabled]="!hasEndTime"
@@ -189,20 +196,21 @@ import {
           @if (liveButtonPosition === 'right') {
             <div style="display:flex;align-items:center;gap:4px">
               <button
-                (click)="jumpToLive.emit()"
-                [style.color]="isLive ? theme.controlBarBackground : theme.buttonActiveColor"
-                [style.background-color]="isLive ? theme.buttonActiveColor : 'transparent'"
+                (click)="!live && jumpToLive.emit()"
+                [style.color]="(live || isLive) ? theme.controlBarBackground : theme.buttonActiveColor"
+                [style.background-color]="(live || isLive) ? theme.buttonActiveColor : 'transparent'"
                 [style.border-color]="theme.buttonActiveColor"
-                [style.opacity]="isLive ? 1 : 0.55"
+                [style.opacity]="1"
                 [style.width.px]="liveSize.width"
                 [style.min-width.px]="liveSize.width"
                 [style.height.px]="liveSize.height"
                 [style.font-size]="liveSize.fontSize"
                 [style.border-radius]="liveSize.borderRadius"
-                style="background:none;border:1px solid;cursor:pointer;font-weight:bold;letter-spacing:0.05em;display:flex;align-items:center;justify-content:center;padding:0;gap:4px;font-family:system-ui,-apple-system,sans-serif;transition:opacity 0.15s"
-                [title]="isLive ? l.liveActiveTooltip : l.liveTooltip"
+                [style.cursor]="live ? 'default' : 'pointer'"
+                style="background:none;border:1px solid;font-weight:bold;letter-spacing:0.05em;display:flex;align-items:center;justify-content:center;padding:0;gap:4px;font-family:system-ui,-apple-system,sans-serif;transition:opacity 0.15s"
+                [title]="(live || isLive) ? l.liveActiveTooltip : l.liveTooltip"
               >
-                @if (isLive) {
+                @if (live || isLive) {
                   <span
                     [style.width.px]="liveSize.dot"
                     [style.height.px]="liveSize.dot"
@@ -210,9 +218,9 @@ import {
                     style="border-radius:50%;display:inline-block;flex-shrink:0"
                   ></span>
                 }
-                {{ isLive ? l.liveActiveLabel : l.liveLabel }}
+                {{ (live || isLive) ? l.liveActiveLabel : l.liveLabel }}
               </button>
-              @if (!isNormalSpeed) {
+              @if (!isNormalSpeed && !live) {
                 <button
                   (click)="resetSpeed.emit()"
                   [style.color]="theme.buttonActiveColor"
@@ -313,6 +321,8 @@ export class TimelineControlsComponent implements AfterViewInit, OnDestroy {
   @Input() labels?: Partial<TimelineLabels>;
   @Input() liveButtonSize: 'sm' | 'md' | 'lg' = 'md';
   @Input() liveButtonPosition: 'left' | 'right' = 'left';
+  /** @see TimelineBaseProps.live */
+  @Input() live = false;
 
   @Output() dateTimeClick = new EventEmitter<void>();
   @Output() playPause = new EventEmitter<boolean>();

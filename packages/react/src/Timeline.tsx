@@ -62,6 +62,8 @@ export interface TimelineProps {
   liveButtonSize?: 'sm' | 'md' | 'lg';
   /** @see TimelineBaseProps.liveButtonPosition */
   liveButtonPosition?: 'left' | 'right';
+  /** @see TimelineBaseProps.live */
+  live?: boolean;
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
@@ -99,6 +101,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   labels,
   liveButtonSize,
   liveButtonPosition,
+  live,
 }) => {
   const now = () => Date.now();
   const defaultStartMs = providedStart
@@ -197,7 +200,7 @@ export const Timeline: React.FC<TimelineProps> = ({
 
   // ── jumpToTime prop ──
   useEffect(() => {
-    if (!jumpToTime) return;
+    if (!jumpToTime || live) return;
     const t = toJulianDate(jumpToTime);
     handleTimeChange(t);
     if (canvasRef.current) {
@@ -317,11 +320,12 @@ export const Timeline: React.FC<TimelineProps> = ({
             labels={labels}
             liveButtonSize={liveButtonSize}
             liveButtonPosition={liveButtonPosition}
+            live={live}
           />
         </div>
       )}
 
-      {enableDrag !== false && (
+      {(enableDrag !== false || live) && (
         <TimelineCanvas
           ref={canvasRef}
           currentTime={currentTime}
@@ -335,6 +339,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           onTimeChange={handleTimeChange}
           onDragStart={() => { isDraggingRef.current = true; }}
           onDragEnd={() => { isDraggingRef.current = false; }}
+          disableNeedleDrag={!!live}
           swimLanes={swimLanes}
           showSwimLanes={swimLanesExpanded}
           onSwimLaneItemClick={onSwimLaneItemClick}

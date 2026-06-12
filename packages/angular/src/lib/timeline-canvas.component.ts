@@ -69,6 +69,8 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
   @Input() months?: string[];
   @Input() swimLanes?: SwimLane[];
   @Input() showSwimLanes?: boolean;
+  /** When true, needle scrub is disabled (left-click becomes pan). Zoom and pan remain active. */
+  @Input() disableNeedleDrag = false;
 
   @Output() timeChange = new EventEmitter<Cesium.JulianDate>();
   @Output() dragStart = new EventEmitter<void>();
@@ -437,6 +439,12 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     }
 
     if (e.button === 0) {
+      if (this.disableNeedleDrag) {
+        // In live mode left-click becomes a pan; needle scrub is disabled.
+        this.mouseMode = 'slide';
+        this.mouseX = e.clientX;
+        return;
+      }
       const needleX = ((this.curMs - this.startMs) / (this.endMs - this.startMs)) * rect.width;
       const nearNeedle = Math.abs(x - needleX) <= 10;
       const inTickArea = y >= rect.height - TICK_AREA_HEIGHT;
@@ -622,14 +630,18 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
 
     // Update ghost needle while idle
     if (this.mouseMode === 'none') {
-      this.hoverMs = this.startMs + (Math.max(0, Math.min(rect.width, x)) / rect.width) * (this.endMs - this.startMs);
+      if (!this.disableNeedleDrag) {
+        this.hoverMs = this.startMs + (Math.max(0, Math.min(rect.width, x)) / rect.width) * (this.endMs - this.startMs);
+      } else if (this.hoverMs !== null) {
+        this.hoverMs = null;
+      }
     } else {
       this.hoverMs = null;
       return;
     }
 
     const needleX = ((this.curMs - this.startMs) / (this.endMs - this.startMs)) * rect.width;
-    const nearNeedle = Math.abs(x - needleX) <= 10;
+    const nearNeedle = !this.disableNeedleDrag && Math.abs(x - needleX) <= 10;
 
     if (this.isInSwimLaneRegion(y, rect.height)) {
       const hit = this.hitTestSwimLane(x, y, rect.width, rect.height);
@@ -665,7 +677,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
 
     if (nearNeedle) {
       canvas.style.cursor = 'grab';
-    } else if (y >= rect.height - TICK_AREA_HEIGHT) {
+    } else if (!this.disableNeedleDrag && y >= rect.height - TICK_AREA_HEIGHT) {
       canvas.style.cursor = 'crosshair';
     } else {
       canvas.style.cursor = 'default';
@@ -762,15 +774,21 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       const cx = Math.max(0, Math.min(rect.width, x));
       const ms = this.startMs + (cx / rect.width) * (this.endMs - this.startMs);
       this.prePinchCurMs = this.curMs;
-      this.touchMode = 'scrub';
-      this.touchX = e.touches[0].clientX;
-      this.scrubClientX = e.touches[0].clientX;
-      this.curMs = ms;
-      this.draw();
-      this.ngZone.run(() => {
-        this.dragStart.emit();
-        this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(ms)));
-      });
+      if (this.disableNeedleDrag) {
+        // In live mode single-finger becomes a pan, not a scrub.
+        this.touchMode = 'slide';
+        this.touchX = e.touches[0].clientX;
+      } else {
+        this.touchMode = 'scrub';
+        this.touchX = e.touches[0].clientX;
+        this.scrubClientX = e.touches[0].clientX;
+        this.curMs = ms;
+        this.draw();
+        this.ngZone.run(() => {
+          this.dragStart.emit();
+          this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(ms)));
+        });
+      }
     } else if (e.touches.length >= 2) {
       // If we were scrubbing, undo the needle move — pinch-zoom should not
       // change the current time.
