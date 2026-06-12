@@ -31,6 +31,7 @@ export const TestApp: React.FC = () => {
   const [timezone, setTimezone] = useState('local');
   const [liveButtonSize, setLiveButtonSize] = useState<'sm' | 'md' | 'lg'>('md');
   const [liveButtonPosition, setLiveButtonPosition] = useState<'left' | 'right'>('left');
+  const [live, setLive] = useState(false);
 
   const TIMEZONE_OPTIONS: [string, string][] = [
     ['local',                 'Local (browser)'],
@@ -531,6 +532,13 @@ export const TestApp: React.FC = () => {
             </div>
 
             <div className="prop-row">
+              <label>Live Mode</label>
+              <button className={`toggle-btn ${live ? 'on' : 'off'}`} onClick={() => setLive(v => !v)}>
+                {live ? 'ON' : 'OFF'}
+              </button>
+            </div>
+
+            <div className="prop-row">
               <label>Show Swim Lanes</label>
               <button className={`toggle-btn ${showSwimLanes ? 'on' : 'off'}`} onClick={() => setShowSwimLanes(v => !v)}>
                 {showSwimLanes ? 'ON' : 'OFF'}
@@ -683,6 +691,7 @@ export const TestApp: React.FC = () => {
             onSwimLaneReorder={handleSwimLaneReorder}
             liveButtonSize={liveButtonSize}
             liveButtonPosition={liveButtonPosition}
+            live={live}
           />
         )}
       </div>

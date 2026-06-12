@@ -80,6 +80,8 @@ interface TimelineCanvasProps {
   onTimeChange: (time: Cesium.JulianDate) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
+  /** When true, needle scrub is disabled (left-click becomes pan). Zoom and pan remain active. */
+  disableNeedleDrag?: boolean;
   onRangeSelect?: (start: Cesium.JulianDate, end: Cesium.JulianDate) => void;
   // Swim lane props
   swimLanes?: SwimLane[];
@@ -102,6 +104,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       onSwimLaneItemClick, onSwimLaneItemHover, onSwimLaneItemDoubleClick,
       onSwimLaneItemContextMenu,
       onSwimLaneReorder,
+      disableNeedleDrag,
     } = props;
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -122,6 +125,9 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     useEffect(() => { timezoneRef.current = timezone; draw(); }, [timezone]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => { dateTimeFormatRef.current = dateTimeFormat; draw(); }, [dateTimeFormat]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => { monthsRef.current = months; draw(); }, [months]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const disableNeedleDragRef = useRef(disableNeedleDrag ?? false);
+    useEffect(() => { disableNeedleDragRef.current = disableNeedleDrag ?? false; }, [disableNeedleDrag]);
 
     // ── Swim lane state (ref-based — no React re-renders) ──────────────────
     const swimLanesRef     = useRef<SwimLane[]>(swimLanesProp ?? []);
@@ -433,6 +439,12 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       }
 
       if (e.button === 0) {
+        if (disableNeedleDragRef.current) {
+          // In live mode left-click becomes a pan; needle scrub is disabled.
+          mouseMode.current = 'slide';
+          mouseX.current    = e.clientX;
+          return;
+        }
         const needleX = ((curMsRef.current - startMsRef.current) / (endMsRef.current - startMsRef.current)) * rect.width;
         const nearNeedle = Math.abs(x - needleX) <= 10;
         const inTickArea = y >= rect.height - TICK_AREA_HEIGHT;
@@ -678,13 +690,19 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           const cx = Math.max(0, Math.min(rect.width, x));
           const ms = startMsRef.current + (cx / rect.width) * (endMsRef.current - startMsRef.current);
           prePinchCurMs.current = curMsRef.current;
-          touchMode.current    = 'scrub';
-          touchX.current       = e.touches[0].clientX;
-          scrubClientX.current = e.touches[0].clientX;
-          curMsRef.current     = ms;
-          draw();
-          onDragStart?.();
-          onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
+          if (disableNeedleDragRef.current) {
+            // In live mode single-finger becomes a pan, not a scrub.
+            touchMode.current = 'slide';
+            touchX.current    = e.touches[0].clientX;
+          } else {
+            touchMode.current    = 'scrub';
+            touchX.current       = e.touches[0].clientX;
+            scrubClientX.current = e.touches[0].clientX;
+            curMsRef.current     = ms;
+            draw();
+            onDragStart?.();
+            onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
+          }
         } else if (e.touches.length >= 2) {
           // If we were scrubbing, undo the needle move — pinch-zoom should not
           // change the current time.
@@ -775,10 +793,14 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
 
       // Update ghost needle position (always track cursor while idle)
       if (mouseMode.current === 'none') {
-        const newHoverMs = startMsRef.current + (Math.max(0, Math.min(rect.width, x)) / rect.width) * (endMsRef.current - startMsRef.current);
-        if (hoverMsRef.current !== newHoverMs) {
-          hoverMsRef.current = newHoverMs;
-          // draw() will be called below (cursor logic path) or explicitly here
+        if (!disableNeedleDragRef.current) {
+          const newHoverMs = startMsRef.current + (Math.max(0, Math.min(rect.width, x)) / rect.width) * (endMsRef.current - startMsRef.current);
+          if (hoverMsRef.current !== newHoverMs) {
+            hoverMsRef.current = newHoverMs;
+            // draw() will be called below (cursor logic path) or explicitly here
+          }
+        } else if (hoverMsRef.current !== null) {
+          hoverMsRef.current = null;
         }
       }
 
@@ -788,7 +810,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       }
 
       const needleX = ((curMsRef.current - startMsRef.current) / (endMsRef.current - startMsRef.current)) * rect.width;
-      const nearNeedle = Math.abs(x - needleX) <= 10;
+      const nearNeedle = !disableNeedleDragRef.current && Math.abs(x - needleX) <= 10;
 
       if (isInSwimLaneRegion(y, rect.height)) {
         const hit = hitTestSwimLane(x, y, rect.width, rect.height);
@@ -822,7 +844,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
 
       if (nearNeedle) {
         e.currentTarget.style.cursor = 'grab';
-      } else if (y >= rect.height - TICK_AREA_HEIGHT) {
+      } else if (!disableNeedleDragRef.current && y >= rect.height - TICK_AREA_HEIGHT) {
         e.currentTarget.style.cursor = 'crosshair';
       } else {
         e.currentTarget.style.cursor = 'default';

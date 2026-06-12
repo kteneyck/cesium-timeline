@@ -138,6 +138,14 @@ export interface TimelineBaseProps {
    * @default 'left'
    */
   liveButtonPosition?: 'left' | 'right';
+  /**
+   * When `true`, the timeline is locked to live mode.
+   * Needle drag, datetime click, play/pause, rewind, fast-forward,
+   * jump-to-start, and jump-to-end are all disabled. The LIVE button
+   * becomes a non-interactive status indicator. Canvas zoom and pan
+   * remain fully interactive.
+   */
+  live?: boolean;
 }
 
 /**

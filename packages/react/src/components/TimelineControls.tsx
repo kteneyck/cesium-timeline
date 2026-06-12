@@ -40,6 +40,8 @@ export interface ControlsProps {
   liveButtonSize?: 'sm' | 'md' | 'lg';
   /** @see TimelineBaseProps.liveButtonPosition */
   liveButtonPosition?: 'left' | 'right';
+  /** @see TimelineBaseProps.live */
+  live?: boolean;
 }
 
 const NARROW_BREAKPOINT = 520;
@@ -97,6 +99,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   labels: labelOverrides,
   liveButtonSize = 'md',
   liveButtonPosition = 'left',
+  live = false,
 }) => {
   const isRewinding    = multiplier < 0;
   const isFastForward  = multiplier > 1;
@@ -160,7 +163,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   const LiveButton = (
     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
       <button
-        onClick={onJumpToLive}
+        onClick={live ? undefined : onJumpToLive}
         style={{
           ...baseBtn,
           fontSize: liveSize.fontSize,
@@ -170,17 +173,18 @@ export const TimelineControls: React.FC<ControlsProps> = ({
           minWidth: `${liveSize.width}px`,
           height: `${liveSize.height}px`,
           borderRadius: liveSize.borderRadius,
-          color:   isLive ? theme.controlBarBackground : theme.buttonActiveColor,
-          backgroundColor: isLive ? theme.buttonActiveColor : 'transparent',
+          color:   live || isLive ? theme.controlBarBackground : theme.buttonActiveColor,
+          backgroundColor: live || isLive ? theme.buttonActiveColor : 'transparent',
           borderColor: theme.buttonActiveColor,
-          opacity: isLive ? 1 : 0.55,
+          opacity: 1,
           gap: '4px',
+          cursor: live ? 'default' : 'pointer',
         }}
-        onMouseEnter={e => { e.currentTarget.style.opacity = '1'; }}
-        onMouseLeave={e => { e.currentTarget.style.opacity = isLive ? '1' : '0.55'; }}
-        title={isLive ? L.liveActiveTooltip : L.liveTooltip}
+        onMouseEnter={live ? undefined : (e => { e.currentTarget.style.opacity = '1'; })}
+        onMouseLeave={live ? undefined : (e => { e.currentTarget.style.opacity = isLive ? '1' : '0.55'; })}
+        title={live ? L.liveActiveTooltip : (isLive ? L.liveActiveTooltip : L.liveTooltip)}
       >
-        {isLive && (
+        {(live || isLive) && (
           <span style={{
             width: `${liveSize.dot}px`,
             height: `${liveSize.dot}px`,
@@ -190,11 +194,11 @@ export const TimelineControls: React.FC<ControlsProps> = ({
             flexShrink: 0,
           }} />
         )}
-        {isLive ? L.liveActiveLabel : L.liveLabel}
+        {live || isLive ? L.liveActiveLabel : L.liveLabel}
       </button>
 
-      {/* Speed reset badge — inline beside LIVE so it never adds row height */}
-      {!isNormalSpeed && (
+      {/* Speed reset badge — hidden in live mode */}
+      {!isNormalSpeed && !live && (
         <button
           onClick={() => onResetSpeed()}
           style={{
@@ -232,18 +236,18 @@ export const TimelineControls: React.FC<ControlsProps> = ({
       {/* ── Left: Datetime + (LIVE if position=left) ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
         <div
-          onClick={onDateTimeClick}
-          title={onDateTimeClick ? L.dateTimeClickTooltip : undefined}
+          onClick={live ? undefined : onDateTimeClick}
+          title={(!live && onDateTimeClick) ? L.dateTimeClickTooltip : undefined}
           style={{
             color: theme.labelColor,
             fontFamily: 'monospace',
             lineHeight: 1.15,
-            cursor: onDateTimeClick ? 'pointer' : 'default',
+            cursor: (!live && onDateTimeClick) ? 'pointer' : 'default',
             borderRadius: '4px',
             padding: '2px 4px',
             transition: 'background 0.15s',
           }}
-          onMouseEnter={e => { if (onDateTimeClick) e.currentTarget.style.background = theme.buttonHoverColor + '44'; }}
+          onMouseEnter={e => { if (!live && onDateTimeClick) e.currentTarget.style.background = theme.buttonHoverColor + '44'; }}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
         >
           {(() => {
@@ -285,7 +289,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
       {/* ── Center: Transport buttons ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '2px', ...(isNarrow ? { flex: 1, justifyContent: 'center' } : {}) }}>
 
-        {showJumpToStart && (
+        {!live && showJumpToStart && (
           <button
             onClick={hasStartTime ? onJumpToStart : undefined}
             disabled={!hasStartTime}
@@ -296,51 +300,57 @@ export const TimelineControls: React.FC<ControlsProps> = ({
           >⏮</button>
         )}
 
-        <button
-          onClick={onRewind}
-          style={{ ...btn(isRewinding), width: '64px', minWidth: '64px', gap: '3px' }}
-          onMouseEnter={e => onEnter(e, isRewinding)}
-          onMouseLeave={onLeave}
-          title={isRewinding ? resolveLabel(L.rewindActiveTooltip, absMultiplier) : L.rewindTooltip}
-        >
-          {isRewinding ? (
-            <><span style={{ fontSize: '11px', fontWeight: 'bold' }}>{absMultiplier}×</span>◀◀</>
-          ) : '◀◀'}
-        </button>
+        {!live && (
+          <button
+            onClick={onRewind}
+            style={{ ...btn(isRewinding), width: '64px', minWidth: '64px', gap: '3px' }}
+            onMouseEnter={e => onEnter(e, isRewinding)}
+            onMouseLeave={onLeave}
+            title={isRewinding ? resolveLabel(L.rewindActiveTooltip, absMultiplier) : L.rewindTooltip}
+          >
+            {isRewinding ? (
+              <><span style={{ fontSize: '11px', fontWeight: 'bold' }}>{absMultiplier}×</span>◀◀</>
+            ) : '◀◀'}
+          </button>
+        )}
 
-        <button
-          onClick={() => onPlayPause(!isPlaying)}
-          style={{
-            ...baseBtn,
-            color: theme.buttonActiveColor,
-            fontSize: '18px',
-            width: '40px',
-            minWidth: '40px',
-            height: '40px',
-            borderColor: `${theme.buttonActiveColor}55`,
-            borderRadius: '50%',
-            paddingLeft: isPlaying ? '0' : '2px',
-          }}
-          onMouseEnter={e => onEnter(e, true)}
-          onMouseLeave={onLeave}
-          title={isPlaying ? L.pauseTooltip : (isRewinding ? L.playFromRewindTooltip : L.playTooltip)}
-        >
-          {isPlaying ? <PauseIcon /> : '▶'}
-        </button>
+        {!live && (
+          <button
+            onClick={() => onPlayPause(!isPlaying)}
+            style={{
+              ...baseBtn,
+              color: theme.buttonActiveColor,
+              fontSize: '18px',
+              width: '40px',
+              minWidth: '40px',
+              height: '40px',
+              borderColor: `${theme.buttonActiveColor}55`,
+              borderRadius: '50%',
+              paddingLeft: isPlaying ? '0' : '2px',
+            }}
+            onMouseEnter={e => onEnter(e, true)}
+            onMouseLeave={onLeave}
+            title={isPlaying ? L.pauseTooltip : (isRewinding ? L.playFromRewindTooltip : L.playTooltip)}
+          >
+            {isPlaying ? <PauseIcon /> : '▶'}
+          </button>
+        )}
 
-        <button
-          onClick={onFastForward}
-          style={{ ...btn(isFastForward), width: '64px', minWidth: '64px', gap: '3px' }}
-          onMouseEnter={e => onEnter(e, isFastForward)}
-          onMouseLeave={onLeave}
-          title={isFastForward ? resolveLabel(L.fastForwardActiveTooltip, absMultiplier) : L.fastForwardTooltip}
-        >
-          {isFastForward ? (
-            <>▶▶<span style={{ fontSize: '11px', fontWeight: 'bold' }}>{absMultiplier}×</span></>
-          ) : '▶▶'}
-        </button>
+        {!live && (
+          <button
+            onClick={onFastForward}
+            style={{ ...btn(isFastForward), width: '64px', minWidth: '64px', gap: '3px' }}
+            onMouseEnter={e => onEnter(e, isFastForward)}
+            onMouseLeave={onLeave}
+            title={isFastForward ? resolveLabel(L.fastForwardActiveTooltip, absMultiplier) : L.fastForwardTooltip}
+          >
+            {isFastForward ? (
+              <>▶▶<span style={{ fontSize: '11px', fontWeight: 'bold' }}>{absMultiplier}×</span></>
+            ) : '▶▶'}
+          </button>
+        )}
 
-        {showJumpToEnd && (
+        {!live && showJumpToEnd && (
           <button
             onClick={hasEndTime ? onJumpToEnd : undefined}
             disabled={!hasEndTime}
