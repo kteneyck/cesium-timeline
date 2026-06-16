@@ -48,8 +48,9 @@
     "esbuild": "0.28.1",
     "@babel/core": "7.29.7",
     "js-yaml": "^4.2.0",
+    "@vitejs/plugin-basic-ssl": "2.3.0",
     "@angular/build": {
-      "vite": ">=7.3.5"
+      "vite": "7.3.5"
     }
   }
 }
