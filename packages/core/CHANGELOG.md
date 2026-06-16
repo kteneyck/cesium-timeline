@@ -1,5 +1,14 @@
 # @kteneyck/cesium-timeline-core
 
+## 0.10.0
+
+### Minor Changes
+
+- [`ad49500`](https://github.com/kteneyck/cesium-timeline/commit/ad49500a648566fb8abfab1e6deee0523515e0ba) Thanks [@kteneyck](https://github.com/kteneyck)! - Add preview needle on hover
+  Configurable Live button size
+  Force live mode option
+  Configurable scroll wheel zoom direction
+
 ## 0.9.0
 
 ### Minor Changes
