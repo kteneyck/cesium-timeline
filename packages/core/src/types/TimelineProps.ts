@@ -146,6 +146,13 @@ export interface TimelineBaseProps {
    * remain fully interactive.
    */
   live?: boolean;
+  /**
+   * When `true`, reverses the scroll-wheel zoom direction so that
+   * scrolling down zooms in on time and scrolling up zooms out.
+   * By default (false) scrolling up zooms in and scrolling down zooms out.
+   * @default false
+   */
+  invertScrollZoom?: boolean;
 }
 
 /**

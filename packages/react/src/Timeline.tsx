@@ -64,6 +64,8 @@ export interface TimelineProps {
   liveButtonPosition?: 'left' | 'right';
   /** @see TimelineBaseProps.live */
   live?: boolean;
+  /** @see TimelineBaseProps.invertScrollZoom */
+  invertScrollZoom?: boolean;
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
@@ -102,6 +104,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   liveButtonSize,
   liveButtonPosition,
   live,
+  invertScrollZoom,
 }) => {
   const now = () => Date.now();
   const defaultStartMs = providedStart
@@ -340,6 +343,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           onDragStart={() => { isDraggingRef.current = true; }}
           onDragEnd={() => { isDraggingRef.current = false; }}
           disableNeedleDrag={!!live}
+          invertScrollZoom={invertScrollZoom}
           swimLanes={swimLanes}
           showSwimLanes={swimLanesExpanded}
           onSwimLaneItemClick={onSwimLaneItemClick}
