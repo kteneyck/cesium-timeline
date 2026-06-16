@@ -71,6 +71,8 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
   @Input() showSwimLanes?: boolean;
   /** When true, needle scrub is disabled (left-click becomes pan). Zoom and pan remain active. */
   @Input() disableNeedleDrag = false;
+  /** @see TimelineBaseProps.invertScrollZoom */
+  @Input() invertScrollZoom = false;
 
   @Output() timeChange = new EventEmitter<Cesium.JulianDate>();
   @Output() dragStart = new EventEmitter<void>();
@@ -759,7 +761,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       }
     }
 
-    this.zoomFrom(Math.pow(1.05, e.deltaY > 0 ? -1 : 1));
+    this.zoomFrom(Math.pow(1.05, e.deltaY > 0 === this.invertScrollZoom ? -1 : 1));
   }
 
   // ── Touch handlers ─────────────────────────────────────────────────────

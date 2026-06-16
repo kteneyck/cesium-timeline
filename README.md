@@ -146,40 +146,41 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 
 ### `TimelineProps`
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `clock` | `Cesium.Clock` | — | Cesium clock to sync with. Falls back to `setInterval` if omitted. |
-| `startTime` | `JulianDate \| Date` | now − 12 h | Left bound of initial visible window. Also shows the ⏮ button when provided. |
-| `endTime` | `JulianDate \| Date` | now + 12 h | Right bound of initial visible window. Also shows the ⏭ button when provided. |
-| `currentTime` | `JulianDate \| Date` | `startTime` | Initial needle position |
-| `height` | `number` | `120` | Canvas height in pixels |
-| `showControls` | `boolean` | `true` | Show/hide the control bar |
-| `enableDrag` | `boolean` | `true` | Show/hide the canvas (drag/seek area) |
-| `showLabels` | `boolean` | — | Show/hide tick labels on the canvas |
-| `snapToTicks` | `boolean` | — | Snap needle to nearest tick on drag |
-| `tickInterval` | `TickInterval \| number` | auto | Override automatic tick interval |
-| `maxTicks` | `number` | unlimited | Maximum number of major ticks on the canvas at once. When exceeded the tick scale is automatically coarsened. |
-| `ffSpeeds` | `number[]` | `[2,4,8,16,32,1]` | Speed steps cycled by the ▶▶ button. Last entry wraps back to first. |
-| `rwSpeeds` | `number[]` | `[1,2,4,8,16,32]` | Absolute-value speed steps cycled by the ◀◀ button (negated internally). |
-| `dateTimeFormat` | `string` | `'MMM DD YYYY HH:mm:ss'` | Token-based format string for the controls datetime display |
+| Prop | Type | Default | Description                                                                                                                                                                                                                             |
+|------|------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `clock` | `Cesium.Clock` | — | Cesium clock to sync with. Falls back to `setInterval` if omitted.                                                                                                                                                                      |
+| `startTime` | `JulianDate \| Date` | now − 12 h | Left bound of initial visible window. Also shows the ⏮ button when provided.                                                                                                                                                            |
+| `endTime` | `JulianDate \| Date` | now + 12 h | Right bound of initial visible window. Also shows the ⏭ button when provided.                                                                                                                                                           |
+| `currentTime` | `JulianDate \| Date` | `startTime` | Initial needle position                                                                                                                                                                                                                 |
+| `height` | `number` | `120` | Canvas height in pixels                                                                                                                                                                                                                 |
+| `showControls` | `boolean` | `true` | Show/hide the control bar                                                                                                                                                                                                               |
+| `enableDrag` | `boolean` | `true` | Show/hide the canvas (drag/seek area)                                                                                                                                                                                                   |
+| `showLabels` | `boolean` | — | Show/hide tick labels on the canvas                                                                                                                                                                                                     |
+| `snapToTicks` | `boolean` | — | Snap needle to nearest tick on drag                                                                                                                                                                                                     |
+| `tickInterval` | `TickInterval \| number` | auto | Override automatic tick interval                                                                                                                                                                                                        |
+| `maxTicks` | `number` | unlimited | Maximum number of major ticks on the canvas at once. When exceeded the tick scale is automatically coarsened.                                                                                                                           |
+| `ffSpeeds` | `number[]` | `[2,4,8,16,32,1]` | Speed steps cycled by the ▶▶ button. Last entry wraps back to first.                                                                                                                                                                    |
+| `rwSpeeds` | `number[]` | `[1,2,4,8,16,32]` | Absolute-value speed steps cycled by the ◀◀ button (negated internally).                                                                                                                                                                |
+| `dateTimeFormat` | `string` | `'MMM DD YYYY HH:mm:ss'` | Token-based format string for the controls datetime display                                                                                                                                                                             |
 | `timezone` | `string` | browser local | IANA timezone name (e.g. `'UTC'`, `'America/New_York'`) or `'local'` for the browser's timezone. Controls both tick labels and the datetime display. When set, a short abbreviation (e.g. `UTC`, `EST`) appears to the right of the date. |
-| `onDateTimeClick` | `() => void` | — | Called when the user clicks the datetime display. Use to open your own date picker. |
-| `jumpToTime` | `JulianDate \| Date` | — | Set to programmatically jump the timeline to a moment (pans canvas + sets time). |
-| `theme` | `Partial<TimelineTheme>` | `defaultTheme` | Theme overrides (merged with defaults) |
-| `className` | `string` | — | CSS class applied to the root div |
-| `onTimeChange` | `(t: JulianDate) => void` | — | Fires when needle moves (drag, click, or clock tick) |
-| `onPlayPause` | `(playing: boolean) => void` | — | Fires on play/pause toggle |
-| `onMultiplierChange` | `(m: number) => void` | — | Fires when speed changes |
-| `swimLanes` | `SwimLane[]` | — | Array of swim lane definitions to render on the canvas |
-| `showSwimLanes` | `boolean` | `true` | Show or hide the swim lanes |
-| `onSwimLaneItemClick` | `(info: SwimLaneEventInfo) => void` | — | Fires when a swim lane item is clicked |
-| `onSwimLaneItemHover` | `(info: SwimLaneEventInfo \| null) => void` | — | Fires when mouse enters/leaves a swim lane item |
-| `onSwimLaneItemDoubleClick` | `(info: SwimLaneEventInfo) => void` | — | Fires when a swim lane item is double-clicked |
-| `onSwimLaneReorder` | `(orderedIds: string[]) => void` | — | Fires when swim lanes are reordered via drag. Receives the new lane id order. |
-| `onRangeSelect` | `(start: JulianDate, end: JulianDate) => void` | — | Fires when the user completes a click-and-drag in the tick area. The visible window zooms to the selected span; receives the resulting start and end times. |
-| `labels` | `Partial<TimelineLabels>` | English defaults | Override any control-bar label or tooltip string. See [Labels & i18n](#labels--i18n). |
-| `liveButtonSize` | `'sm' \| 'md' \| 'lg'` | `'md'` | Size of the LIVE button in the control bar. |
-| `liveButtonPosition` | `'left' \| 'right'` | `'left'` | Position of the LIVE button — beside the datetime display (`'left'`) or the opposite side of the control bar (`'right'`). |
+| `onDateTimeClick` | `() => void` | — | Called when the user clicks the datetime display. Use to open your own date picker.                                                                                                                                                     |
+| `jumpToTime` | `JulianDate \| Date` | — | Set to programmatically jump the timeline to a moment (pans canvas + sets time).                                                                                                                                                        |
+| `theme` | `Partial<TimelineTheme>` | `defaultTheme` | Theme overrides (merged with defaults)                                                                                                                                                                                                  |
+| `className` | `string` | — | CSS class applied to the root div                                                                                                                                                                                                       |
+| `onTimeChange` | `(t: JulianDate) => void` | — | Fires when needle moves (drag, click, or clock tick)                                                                                                                                                                                    |
+| `onPlayPause` | `(playing: boolean) => void` | — | Fires on play/pause toggle                                                                                                                                                                                                              |
+| `onMultiplierChange` | `(m: number) => void` | — | Fires when speed changes                                                                                                                                                                                                                |
+| `swimLanes` | `SwimLane[]` | — | Array of swim lane definitions to render on the canvas                                                                                                                                                                                  |
+| `showSwimLanes` | `boolean` | `true` | Show or hide the swim lanes                                                                                                                                                                                                             |
+| `onSwimLaneItemClick` | `(info: SwimLaneEventInfo) => void` | — | Fires when a swim lane item is clicked                                                                                                                                                                                                  |
+| `onSwimLaneItemHover` | `(info: SwimLaneEventInfo \| null) => void` | — | Fires when mouse enters/leaves a swim lane item                                                                                                                                                                                         |
+| `onSwimLaneItemDoubleClick` | `(info: SwimLaneEventInfo) => void` | — | Fires when a swim lane item is double-clicked                                                                                                                                                                                           |
+| `onSwimLaneReorder` | `(orderedIds: string[]) => void` | — | Fires when swim lanes are reordered via drag. Receives the new lane id order.                                                                                                                                                           |
+| `onRangeSelect` | `(start: JulianDate, end: JulianDate) => void` | — | Fires when the user completes a click-and-drag in the tick area. The visible window zooms to the selected span; receives the resulting start and end times.                                                                             |
+| `labels` | `Partial<TimelineLabels>` | English defaults | Override any control-bar label or tooltip string. See [Labels & i18n](#labels--i18n).                                                                                                                                                   |
+| `liveButtonSize` | `'sm' \| 'md' \| 'lg'` | `'md'` | Size of the LIVE button in the control bar.                                                                                                                                                                                             |
+| `liveButtonPosition` | `'left' \| 'right'` | `'left'` | Position of the LIVE button — beside the datetime display (`'left'`) or the opposite side of the control bar (`'right'`).                                                                                                               |
+| `invertScrollZoom` | `boolean` | `false` | Reverses the scroll-wheel zoom direction. By default scroll up zooms in and scroll down zooms out. Set to `true` for scroll down zooms in, scroll up zooms out.                                                                |
 
 ---
 

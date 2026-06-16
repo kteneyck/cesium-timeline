@@ -91,6 +91,7 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
           [swimLanes]="swimLanes"
           [showSwimLanes]="swimLanesExpanded"
           [disableNeedleDrag]="live"
+          [invertScrollZoom]="invertScrollZoom"
           (timeChange)="handleTimeChange($event)"
           (dragStart)="isDragging = true"
           (dragEnd)="isDragging = false"
@@ -136,6 +137,7 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
   @Input() liveButtonPosition?: 'left' | 'right';
   /** @see TimelineBaseProps.live */
   @Input() live = false;
+  @Input() invertScrollZoom = false;
 
   // ── Outputs ────────────────────────────────────────────────────────────
   @Output() timeChange = new EventEmitter<Cesium.JulianDate>();

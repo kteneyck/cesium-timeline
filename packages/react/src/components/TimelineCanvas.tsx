@@ -82,6 +82,8 @@ interface TimelineCanvasProps {
   onDragEnd?: () => void;
   /** When true, needle scrub is disabled (left-click becomes pan). Zoom and pan remain active. */
   disableNeedleDrag?: boolean;
+  /** @see TimelineBaseProps.invertScrollZoom */
+  invertScrollZoom?: boolean;
   onRangeSelect?: (start: Cesium.JulianDate, end: Cesium.JulianDate) => void;
   // Swim lane props
   swimLanes?: SwimLane[];
@@ -105,6 +107,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       onSwimLaneItemContextMenu,
       onSwimLaneReorder,
       disableNeedleDrag,
+      invertScrollZoom,
     } = props;
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -128,6 +131,9 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
 
     const disableNeedleDragRef = useRef(disableNeedleDrag ?? false);
     useEffect(() => { disableNeedleDragRef.current = disableNeedleDrag ?? false; }, [disableNeedleDrag]);
+
+    const invertScrollZoomRef = useRef(invertScrollZoom ?? false);
+    useEffect(() => { invertScrollZoomRef.current = invertScrollZoom ?? false; }, [invertScrollZoom]);
 
     // ── Swim lane state (ref-based — no React re-renders) ──────────────────
     const swimLanesRef     = useRef<SwimLane[]>(swimLanesProp ?? []);
@@ -665,7 +671,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         }
       }
 
-      zoomFrom(Math.pow(1.05, e.deltaY > 0 ? -1 : 1));
+      zoomFrom(Math.pow(1.05, e.deltaY > 0 === invertScrollZoomRef.current ? -1 : 1));
     }, [zoomFrom, draw]);
 
     // Attach wheel as a non-passive native listener so preventDefault works
