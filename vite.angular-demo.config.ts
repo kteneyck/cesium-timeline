@@ -23,6 +23,9 @@ export default defineConfig({
     port: 4200,
     open: true,
   },
+  build: {
+    target: 'esnext',
+  },
   resolve: {
     alias: {
       '@kteneyck/cesium-timeline-core':    path.resolve(__dirname, './packages/core/src/index.ts'),
@@ -34,5 +37,8 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['cesium'],
+    esbuildOptions: {
+      target: 'esnext',
+    },
   },
 });
