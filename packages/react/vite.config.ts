@@ -14,6 +14,7 @@ export default defineConfig({
     }),
   ],
   build: {
+    target: 'esnext',
     lib: {
       entry: path.resolve(__dirname, 'src/index.ts'),
       name: 'CesiumTimelineReact',
