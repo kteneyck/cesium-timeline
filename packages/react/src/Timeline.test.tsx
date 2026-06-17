@@ -1,6 +1,5 @@
-import React from 'react';
 import { render, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { Timeline } from './Timeline';
 import * as Cesium from 'cesium';
 
