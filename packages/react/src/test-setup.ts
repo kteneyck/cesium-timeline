@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
 // ── ResizeObserver ────────────────────────────────────────────────────────────
-global.ResizeObserver = class ResizeObserver {
+(globalThis as typeof globalThis & { ResizeObserver: unknown }).ResizeObserver = class ResizeObserver {
   observe = vi.fn();
   unobserve = vi.fn();
   disconnect = vi.fn();
@@ -35,7 +35,7 @@ const ctxMock = {
   textBaseline: 'alphabetic' as CanvasTextBaseline,
 };
 
-HTMLCanvasElement.prototype.getContext = vi.fn(() => ctxMock) as typeof HTMLCanvasElement.prototype.getContext;
+HTMLCanvasElement.prototype.getContext = vi.fn(() => ctxMock) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 
 // ── getBoundingClientRect ─────────────────────────────────────────────────────
 HTMLCanvasElement.prototype.getBoundingClientRect = vi.fn(() => ({

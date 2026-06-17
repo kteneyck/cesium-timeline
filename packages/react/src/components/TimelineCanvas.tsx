@@ -37,7 +37,6 @@ import {
   isInSwimLaneRegion as coreIsInSwimLaneRegion,
   zoomRange,
   zoomAroundMs,
-  totalSwimLaneHeight,
 } from '@kteneyck/cesium-timeline-core';
 
 // Re-export for consumers

@@ -31,9 +31,9 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/cesium-timeline-core.js",
-      "require": "./dist/cesium-timeline-core.umd.cjs",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/cesium-timeline-core.umd.cjs"
     }
   },
   "files": [

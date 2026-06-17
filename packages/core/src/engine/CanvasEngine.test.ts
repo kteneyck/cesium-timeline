@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import * as Cesium from 'cesium';
 import {
   twoD,
@@ -325,7 +325,7 @@ describe('hitTestSwimLane', () => {
     return {
       swimLanes: [{
         id: 'l1', label: 'L1',
-        items: [{ id: 'i1', interval: { start, stop, isSimple: true } as Cesium.TimeInterval }],
+        items: [{ id: 'i1', interval: { start, stop, isSimple: true } as unknown as Cesium.TimeInterval }],
       }],
       showSwimLanes,
       scrollTop: 0,

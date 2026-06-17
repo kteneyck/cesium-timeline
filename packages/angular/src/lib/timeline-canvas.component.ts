@@ -441,15 +441,25 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     }
 
     if (e.button === 0) {
-      if (this.disableNeedleDrag) {
-        // In live mode left-click becomes a pan; needle scrub is disabled.
-        this.mouseMode = 'slide';
-        this.mouseX = e.clientX;
-        return;
-      }
       const needleX = ((this.curMs - this.startMs) / (this.endMs - this.startMs)) * rect.width;
       const nearNeedle = Math.abs(x - needleX) <= 10;
       const inTickArea = y >= rect.height - TICK_AREA_HEIGHT;
+
+      if (this.disableNeedleDrag) {
+        if (!nearNeedle && inTickArea) {
+          // In live mode: allow range-select zoom in the tick area; needle scrub is still disabled.
+          this.mouseMode = 'rangeSelectPending';
+          this.rangeAnchorX = x;
+          this.rangeAnchorMs = this.startMs + (x / rect.width) * (this.endMs - this.startMs);
+          canvas.style.cursor = 'crosshair';
+          this.ngZone.run(() => this.dragStart.emit());
+        } else {
+          // Outside tick area — left-click becomes a pan.
+          this.mouseMode = 'slide';
+          this.mouseX = e.clientX;
+        }
+        return;
+      }
 
       if (!nearNeedle && inTickArea) {
         this.mouseMode = 'rangeSelectPending';
@@ -590,25 +600,37 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       const sel = this.rangeSelection;
       this.rangeSelection = null;
       if (sel) {
-        const selStart = Math.min(sel.startMs, sel.endMs);
-        const selEnd   = Math.max(sel.startMs, sel.endMs);
-        this.startMs = selStart;
-        this.endMs   = selEnd;
-        // If the needle is outside the selected range, clamp it to the nearest
-        // edge so the clock-tick auto-scroll doesn't immediately override the zoom.
-        const clampedMs = Math.max(selStart, Math.min(selEnd, this.curMs));
-        const needleMoved = clampedMs !== this.curMs;
-        if (needleMoved) {
-          this.curMs = clampedMs;
-        }
-        const startJd = Cesium.JulianDate.fromDate(new Date(selStart));
-        const endJd   = Cesium.JulianDate.fromDate(new Date(selEnd));
-        this.ngZone.run(() => {
-          this.rangeSelect.emit({ start: startJd, end: endJd });
+        let selStart = Math.min(sel.startMs, sel.endMs);
+        let selEnd   = Math.max(sel.startMs, sel.endMs);
+        if (this.disableNeedleDrag) {
+          // In live mode: don't move the needle. Expand the selection to keep
+          // the needle (current time) visible on screen.
+          selStart = Math.min(selStart, this.curMs);
+          selEnd   = Math.max(selEnd, this.curMs);
+          this.startMs = selStart;
+          this.endMs   = selEnd;
+          const startJd = Cesium.JulianDate.fromDate(new Date(selStart));
+          const endJd   = Cesium.JulianDate.fromDate(new Date(selEnd));
+          this.ngZone.run(() => this.rangeSelect.emit({ start: startJd, end: endJd }));
+        } else {
+          this.startMs = selStart;
+          this.endMs   = selEnd;
+          // If the needle is outside the selected range, clamp it to the nearest
+          // edge so the clock-tick auto-scroll doesn't immediately override the zoom.
+          const clampedMs = Math.max(selStart, Math.min(selEnd, this.curMs));
+          const needleMoved = clampedMs !== this.curMs;
           if (needleMoved) {
-            this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(clampedMs)));
+            this.curMs = clampedMs;
           }
-        });
+          const startJd = Cesium.JulianDate.fromDate(new Date(selStart));
+          const endJd   = Cesium.JulianDate.fromDate(new Date(selEnd));
+          this.ngZone.run(() => {
+            this.rangeSelect.emit({ start: startJd, end: endJd });
+            if (needleMoved) {
+              this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(clampedMs)));
+            }
+          });
+        }
       }
       this.mouseMode = 'none';
       const canvas = this.canvasRef?.nativeElement;
@@ -679,7 +701,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
 
     if (nearNeedle) {
       canvas.style.cursor = 'grab';
-    } else if (!this.disableNeedleDrag && y >= rect.height - TICK_AREA_HEIGHT) {
+    } else if (y >= rect.height - TICK_AREA_HEIGHT) {
       canvas.style.cursor = 'crosshair';
     } else {
       canvas.style.cursor = 'default';
