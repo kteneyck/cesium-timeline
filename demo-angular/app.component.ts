@@ -136,11 +136,11 @@ function makeSwimLanes(): SwimLane[] {
     .toggle-btn.on  { background: #4da6ff; color: #111; border-color: #4da6ff; }
     .toggle-btn.off { background: #333;    color: #666; border-color: #555; }
 
-    select, input[type="range"], input[type="number"] {
+    select, input[type="range"], input[type="number"], input[type="datetime-local"] {
       padding: 8px; background: #333; border: 1px solid #555;
       color: #e0e0e0; border-radius: 4px; font-size: 13px;
     }
-    select:focus, input[type="range"]:focus, input[type="number"]:focus {
+    select:focus, input[type="range"]:focus, input[type="number"]:focus, input[type="datetime-local"]:focus {
       outline: none; border-color: #666; background: #3a3a3a;
     }
     input[type="range"] { padding: 0; width: 100%; cursor: pointer; }
@@ -279,6 +279,36 @@ function makeSwimLanes(): SwimLane[] {
 
         <div class="divider"></div>
 
+        <!-- View Window -->
+        <div class="control-section">
+          <div class="section-title">View Window</div>
+
+          <div class="prop-row">
+            <label>Start</label>
+            <input type="datetime-local" [(ngModel)]="windowStartInput" style="flex:1;min-width:0" />
+          </div>
+
+          <div class="prop-row">
+            <label>Stop</label>
+            <input type="datetime-local" [(ngModel)]="windowEndInput" style="flex:1;min-width:0" />
+          </div>
+
+          <div style="display:flex;gap:8px">
+            <button style="flex:1" (click)="applyWindow()">Set Window</button>
+            <button style="flex:1" [disabled]="!viewStartTime && !viewEndTime"
+              (click)="clearWindow()">Clear</button>
+          </div>
+
+          @if (viewStartTime || viewEndTime) {
+            <div style="font-size:11px;color:#4da6ff;font-family:Monaco,Menlo,monospace;line-height:1.6">
+              @if (viewStartTime) { <div>▶ {{ viewStartTime | date:'yyyy-MM-dd HH:mm' }}</div> }
+              @if (viewEndTime)   { <div>⏹ {{ viewEndTime   | date:'yyyy-MM-dd HH:mm' }}</div> }
+            </div>
+          }
+        </div>
+
+        <div class="divider"></div>
+
         <!-- Theme Colors -->
         <div class="control-section">
           <div class="section-title">Theme — Colors</div>
@@ -337,6 +367,8 @@ function makeSwimLanes(): SwimLane[] {
           [dateTimeFormat]="dateTimeFormat"
           [timezone]="timezone === 'local' ? undefined : timezone"
           [jumpToTime]="jumpToTime"
+          [startTime]="viewStartTime"
+          [endTime]="viewEndTime"
           [theme]="theme"
           [swimLanes]="swimLanes"
           [showSwimLanes]="showSwimLanes"
@@ -387,6 +419,12 @@ export class AppComponent implements OnInit, OnDestroy {
   liveButtonSize: 'sm' | 'md' | 'lg' = 'md';
   liveButtonPosition: 'left' | 'right' = 'left';
   live = false;
+
+  // View window
+  windowStartInput = '';
+  windowEndInput   = '';
+  viewStartTime: Date | undefined;
+  viewEndTime: Date | undefined;
 
   readonly timezoneOptions: [string, string][] = [
     ['local',               'Local (browser)'],
@@ -521,6 +559,26 @@ export class AppComponent implements OnInit, OnDestroy {
     const d = new Date(this.pickerValue);
     if (!isNaN(d.getTime())) this.jumpToTime = new Date(d);
     this.pickerOpen = false;
+  }
+
+  applyWindow(): void {
+    const start = this.windowStartInput ? new Date(this.windowStartInput) : undefined;
+    const end   = this.windowEndInput   ? new Date(this.windowEndInput)   : undefined;
+    this.viewStartTime = start && !isNaN(start.getTime()) ? start : undefined;
+    this.viewEndTime   = end   && !isNaN(end.getTime())   ? end   : undefined;
+    if (this.viewStartTime) {
+      this.jumpToTime = new Date(this.viewStartTime);
+      if (this.viewer) {
+        this.viewer.clock.currentTime = Cesium.JulianDate.fromDate(this.viewStartTime);
+      }
+    }
+  }
+
+  clearWindow(): void {
+    this.windowStartInput = '';
+    this.windowEndInput   = '';
+    this.viewStartTime    = undefined;
+    this.viewEndTime      = undefined;
   }
 
   onSwimLaneClick(info: SwimLaneEventInfo): void {

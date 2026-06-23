@@ -251,6 +251,20 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
         this.canvasComp.zoomTo(newMs - span / 2, newMs + span / 2);
       }
     }
+    if ((changes['startTime'] && !changes['startTime'].firstChange) ||
+        (changes['endTime']   && !changes['endTime'].firstChange)) {
+      const now = Date.now();
+      this.defaultStartMs = this.startTime
+        ? Cesium.JulianDate.toDate(toJulianDate(this.startTime)).getTime()
+        : now - 12 * 3600 * 1000;
+      this.defaultEndMs = this.endTime
+        ? Cesium.JulianDate.toDate(toJulianDate(this.endTime)).getTime()
+        : now + 12 * 3600 * 1000;
+      if (this.startTime != null && this.endTime != null) {
+        this.canvasComp?.zoomTo(this.defaultStartMs, this.defaultEndMs);
+      }
+      this.cdr.markForCheck();
+    }
   }
 
   ngOnDestroy(): void {
