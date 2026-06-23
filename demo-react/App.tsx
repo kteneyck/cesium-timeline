@@ -33,6 +33,12 @@ export const TestApp: React.FC = () => {
   const [liveButtonPosition, setLiveButtonPosition] = useState<'left' | 'right'>('left');
   const [live, setLive] = useState(false);
 
+  // View window (startTime / endTime)
+  const [windowStartInput, setWindowStartInput] = useState('');
+  const [windowEndInput, setWindowEndInput] = useState('');
+  const [viewStartTime, setViewStartTime] = useState<Date | undefined>(undefined);
+  const [viewEndTime, setViewEndTime] = useState<Date | undefined>(undefined);
+
   const TIMEZONE_OPTIONS: [string, string][] = [
     ['local',                 'Local (browser)'],
     ['UTC',                   'UTC'],
@@ -230,6 +236,31 @@ export const TestApp: React.FC = () => {
     setPickerOpen(false);
   };
 
+  const toDatetimeLocalValue = (d: Date) =>
+    new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+
+  const handleApplyWindow = () => {
+    const start = windowStartInput ? new Date(windowStartInput) : undefined;
+    const end   = windowEndInput   ? new Date(windowEndInput)   : undefined;
+    const validStart = start && !isNaN(start.getTime()) ? start : undefined;
+    const validEnd   = end   && !isNaN(end.getTime())   ? end   : undefined;
+    setViewStartTime(validStart);
+    setViewEndTime(validEnd);
+    if (validStart) {
+      setJumpToTime(new Date(validStart));
+      if (viewerRef.current) {
+        viewerRef.current.clock.currentTime = Cesium.JulianDate.fromDate(validStart);
+      }
+    }
+  };
+
+  const handleClearWindow = () => {
+    setWindowStartInput('');
+    setWindowEndInput('');
+    setViewStartTime(undefined);
+    setViewEndTime(undefined);
+  };
+
   return (
     <div className="app-container">
       <style>{`
@@ -362,7 +393,7 @@ export const TestApp: React.FC = () => {
           cursor: not-allowed;
         }
 
-        select, input[type="range"], input[type="number"] {
+        select, input[type="range"], input[type="number"], input[type="datetime-local"] {
           padding: 8px;
           background: #333;
           border: 1px solid #555;
@@ -371,7 +402,7 @@ export const TestApp: React.FC = () => {
           font-size: 13px;
         }
 
-        select:focus, input[type="range"]:focus, input[type="number"]:focus {
+        select:focus, input[type="range"]:focus, input[type="number"]:focus, input[type="datetime-local"]:focus {
           outline: none;
           border-color: #666;
           background: #3a3a3a;
@@ -600,6 +631,46 @@ export const TestApp: React.FC = () => {
 
           <div className="divider" />
 
+          {/* ── View Window ── */}
+          <div className="control-section">
+            <div className="section-title">View Window</div>
+
+            <div className="prop-row">
+              <label>Start</label>
+              <input
+                type="datetime-local"
+                value={windowStartInput}
+                onChange={e => setWindowStartInput(e.target.value)}
+                style={{ flex: 1, minWidth: 0 }}
+              />
+            </div>
+
+            <div className="prop-row">
+              <label>Stop</label>
+              <input
+                type="datetime-local"
+                value={windowEndInput}
+                onChange={e => setWindowEndInput(e.target.value)}
+                style={{ flex: 1, minWidth: 0 }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={handleApplyWindow} style={{ flex: 1 }}>Set Window</button>
+              <button onClick={handleClearWindow} style={{ flex: 1 }}
+                disabled={!viewStartTime && !viewEndTime}>Clear</button>
+            </div>
+
+            {(viewStartTime || viewEndTime) && (
+              <div style={{ fontSize: '11px', color: '#4da6ff', fontFamily: 'Monaco, Menlo, monospace', lineHeight: 1.6 }}>
+                {viewStartTime && <div>▶ {toDatetimeLocalValue(viewStartTime).replace('T', ' ')}</div>}
+                {viewEndTime   && <div>⏹ {toDatetimeLocalValue(viewEndTime).replace('T', ' ')}</div>}
+              </div>
+            )}
+          </div>
+
+          <div className="divider" />
+
           {/* ── Theme ── */}
           <div className="control-section">
             <div className="section-title">Theme — Colors</div>
@@ -681,6 +752,8 @@ export const TestApp: React.FC = () => {
             timezone={timezone === 'local' ? undefined : timezone}
             onDateTimeClick={handleDateTimeClick}
             jumpToTime={jumpToTime}
+            startTime={viewStartTime}
+            endTime={viewEndTime}
             theme={theme}
             swimLanes={swimLanes}
             showSwimLanes={showSwimLanes}

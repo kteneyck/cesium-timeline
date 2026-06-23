@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import * as Cesium from 'cesium';
 import {
   type TimelineTheme,
@@ -107,12 +107,20 @@ export const Timeline: React.FC<TimelineProps> = ({
   invertScrollZoom,
 }) => {
   const now = () => Date.now();
-  const defaultStartMs = providedStart
-    ? Cesium.JulianDate.toDate(toJulianDate(providedStart)).getTime()
-    : now() - 12 * 3600 * 1000;
-  const defaultEndMs = providedEnd
-    ? Cesium.JulianDate.toDate(toJulianDate(providedEnd)).getTime()
-    : now() + 12 * 3600 * 1000;
+  const defaultStartMs = useMemo(
+    () => providedStart
+      ? Cesium.JulianDate.toDate(toJulianDate(providedStart)).getTime()
+      : now() - 12 * 3600 * 1000,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [providedStart],
+  );
+  const defaultEndMs = useMemo(
+    () => providedEnd
+      ? Cesium.JulianDate.toDate(toJulianDate(providedEnd)).getTime()
+      : now() + 12 * 3600 * 1000,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [providedEnd],
+  );
 
   const [currentTime, setCurrentTime] = useState<Cesium.JulianDate>(() =>
     toJulianDate(initialTime ?? (providedStart ?? Cesium.JulianDate.fromDate(new Date())))
@@ -214,6 +222,19 @@ export const Timeline: React.FC<TimelineProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jumpToTime]);
+
+  // ── Zoom to view window when startTime / endTime props change ──
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (providedStart != null && providedEnd != null) {
+      canvasRef.current?.zoomTo(defaultStartMs, defaultEndMs);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultStartMs, defaultEndMs]);
 
   // ── Helpers ──
   const applyMultiplier = (m: number, play = true) => {
