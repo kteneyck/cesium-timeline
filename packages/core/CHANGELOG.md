@@ -1,5 +1,12 @@
 # @kteneyck/cesium-timeline-core
 
+## 0.11.0
+
+### Minor Changes
+
+- bd5a49e: Allow a range selection while in forced live mode
+  Zoom to selection after start and stop are set for timeline
+
 ## 0.10.0
 
 ### Minor Changes
