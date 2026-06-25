@@ -1,5 +1,17 @@
 # @kteneyck/cesium-timeline-angular
 
+## 0.11.0
+
+### Minor Changes
+
+- bd5a49e: Allow a range selection while in forced live mode
+  Zoom to selection after start and stop are set for timeline
+
+### Patch Changes
+
+- Updated dependencies [bd5a49e]
+  - @kteneyck/cesium-timeline-core@0.11.0
+
 ## 0.10.0
 
 ### Minor Changes
