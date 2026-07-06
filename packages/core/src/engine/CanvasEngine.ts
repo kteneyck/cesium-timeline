@@ -111,12 +111,12 @@ export function calcEpochMs(startMs: number, durationSec: number, timezone?: str
     return new Date(y, mo, dy).getTime();
   }
 
-  const { yr: y, hr24: h, min: mi, sec: s } = getDateParts(d, timezone);
+  const { yr: y, hr24: h, min: mi, sec: s, ms } = getDateParts(d, timezone);
   if (durationSec > 315360000) return Date.UTC(Math.floor(y / 100) * 100, 0, 1);
   if (durationSec > 31536000)  return Date.UTC(Math.floor(y / 10)  * 10,  0, 1);
   if (durationSec > 86400)     return Date.UTC(y, 0, 1);
   // Start of the current day in the target timezone: subtract elapsed time-of-day.
-  return startMs - (h * 3600 + mi * 60 + s) * 1000;
+  return startMs - (h * 3600 + mi * 60 + s) * 1000 - ms;
 }
 
 /** Advance to next tick boundary (identical to Cesium's getNextTic). */

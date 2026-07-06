@@ -448,6 +448,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           // In live mode left-click becomes a pan; needle scrub is disabled.
           mouseMode.current = 'slide';
           mouseX.current    = e.clientX;
+          e.currentTarget.style.cursor = 'grabbing';
           return;
         }
         const needleX = ((curMsRef.current - startMsRef.current) / (endMsRef.current - startMsRef.current)) * rect.width;
@@ -835,7 +836,14 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
             e.currentTarget.style.cursor = 'grab';
           } else {
             const labelLane = isInLaneLabelArea(x, y, rect.height);
-            e.currentTarget.style.cursor = labelLane && onSwimLaneReorderRef.current ? 'grab' : 'default';
+            if (labelLane && onSwimLaneReorderRef.current) {
+              e.currentTarget.style.cursor = 'grab';
+            } else if (disableNeedleDragRef.current) {
+              // Live mode: empty lane area can still be grabbed to pan the timeline.
+              e.currentTarget.style.cursor = 'grab';
+            } else {
+              e.currentTarget.style.cursor = 'default';
+            }
           }
         }
         draw();
@@ -851,6 +859,9 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         e.currentTarget.style.cursor = 'grab';
       } else if (!disableNeedleDragRef.current && y >= rect.height - TICK_AREA_HEIGHT) {
         e.currentTarget.style.cursor = 'crosshair';
+      } else if (disableNeedleDragRef.current) {
+        // Live mode: needle can't be dragged, but the timeline can still be panned.
+        e.currentTarget.style.cursor = 'grab';
       } else {
         e.currentTarget.style.cursor = 'default';
       }
