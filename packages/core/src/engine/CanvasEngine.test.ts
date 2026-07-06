@@ -256,6 +256,13 @@ describe('calcEpochMs', () => {
     const epoch = calcEpochMs(startMs, DAY_MS * 2);
     expect(typeof epoch).toBe('number');
   });
+
+  it('returns exact day-start (ms=0) for a non-local timezone when startMs has sub-second offset', () => {
+    const startMs = Date.UTC(2026, 5, 25, 12, 0, 0, 216); // 216ms into the second
+    const epoch = calcEpochMs(startMs, 1, 'UTC');          // sub-second zoom
+    expect(epoch % 1000).toBe(0);
+    expect(epoch).toBe(Date.UTC(2026, 5, 25, 0, 0, 0, 0));
+  });
 });
 
 // ── resolveItemStyle ──────────────────────────────────────────────────────────

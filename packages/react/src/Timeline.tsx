@@ -302,6 +302,16 @@ export const Timeline: React.FC<TimelineProps> = ({
     }
   };
 
+  // ── Jump to current time when live mode is switched on ──
+  const prevLiveRef = useRef(live);
+  useEffect(() => {
+    if (live && !prevLiveRef.current) {
+      handleJumpToLive();
+    }
+    prevLiveRef.current = live;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live]);
+
   const isLive = Math.abs(Cesium.JulianDate.toDate(currentTime).getTime() - Date.now()) < 2_000;
 
   return (

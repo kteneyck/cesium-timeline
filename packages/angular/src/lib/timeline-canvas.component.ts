@@ -457,6 +457,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
           // Outside tick area — left-click becomes a pan.
           this.mouseMode = 'slide';
           this.mouseX = e.clientX;
+          canvas.style.cursor = 'grabbing';
         }
         return;
       }
@@ -582,12 +583,18 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     this.stopEdgeScroll();
 
     if (this.mouseMode === 'rangeSelectPending') {
-      // Short click — commit needle to anchor position
-      this.curMs = this.rangeAnchorMs;
       this.rangeSelection = null;
       this.mouseMode = 'none';
       const canvas = this.canvasRef?.nativeElement;
       if (canvas) canvas.style.cursor = 'default';
+      if (this.disableNeedleDrag) {
+        // In live mode: a short click must not move the needle / current time.
+        this.draw();
+        this.ngZone.run(() => this.dragEnd.emit());
+        return;
+      }
+      // Short click — commit needle to anchor position
+      this.curMs = this.rangeAnchorMs;
       this.draw();
       this.ngZone.run(() => {
         this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(this.rangeAnchorMs)));
@@ -687,7 +694,14 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
           canvas.style.cursor = 'grab';
         } else {
           const labelLane = this.hitTestLaneLabel(x, y, rect.height);
-          canvas.style.cursor = labelLane && this.swimLaneReorder.observed ? 'grab' : 'default';
+          if (labelLane && this.swimLaneReorder.observed) {
+            canvas.style.cursor = 'grab';
+          } else if (this.disableNeedleDrag) {
+            // Live mode: empty lane area can still be grabbed to pan the timeline.
+            canvas.style.cursor = 'grab';
+          } else {
+            canvas.style.cursor = 'default';
+          }
         }
       }
       this.draw();
@@ -703,6 +717,9 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       canvas.style.cursor = 'grab';
     } else if (y >= rect.height - TICK_AREA_HEIGHT) {
       canvas.style.cursor = 'crosshair';
+    } else if (this.disableNeedleDrag) {
+      // Live mode: needle can't be dragged, but the timeline can still be panned.
+      canvas.style.cursor = 'grab';
     } else {
       canvas.style.cursor = 'default';
     }

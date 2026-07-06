@@ -125,6 +125,20 @@ describe('Timeline', () => {
     // We can't inspect canvasRef internals from outside, but no throw = pass
   });
 
+  it('jumps to current time when live is toggled on', () => {
+    const past = Cesium.JulianDate.fromDate(new Date(Date.now() - 3_600_000));
+    const { getByTitle, rerender } = render(
+      <Timeline currentTime={past} live={false} timezone="UTC" />
+    );
+    // Starts in the past → not live
+    expect(getByTitle('Jump to live (now)')).toBeTruthy();
+    // Toggle live on → should jump to now
+    act(() => {
+      rerender(<Timeline currentTime={past} live={true} timezone="UTC" />);
+    });
+    expect(getByTitle('Currently live')).toBeTruthy();
+  });
+
   it('onMultiplierChange fires when rewinding', () => {
     const onMultiplierChange = vi.fn();
     const { getByText } = render(

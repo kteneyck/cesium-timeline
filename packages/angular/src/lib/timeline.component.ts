@@ -251,6 +251,11 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
         this.canvasComp.zoomTo(newMs - span / 2, newMs + span / 2);
       }
     }
+    if (changes['live'] && !changes['live'].firstChange &&
+        this.live && !changes['live'].previousValue) {
+      // Live mode switched on — jump to and follow current time.
+      this.handleJumpToLive();
+    }
     if ((changes['startTime'] && !changes['startTime'].firstChange) ||
         (changes['endTime']   && !changes['endTime'].firstChange)) {
       const now = Date.now();

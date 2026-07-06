@@ -116,6 +116,43 @@ describe('TimelineCanvasComponent', () => {
     });
   });
 
+  describe('single click in tick area', () => {
+    function tickAreaMouseEvent(canvas: HTMLCanvasElement): MouseEvent {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        button: 0,
+        clientX: rect.left + rect.width / 2,
+        clientY: rect.top + rect.height - 2,
+        preventDefault: () => {},
+      } as MouseEvent;
+    }
+
+    it('moves the needle when not in live mode', () => {
+      setInputs();
+      const canvas = fixture.nativeElement.querySelector('canvas') as HTMLCanvasElement;
+      const spy = vi.fn();
+      component.timeChange.subscribe(spy);
+
+      component.onCanvasMouseDown(tickAreaMouseEvent(canvas));
+      // simulate mouseup with no drag
+      (component as unknown as { onDocMouseUp(): void }).onDocMouseUp();
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not move the needle in live mode', () => {
+      setInputs({ disableNeedleDrag: true });
+      const canvas = fixture.nativeElement.querySelector('canvas') as HTMLCanvasElement;
+      const spy = vi.fn();
+      component.timeChange.subscribe(spy);
+
+      component.onCanvasMouseDown(tickAreaMouseEvent(canvas));
+      (component as unknown as { onDocMouseUp(): void }).onDocMouseUp();
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
   it('ngOnDestroy cleans up without throwing', () => {
     setInputs();
     expect(() => fixture.destroy()).not.toThrow();

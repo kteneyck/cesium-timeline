@@ -104,6 +104,16 @@ describe('TimelineComponent', () => {
     }
   });
 
+  it('ngOnChanges jumps to now when live is toggled on', () => {
+    component.currentTimeState = Cesium.JulianDate.fromDate(new Date(Date.now() - 3_600_000));
+    expect(component.isLive).toBe(false);
+    component.live = true;
+    component.ngOnChanges({
+      live: new SimpleChange(false, true, false),
+    });
+    expect(component.isLive).toBe(true);
+  });
+
   it('ngOnChanges with showSwimLanes updates swimLanesExpanded', () => {
     component.showSwimLanes = false;
     component.ngOnChanges({
