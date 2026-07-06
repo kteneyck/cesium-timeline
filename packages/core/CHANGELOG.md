@@ -1,5 +1,13 @@
 # @kteneyck/cesium-timeline-core
 
+## 0.12.0
+
+### Minor Changes
+
+- 6b6d36f: Resolve millisecond label update on scroll
+  Show grab pointer on live mode for needle
+  Switch to live mode, sets current time
+
 ## 0.11.0
 
 ### Minor Changes
