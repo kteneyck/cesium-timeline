@@ -180,6 +180,7 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 | `labels` | `Partial<TimelineLabels>` | English defaults | Override any control-bar label or tooltip string. See [Labels & i18n](#labels--i18n).                                                                                                                                                   |
 | `liveButtonSize` | `'sm' \| 'md' \| 'lg'` | `'md'` | Size of the LIVE button in the control bar.                                                                                                                                                                                             |
 | `liveButtonPosition` | `'left' \| 'right'` | `'left'` | Position of the LIVE button — beside the datetime display (`'left'`) or the opposite side of the control bar (`'right'`).                                                                                                               |
+| `live` | `boolean` | `false` | Locks the timeline to live mode. Clicking, dragging or tapping the timeline can no longer move the needle or change the current time, and needle drag, datetime click, play/pause, rewind, fast-forward, jump-to-start and jump-to-end are disabled. Canvas zoom and pan stay interactive. |
 | `invertScrollZoom` | `boolean` | `false` | Reverses the scroll-wheel zoom direction. By default scroll up zooms in and scroll down zooms out. Set to `true` for scroll down zooms in, scroll up zooms out.                                                                |
 
 ---
