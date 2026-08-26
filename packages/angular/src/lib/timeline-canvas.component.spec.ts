@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { SimpleChange } from '@angular/core';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TimelineCanvasComponent } from './timeline-canvas.component';
 import { defaultTheme, MIN_SPAN_MS, MAX_SPAN_MS } from '@kteneyck/cesium-timeline-core';
@@ -150,6 +151,90 @@ describe('TimelineCanvasComponent', () => {
       (component as unknown as { onDocMouseUp(): void }).onDocMouseUp();
 
       expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
+  // The canvas is mocked at 800 × 200 in test-setup; the tick area is the
+  // bottom TICK_AREA_HEIGHT pixels and the needle sits at x = 400.
+  describe('forced live mode (disableNeedleDrag)', () => {
+    const TICK_Y = 190;
+    const LANE_Y = 60;
+
+    interface Internals {
+      onDocMouseMove(e: MouseEvent): void;
+      onDocMouseUp(): void;
+      onTouchStart(e: TouchEvent): void;
+    }
+    const internals = () => component as unknown as Internals;
+
+    const mouse = (clientX: number, clientY: number): MouseEvent =>
+      ({ button: 0, clientX, clientY, preventDefault: () => {} }) as MouseEvent;
+
+    it('a click above the tick area leaves the time alone in live mode', () => {
+      setInputs({ disableNeedleDrag: true });
+      const spy = vi.fn();
+      component.timeChange.subscribe(spy);
+
+      component.onCanvasMouseDown(mouse(200, LANE_Y));
+      internals().onDocMouseUp();
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('a drag leaves the time alone in live mode', () => {
+      setInputs({ disableNeedleDrag: true });
+      const spy = vi.fn();
+      component.timeChange.subscribe(spy);
+
+      component.onCanvasMouseDown(mouse(200, TICK_Y));
+      internals().onDocMouseMove(mouse(350, TICK_Y));
+      internals().onDocMouseUp();
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('a single-finger touch leaves the time alone in live mode', () => {
+      setInputs({ disableNeedleDrag: true });
+      const spy = vi.fn();
+      component.timeChange.subscribe(spy);
+
+      internals().onTouchStart({
+        touches: [{ clientX: 200, clientY: LANE_Y }],
+        preventDefault: () => {},
+      } as unknown as TouchEvent);
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('a scrub already in flight stops when live mode turns on', () => {
+      setInputs();
+      const spy = vi.fn();
+      component.timeChange.subscribe(spy);
+
+      component.onCanvasMouseDown(mouse(200, LANE_Y));
+      expect(spy).toHaveBeenCalled();
+
+      component.disableNeedleDrag = true;
+      component.ngOnChanges({
+        disableNeedleDrag: new SimpleChange(false, true, false),
+      });
+      spy.mockClear();
+
+      internals().onDocMouseMove(mouse(300, LANE_Y));
+      internals().onDocMouseUp();
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('pointer jitter during a click does not turn it into a range-select zoom', () => {
+      setInputs();
+      const before = component.getVisibleRange();
+
+      component.onCanvasMouseDown(mouse(200, TICK_Y));
+      internals().onDocMouseMove(mouse(204, TICK_Y));
+      internals().onDocMouseUp();
+
+      expect(component.getVisibleRange()).toEqual(before);
     });
   });
 

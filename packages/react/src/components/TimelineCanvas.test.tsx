@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, act } from '@testing-library/react';
+import { render, act, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { TimelineCanvas, TimelineCanvasHandle } from './TimelineCanvas';
 import { defaultTheme, MIN_SPAN_MS, MAX_SPAN_MS } from '@kteneyck/cesium-timeline-core';
@@ -147,5 +147,110 @@ describe('TimelineCanvas', () => {
       );
     });
     expect(handle.current).not.toBeNull();
+  });
+
+  // The canvas is mocked at 800 × 200 in test-setup; the tick area is the
+  // bottom TICK_AREA_HEIGHT pixels and the needle sits at x = 400.
+  describe('forced live mode (disableNeedleDrag)', () => {
+    const TICK_Y = 190;
+    const LANE_Y = 60;
+
+    function click(canvas: Element, clientX: number, clientY: number) {
+      act(() => {
+        fireEvent.mouseDown(canvas, { button: 0, clientX, clientY });
+        fireEvent.mouseUp(document);
+      });
+    }
+
+    function drag(canvas: Element, clientX: number, clientY: number, dx: number) {
+      act(() => {
+        fireEvent.mouseDown(canvas, { button: 0, clientX, clientY });
+        fireEvent.mouseMove(document, { clientX: clientX + dx, clientY });
+        fireEvent.mouseUp(document);
+      });
+    }
+
+    it('a click in the tick area moves the needle when not live', () => {
+      const onTimeChange = vi.fn();
+      const { container } = renderCanvas({ onTimeChange });
+      click(container.querySelector('canvas')!, 200, TICK_Y);
+      expect(onTimeChange).toHaveBeenCalled();
+    });
+
+    it('a click in the tick area leaves the time alone in live mode', () => {
+      const onTimeChange = vi.fn();
+      const { container } = renderCanvas({ onTimeChange, disableNeedleDrag: true });
+      click(container.querySelector('canvas')!, 200, TICK_Y);
+      expect(onTimeChange).not.toHaveBeenCalled();
+    });
+
+    it('a click above the tick area leaves the time alone in live mode', () => {
+      const onTimeChange = vi.fn();
+      const { container } = renderCanvas({ onTimeChange, disableNeedleDrag: true });
+      click(container.querySelector('canvas')!, 200, LANE_Y);
+      expect(onTimeChange).not.toHaveBeenCalled();
+    });
+
+    it('a click on the needle leaves the time alone in live mode', () => {
+      const onTimeChange = vi.fn();
+      const { container } = renderCanvas({ onTimeChange, disableNeedleDrag: true });
+      click(container.querySelector('canvas')!, 400, LANE_Y);
+      expect(onTimeChange).not.toHaveBeenCalled();
+    });
+
+    it('a drag leaves the time alone in live mode', () => {
+      const onTimeChange = vi.fn();
+      const { container } = renderCanvas({ onTimeChange, disableNeedleDrag: true });
+      drag(container.querySelector('canvas')!, 200, TICK_Y, 150);
+      expect(onTimeChange).not.toHaveBeenCalled();
+    });
+
+    it('a single-finger touch leaves the time alone in live mode', () => {
+      const onTimeChange = vi.fn();
+      const { container } = renderCanvas({ onTimeChange, disableNeedleDrag: true });
+      const canvas = container.querySelector('canvas')!;
+      const touch = new Event('touchstart', { bubbles: true, cancelable: true });
+      Object.defineProperty(touch, 'touches', { value: [{ clientX: 200, clientY: LANE_Y }] });
+      act(() => { canvas.dispatchEvent(touch); });
+      expect(onTimeChange).not.toHaveBeenCalled();
+    });
+
+    it('a scrub already in flight stops when live mode turns on', () => {
+      const onTimeChange = vi.fn();
+      const { container, handle } = renderCanvas({ onTimeChange });
+      const canvas = container.querySelector('canvas')!;
+      act(() => { fireEvent.mouseDown(canvas, { button: 0, clientX: 200, clientY: LANE_Y }); });
+      expect(onTimeChange).toHaveBeenCalled();
+
+      act(() => {
+        render(
+          <TimelineCanvas
+            ref={handle}
+            currentTime={Cesium.JulianDate.fromDate(new Date(REF_MS))}
+            defaultStartMs={REF_MS - 3_600_000}
+            defaultEndMs={REF_MS + 3_600_000}
+            theme={defaultTheme}
+            onTimeChange={onTimeChange}
+            disableNeedleDrag
+          />,
+          { container }
+        );
+      });
+      onTimeChange.mockClear();
+      act(() => {
+        fireEvent.mouseMove(document, { clientX: 300, clientY: LANE_Y });
+        fireEvent.mouseUp(document);
+      });
+      expect(onTimeChange).not.toHaveBeenCalled();
+    });
+
+    it('pointer jitter during a click does not turn it into a range-select zoom', () => {
+      const onTimeChange = vi.fn();
+      const { container, handle } = renderCanvas({ onTimeChange });
+      const before = handle.current!.getVisibleRange();
+      drag(container.querySelector('canvas')!, 200, TICK_Y, 4);
+      expect(handle.current!.getVisibleRange()).toEqual(before);
+      expect(onTimeChange).toHaveBeenCalled();
+    });
   });
 });

@@ -23,6 +23,7 @@ import {
   TICK_AREA_HEIGHT,
   LANE_GAP,
   SWIM_LANE_SCROLL_SPEED,
+  RANGE_SELECT_MIN_DRAG_PX,
   MIN_SPAN_MS,
   MAX_SPAN_MS,
   drawTimeline,
@@ -185,6 +186,29 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       this.showSwimLanesState = this.showSwimLanes ?? (this.swimLanesState.length > 0);
       this.draw();
     }
+    if (changes['disableNeedleDrag'] && this.disableNeedleDrag) {
+      // A scrub or range-select started before forced-live mode was switched on
+      // must not survive the switch and keep moving the needle.
+      this.cancelNeedleGesture();
+    }
+  }
+
+  /** Ends any pointer gesture that would otherwise go on to move the needle. */
+  private cancelNeedleGesture(): void {
+    this.stopEdgeScroll();
+    const needleGesture =
+      this.mouseMode === 'scrub' ||
+      this.mouseMode === 'rangeSelectPending' ||
+      this.mouseMode === 'rangeSelect';
+    if (needleGesture) {
+      this.mouseMode = 'none';
+      this.rangeSelection = null;
+      const canvas = this.canvasRef?.nativeElement;
+      if (canvas) canvas.style.cursor = 'default';
+      this.ngZone.run(() => this.dragEnd.emit());
+      this.draw();
+    }
+    if (this.touchMode === 'scrub') this.touchMode = 'slide';
   }
 
   ngOnDestroy(): void {
@@ -364,6 +388,21 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     this.draw();
   }
 
+  // ── Current-time choke point ───────────────────────────────────────────
+
+  /**
+   * Every interaction-driven needle move (mouse, touch, edge scroll) goes
+   * through here. In forced-live mode (`live` on <ct-timeline>) the needle is
+   * owned by the wall clock, so the update is dropped and the caller is told
+   * nothing changed — no gesture path can move the needle or the time.
+   */
+  private commitTime(ms: number): boolean {
+    if (this.disableNeedleDrag) return false;
+    this.curMs = ms;
+    this.ngZone.run(() => this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(ms))));
+    return true;
+  }
+
   // ── Edge scroll ────────────────────────────────────────────────────────
 
   private startEdgeScroll(direction: -1 | 1): void {
@@ -379,8 +418,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
         const rect = canvas.getBoundingClientRect();
         const cx = Math.max(0, Math.min(rect.width, this.scrubClientX - rect.left));
         const ms = this.startMs + (cx / rect.width) * (this.endMs - this.startMs);
-        this.curMs = ms;
-        this.ngZone.run(() => this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(ms))));
+        this.commitTime(ms);
       }
 
       this.draw();
@@ -474,9 +512,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
         canvas.style.cursor = 'grabbing';
         this.ngZone.run(() => this.dragStart.emit());
         const ms = this.startMs + (x / rect.width) * (this.endMs - this.startMs);
-        this.curMs = ms;
-        this.draw();
-        this.ngZone.run(() => this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(ms))));
+        if (this.commitTime(ms)) this.draw();
       }
     } else if (e.button === 1) {
       this.mouseMode = 'slide';
@@ -519,6 +555,11 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     const w = rect.width;
 
     if (this.mouseMode === 'scrub') {
+      if (this.disableNeedleDrag) {
+        // Forced-live mode switched on mid-drag — end the scrub, don't scrub on.
+        this.cancelNeedleGesture();
+        return;
+      }
       this.scrubClientX = e.clientX;
       const x = e.clientX - rect.left;
       const edge = w * 0.08;
@@ -527,13 +568,11 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       else this.stopEdgeScroll();
       const cx = Math.max(0, Math.min(w, x));
       const ms = this.startMs + (cx / w) * (this.endMs - this.startMs);
-      this.curMs = ms;
-      this.draw();
-      this.ngZone.run(() => this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(ms))));
+      if (this.commitTime(ms)) this.draw();
     } else if (this.mouseMode === 'rangeSelectPending' || this.mouseMode === 'rangeSelect') {
       const x = e.clientX - rect.left;
       const dx = Math.abs(x - this.rangeAnchorX);
-      if (this.mouseMode === 'rangeSelectPending' && dx >= 3) {
+      if (this.mouseMode === 'rangeSelectPending' && dx >= RANGE_SELECT_MIN_DRAG_PX) {
         this.mouseMode = 'rangeSelect';
       }
       if (this.mouseMode === 'rangeSelect') {
@@ -587,19 +626,11 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       this.mouseMode = 'none';
       const canvas = this.canvasRef?.nativeElement;
       if (canvas) canvas.style.cursor = 'default';
-      if (this.disableNeedleDrag) {
-        // In live mode: a short click must not move the needle / current time.
-        this.draw();
-        this.ngZone.run(() => this.dragEnd.emit());
-        return;
-      }
-      // Short click — commit needle to anchor position
-      this.curMs = this.rangeAnchorMs;
+      // Short click — commit needle to anchor position. In forced-live mode
+      // commitTime() drops it, so the click leaves the needle alone.
+      this.commitTime(this.rangeAnchorMs);
       this.draw();
-      this.ngZone.run(() => {
-        this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(this.rangeAnchorMs)));
-        this.dragEnd.emit();
-      });
+      this.ngZone.run(() => this.dragEnd.emit());
       return;
     }
 
@@ -625,18 +656,10 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
           // If the needle is outside the selected range, clamp it to the nearest
           // edge so the clock-tick auto-scroll doesn't immediately override the zoom.
           const clampedMs = Math.max(selStart, Math.min(selEnd, this.curMs));
-          const needleMoved = clampedMs !== this.curMs;
-          if (needleMoved) {
-            this.curMs = clampedMs;
-          }
           const startJd = Cesium.JulianDate.fromDate(new Date(selStart));
           const endJd   = Cesium.JulianDate.fromDate(new Date(selEnd));
-          this.ngZone.run(() => {
-            this.rangeSelect.emit({ start: startJd, end: endJd });
-            if (needleMoved) {
-              this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(clampedMs)));
-            }
-          });
+          this.ngZone.run(() => this.rangeSelect.emit({ start: startJd, end: endJd }));
+          if (clampedMs !== this.curMs) this.commitTime(clampedMs);
         }
       }
       this.mouseMode = 'none';
@@ -823,20 +846,14 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
         this.touchMode = 'scrub';
         this.touchX = e.touches[0].clientX;
         this.scrubClientX = e.touches[0].clientX;
-        this.curMs = ms;
-        this.draw();
-        this.ngZone.run(() => {
-          this.dragStart.emit();
-          this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(ms)));
-        });
+        this.ngZone.run(() => this.dragStart.emit());
+        if (this.commitTime(ms)) this.draw();
       }
     } else if (e.touches.length >= 2) {
       // If we were scrubbing, undo the needle move — pinch-zoom should not
       // change the current time.
       if (this.touchMode === 'scrub') {
-        this.curMs = this.prePinchCurMs;
-        this.draw();
-        this.ngZone.run(() => this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(this.prePinchCurMs))));
+        if (this.commitTime(this.prePinchCurMs)) this.draw();
       }
       this.touchMode = 'pinch';
       this.pinchDist = this.getTouchDist(e.touches[0], e.touches[1]);
@@ -850,6 +867,14 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     const rect = canvas.getBoundingClientRect();
 
     if (this.touchMode === 'scrub' && e.touches.length >= 1) {
+      if (this.disableNeedleDrag) {
+        // Forced-live mode switched on mid-gesture — the finger pans instead.
+        this.stopEdgeScroll();
+        this.touchMode = 'slide';
+        this.touchX = e.touches[0].clientX;
+        this.ngZone.run(() => this.dragEnd.emit());
+        return;
+      }
       const x = e.touches[0].clientX - rect.left;
       const edge = rect.width * 0.08;
       this.scrubClientX = e.touches[0].clientX;
@@ -862,9 +887,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
         this.stopEdgeScroll();
         const cx = Math.max(0, Math.min(rect.width, x));
         const ms = this.startMs + (cx / rect.width) * (this.endMs - this.startMs);
-        this.curMs = ms;
-        this.draw();
-        this.ngZone.run(() => this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(ms))));
+        if (this.commitTime(ms)) this.draw();
       }
     } else if (this.touchMode === 'slide' && e.touches.length >= 1) {
       const dx = this.touchX - e.touches[0].clientX;

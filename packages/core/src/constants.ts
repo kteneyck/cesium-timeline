@@ -38,3 +38,11 @@ export const SWIM_LANE_SCROLL_SPEED = 0.3;
 
 /** Abbreviated month names used for tick labels. */
 export const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/**
+ * Minimum horizontal drag distance in pixels before a press in the tick area is
+ * treated as a range-selection drag instead of a plain click. Small pointer
+ * jitter during a click must not zoom the timeline (or, in forced-live mode,
+ * shift the visible window away from the needle).
+ */
+export const RANGE_SELECT_MIN_DRAG_PX = 6;

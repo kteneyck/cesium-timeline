@@ -29,6 +29,7 @@ import {
   TICK_AREA_HEIGHT,
   LANE_GAP,
   SWIM_LANE_SCROLL_SPEED,
+  RANGE_SELECT_MIN_DRAG_PX,
   MIN_SPAN_MS,
   MAX_SPAN_MS,
   drawTimeline,
@@ -361,6 +362,18 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       draw();
     }, [currentTime, draw]);
 
+    // ── Current-time choke point ──────────────────────────────────────────
+    // Every interaction-driven needle move (mouse, touch, edge scroll) goes
+    // through here. In forced-live mode (`live` on <Timeline>) the needle is
+    // owned by the wall clock, so the update is dropped and the caller is told
+    // nothing changed — no gesture path can move the needle or the time.
+    const commitTime = useCallback((ms: number): boolean => {
+      if (disableNeedleDragRef.current) return false;
+      curMsRef.current = ms;
+      onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
+      return true;
+    }, [onTimeChange]);
+
     // ── Edge-scroll animation loop ────────────────────────────────────────
     const startEdgeScroll = useCallback((direction: -1 | 1) => {
       if (edgeRAF.current !== null) return;
@@ -375,15 +388,14 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           const rect = canvas.getBoundingClientRect();
           const cx   = Math.max(0, Math.min(rect.width, scrubClientX.current - rect.left));
           const ms   = startMsRef.current + (cx / rect.width) * (endMsRef.current - startMsRef.current);
-          curMsRef.current = ms;
-          onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
+          commitTime(ms);
         }
 
         draw();
         edgeRAF.current = requestAnimationFrame(scroll);
       };
       edgeRAF.current = requestAnimationFrame(scroll);
-    }, [draw, onTimeChange]);
+    }, [draw, commitTime]);
 
     const stopEdgeScroll = useCallback(() => {
       if (edgeRAF.current !== null) {
@@ -391,6 +403,32 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         edgeRAF.current = null;
       }
     }, []);
+
+    // ── Cancel an in-flight needle gesture when forced-live mode turns on ──
+    // A scrub or range-select started before `live` was switched on must not
+    // survive the switch and keep moving the needle.
+    const wasNeedleDragDisabled = useRef(disableNeedleDrag ?? false);
+    useEffect(() => {
+      const disabled = disableNeedleDrag ?? false;
+      const justDisabled = disabled && !wasNeedleDragDisabled.current;
+      wasNeedleDragDisabled.current = disabled;
+      if (!justDisabled) return;
+
+      stopEdgeScroll();
+      const needleGesture =
+        mouseMode.current === 'scrub' ||
+        mouseMode.current === 'rangeSelectPending' ||
+        mouseMode.current === 'rangeSelect';
+      if (needleGesture) {
+        mouseMode.current = 'none';
+        rangeSelectionRef.current = null;
+        if (canvasRef.current) canvasRef.current.style.cursor = 'default';
+        onDragEnd?.();
+      }
+      if (touchMode.current === 'scrub') touchMode.current = 'slide';
+      if (needleGesture) draw();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [disableNeedleDrag]);
 
     // ── Swim lane hit-testing (delegates to core) ────────────────────────
     const hitTestSwimLane = useCallback((canvasX: number, canvasY: number, canvasW: number, canvasH: number) => {
@@ -469,9 +507,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           e.currentTarget.style.cursor = 'grabbing';
           onDragStart?.();
           const ms   = startMsRef.current + (x / rect.width) * (endMsRef.current - startMsRef.current);
-          curMsRef.current = ms;
-          draw();
-          onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
+          if (commitTime(ms)) draw();
         }
       } else if (e.button === 1) {
         mouseMode.current = 'slide';
@@ -483,7 +519,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         mouseMode.current = 'zoom';
         mouseX.current    = e.clientX;
       }
-    }, [draw, onTimeChange, onDragStart, isInLaneLabelArea, isInSwimLaneRegion, hitTestSwimLane]);
+    }, [draw, commitTime, onDragStart, isInLaneLabelArea, isInSwimLaneRegion, hitTestSwimLane]);
 
     useEffect(() => {
       const onMouseMove = (e: MouseEvent) => {
@@ -519,6 +555,14 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         const w    = rect.width;
 
         if (mouseMode.current === 'scrub') {
+          if (disableNeedleDragRef.current) {
+            // Forced-live mode switched on mid-drag — end the scrub, don't scrub on.
+            stopEdgeScroll();
+            mouseMode.current = 'none';
+            if (canvasRef.current) canvasRef.current.style.cursor = 'default';
+            onDragEnd?.();
+            return;
+          }
           scrubClientX.current = e.clientX;
           const x    = e.clientX - rect.left;
           const edge = w * 0.08;
@@ -531,13 +575,11 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           }
           const cx = Math.max(0, Math.min(w, x));
           const ms = startMsRef.current + (cx / w) * (endMsRef.current - startMsRef.current);
-          curMsRef.current = ms;
-          draw();
-          onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
+          if (commitTime(ms)) draw();
         } else if (mouseMode.current === 'rangeSelectPending' || mouseMode.current === 'rangeSelect') {
           const x = e.clientX - rect.left;
           const dx = Math.abs(x - rangeAnchorX.current);
-          if (mouseMode.current === 'rangeSelectPending' && dx >= 3) {
+          if (mouseMode.current === 'rangeSelectPending' && dx >= RANGE_SELECT_MIN_DRAG_PX) {
             mouseMode.current = 'rangeSelect';
           }
           if (mouseMode.current === 'rangeSelect') {
@@ -589,13 +631,13 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         stopEdgeScroll();
 
         if (mouseMode.current === 'rangeSelectPending') {
-          // Short click — move needle to anchor position
-          curMsRef.current = rangeAnchorMs.current;
+          // Short click — move needle to anchor position. In forced-live mode
+          // commitTime() drops it, so the click leaves the needle alone.
           rangeSelectionRef.current = null;
           mouseMode.current = 'none';
           if (canvasRef.current) canvasRef.current.style.cursor = 'default';
+          commitTime(rangeAnchorMs.current);
           draw();
-          onTimeChange(Cesium.JulianDate.fromDate(new Date(rangeAnchorMs.current)));
           onDragEnd?.();
           return;
         }
@@ -604,17 +646,21 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           const sel = rangeSelectionRef.current;
           rangeSelectionRef.current = null;
           if (sel) {
-            const selStart = Math.min(sel.startMs, sel.endMs);
-            const selEnd   = Math.max(sel.startMs, sel.endMs);
+            let selStart = Math.min(sel.startMs, sel.endMs);
+            let selEnd   = Math.max(sel.startMs, sel.endMs);
+            if (disableNeedleDragRef.current) {
+              // Forced-live mode: the needle never moves, so widen the zoom
+              // range instead to keep the current time on screen.
+              selStart = Math.min(selStart, curMsRef.current);
+              selEnd   = Math.max(selEnd, curMsRef.current);
+            } else {
+              // If the needle is outside the selected range, clamp it to the nearest
+              // edge so the clock-tick auto-scroll doesn't immediately override the zoom.
+              const clampedMs = Math.max(selStart, Math.min(selEnd, curMsRef.current));
+              if (clampedMs !== curMsRef.current) commitTime(clampedMs);
+            }
             startMsRef.current = selStart;
             endMsRef.current   = selEnd;
-            // If the needle is outside the selected range, clamp it to the nearest
-            // edge so the clock-tick auto-scroll doesn't immediately override the zoom.
-            const clampedMs = Math.max(selStart, Math.min(selEnd, curMsRef.current));
-            if (clampedMs !== curMsRef.current) {
-              curMsRef.current = clampedMs;
-              onTimeChange(Cesium.JulianDate.fromDate(new Date(clampedMs)));
-            }
             const startJd = Cesium.JulianDate.fromDate(new Date(selStart));
             const endJd   = Cesium.JulianDate.fromDate(new Date(selEnd));
             onRangeSelectRef.current?.(startJd, endJd);
@@ -637,7 +683,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup',   onMouseUp);
       };
-    }, [draw, onTimeChange, onDragEnd, startEdgeScroll, stopEdgeScroll]);
+    }, [draw, commitTime, onDragEnd, startEdgeScroll, stopEdgeScroll]);
 
     // Zoom around center (uses core zoomRange)
     const zoomFrom = useCallback((amount: number) => {
@@ -704,18 +750,14 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
             touchMode.current    = 'scrub';
             touchX.current       = e.touches[0].clientX;
             scrubClientX.current = e.touches[0].clientX;
-            curMsRef.current     = ms;
-            draw();
             onDragStart?.();
-            onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
+            if (commitTime(ms)) draw();
           }
         } else if (e.touches.length >= 2) {
           // If we were scrubbing, undo the needle move — pinch-zoom should not
           // change the current time.
           if (touchMode.current === 'scrub') {
-            curMsRef.current = prePinchCurMs.current;
-            draw();
-            onTimeChange(Cesium.JulianDate.fromDate(new Date(prePinchCurMs.current)));
+            if (commitTime(prePinchCurMs.current)) draw();
           }
           touchMode.current = 'pinch';
           pinchDist.current = getTouchDist(e.touches[0], e.touches[1]);
@@ -728,6 +770,14 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         const rect = canvas.getBoundingClientRect();
 
         if (touchMode.current === 'scrub' && e.touches.length >= 1) {
+          if (disableNeedleDragRef.current) {
+            // Forced-live mode switched on mid-gesture — the finger pans instead.
+            stopEdgeScroll();
+            touchMode.current = 'slide';
+            touchX.current    = e.touches[0].clientX;
+            onDragEnd?.();
+            return;
+          }
           const x    = e.touches[0].clientX - rect.left;
           const edge = rect.width * 0.08;
 
@@ -739,9 +789,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
             stopEdgeScroll();
             const cx = Math.max(0, Math.min(rect.width, x));
             const ms = startMsRef.current + (cx / rect.width) * (endMsRef.current - startMsRef.current);
-            curMsRef.current = ms;
-            draw();
-            onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
+            if (commitTime(ms)) draw();
           }
 
         } else if (touchMode.current === 'slide' && e.touches.length >= 1) {
@@ -789,7 +837,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         canvas.removeEventListener('touchmove',  onTouchMove);
         canvas.removeEventListener('touchend',   onTouchEnd);
       };
-    }, [draw, onDragStart, onDragEnd, onTimeChange, zoomFrom, startEdgeScroll, stopEdgeScroll]);
+    }, [draw, onDragStart, onDragEnd, commitTime, zoomFrom, startEdgeScroll, stopEdgeScroll]);
 
     // Show grab cursor only when hovering near the needle.
     const handleCanvasMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
