@@ -62,6 +62,8 @@ export interface TimelineProps {
   liveButtonSize?: 'sm' | 'md' | 'lg';
   /** @see TimelineBaseProps.liveButtonPosition */
   liveButtonPosition?: 'left' | 'right';
+  /** @see TimelineBaseProps.showLive */
+  showLive?: boolean;
   /** @see TimelineBaseProps.live */
   live?: boolean;
   /** @see TimelineBaseProps.invertScrollZoom */
@@ -103,6 +105,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   labels,
   liveButtonSize,
   liveButtonPosition,
+  showLive,
   live,
   invertScrollZoom,
 }) => {
@@ -354,6 +357,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             labels={labels}
             liveButtonSize={liveButtonSize}
             liveButtonPosition={liveButtonPosition}
+            showLive={showLive}
             live={live}
           />
         </div>

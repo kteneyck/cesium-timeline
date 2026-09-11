@@ -73,6 +73,7 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
             [labels]="labels"
             [liveButtonSize]="liveButtonSize"
             [liveButtonPosition]="liveButtonPosition"
+            [showLive]="showLive"
             [live]="live"
           />
         </div>
@@ -135,6 +136,8 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
   @Input() liveButtonSize?: 'sm' | 'md' | 'lg';
   /** @see TimelineBaseProps.liveButtonPosition */
   @Input() liveButtonPosition?: 'left' | 'right';
+  /** @see TimelineBaseProps.showLive */
+  @Input() showLive = true;
   /** @see TimelineBaseProps.live */
   @Input() live = false;
   @Input() invertScrollZoom = false;

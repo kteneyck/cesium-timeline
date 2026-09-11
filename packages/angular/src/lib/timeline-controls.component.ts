@@ -64,7 +64,7 @@ import {
           }
         </div>
 
-        @if (liveButtonPosition === 'left') {
+        @if (showLive && liveButtonPosition === 'left') {
           <div style="display:flex;align-items:center;gap:4px">
             <button
               (click)="!live && jumpToLive.emit()"
@@ -193,7 +193,7 @@ import {
       <!-- Right: LIVE (if position=right) + swim-lane toggle -->
       @if (!isNarrow) {
         <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px">
-          @if (liveButtonPosition === 'right') {
+          @if (showLive && liveButtonPosition === 'right') {
             <div style="display:flex;align-items:center;gap:4px">
               <button
                 (click)="!live && jumpToLive.emit()"
@@ -321,6 +321,8 @@ export class TimelineControlsComponent implements AfterViewInit, OnDestroy {
   @Input() labels?: Partial<TimelineLabels>;
   @Input() liveButtonSize: 'sm' | 'md' | 'lg' = 'md';
   @Input() liveButtonPosition: 'left' | 'right' = 'left';
+  /** @see TimelineBaseProps.showLive */
+  @Input() showLive = true;
   /** @see TimelineBaseProps.live */
   @Input() live = false;
 

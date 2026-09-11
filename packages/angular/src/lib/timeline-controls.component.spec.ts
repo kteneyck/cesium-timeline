@@ -62,6 +62,11 @@ describe("TimelineControlsComponent", () => {
     expect(fixture.nativeElement.textContent).toContain(DEFAULT_LABELS.liveActiveLabel);
   });
 
+  it("hides the LIVE button when showLive is false", () => {
+    setInputs({ showLive: false });
+    expect(findBtnDE(fixture, DEFAULT_LABELS.liveLabel)).toBeNull();
+  });
+
   it("emits jumpToLive when LIVE button clicked", () => {
     setInputs({ isLive: false });
     const emitted = [];
