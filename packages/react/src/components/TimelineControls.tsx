@@ -40,6 +40,8 @@ export interface ControlsProps {
   liveButtonSize?: 'sm' | 'md' | 'lg';
   /** @see TimelineBaseProps.liveButtonPosition */
   liveButtonPosition?: 'left' | 'right';
+  /** @see TimelineBaseProps.showLive */
+  showLive?: boolean;
   /** @see TimelineBaseProps.live */
   live?: boolean;
 }
@@ -99,6 +101,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   labels: labelOverrides,
   liveButtonSize = 'md',
   liveButtonPosition = 'left',
+  showLive = true,
   live = false,
 }) => {
   const isRewinding    = multiplier < 0;
@@ -160,7 +163,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
 
   const liveSize = LIVE_SIZE_MAP[liveButtonSize];
 
-  const LiveButton = (
+  const LiveButton = !showLive ? null : (
     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
       <button
         onClick={live ? undefined : onJumpToLive}

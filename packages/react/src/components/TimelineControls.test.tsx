@@ -59,6 +59,11 @@ describe('TimelineControls', () => {
     expect(onJumpToLive).toHaveBeenCalledOnce();
   });
 
+  it('hides the LIVE button when showLive is false', () => {
+    render(<TimelineControls {...makeProps({ showLive: false })} />);
+    expect(screen.queryByText('LIVE')).toBeNull();
+  });
+
   it('calls onPlayPause(true) when play button clicked while stopped', () => {
     const onPlayPause = vi.fn();
     render(<TimelineControls {...makeProps({ isPlaying: false, onPlayPause })} />);

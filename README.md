@@ -180,6 +180,7 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 | `labels` | `Partial<TimelineLabels>` | English defaults | Override any control-bar label or tooltip string. See [Labels & i18n](#labels--i18n).                                                                                                                                                   |
 | `liveButtonSize` | `'sm' \| 'md' \| 'lg'` | `'md'` | Size of the LIVE button in the control bar.                                                                                                                                                                                             |
 | `liveButtonPosition` | `'left' \| 'right'` | `'left'` | Position of the LIVE button — beside the datetime display (`'left'`) or the opposite side of the control bar (`'right'`).                                                                                                               |
+| `showLive` | `boolean` | `true` | Show or hide the LIVE button in the control bar.                                                                                                                                                                                        |
 | `invertScrollZoom` | `boolean` | `false` | Reverses the scroll-wheel zoom direction. By default scroll up zooms in and scroll down zooms out. Set to `true` for scroll down zooms in, scroll up zooms out.                                                                |
 
 ---
@@ -374,6 +375,7 @@ The control bar uses a 3-column CSS grid so the transport buttons are always cen
 - Clicking jumps to `Date.now()`, centers the visible window, and resets speed to 1×.
 - **Size** — controlled by the `liveButtonSize` prop: `'sm'` | `'md'` (default) | `'lg'`.
 - **Position** — controlled by the `liveButtonPosition` prop: `'left'` (default, beside the datetime display) | `'right'` (right side of the control bar).
+- **Visibility** — controlled by the `showLive` prop: `true` (default) shows the button, `false` hides it entirely.
 - **Dot color** — controlled by `theme.liveDotColor` (default `#e53e3e`).
 
 ### Speed Badge

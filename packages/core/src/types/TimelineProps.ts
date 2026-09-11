@@ -139,6 +139,11 @@ export interface TimelineBaseProps {
    */
   liveButtonPosition?: 'left' | 'right';
   /**
+   * Whether to show the LIVE button in the control bar.
+   * @default true
+   */
+  showLive?: boolean;
+  /**
    * When `true`, the timeline is locked to live mode.
    * Needle drag, datetime click, play/pause, rewind, fast-forward,
    * jump-to-start, and jump-to-end are all disabled. The LIVE button
@@ -210,4 +215,6 @@ export interface ControlsBaseProps {
   liveButtonSize?: 'sm' | 'md' | 'lg';
   /** @see TimelineBaseProps.liveButtonPosition */
   liveButtonPosition?: 'left' | 'right';
+  /** @see TimelineBaseProps.showLive */
+  showLive?: boolean;
 }
