@@ -64,6 +64,12 @@ describe('TimelineControls', () => {
     expect(screen.queryByText('LIVE')).toBeNull();
   });
 
+  it('still shows the speed reset badge when showLive is false', () => {
+    render(<TimelineControls {...makeProps({ showLive: false, multiplier: 2 })} />);
+    expect(screen.queryByText('LIVE')).toBeNull();
+    expect(document.querySelector('[title="Reset to 1× speed"]')).not.toBeNull();
+  });
+
   it('calls onPlayPause(true) when play button clicked while stopped', () => {
     const onPlayPause = vi.fn();
     render(<TimelineControls {...makeProps({ isPlaying: false, onPlayPause })} />);
