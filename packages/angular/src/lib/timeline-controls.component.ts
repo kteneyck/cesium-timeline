@@ -64,33 +64,35 @@ import {
           }
         </div>
 
-        @if (showLive && liveButtonPosition === 'left') {
+        @if (liveButtonPosition === 'left' && (showLive || (!isNormalSpeed && !live))) {
           <div style="display:flex;align-items:center;gap:4px">
-            <button
-              (click)="!live && jumpToLive.emit()"
-              [style.color]="(live || isLive) ? theme.controlBarBackground : theme.buttonActiveColor"
-              [style.background-color]="(live || isLive) ? theme.buttonActiveColor : 'transparent'"
-              [style.border-color]="theme.buttonActiveColor"
-              [style.opacity]="1"
-              [style.width.px]="liveSize.width"
-              [style.min-width.px]="liveSize.width"
-              [style.height.px]="liveSize.height"
-              [style.font-size]="liveSize.fontSize"
-              [style.border-radius]="liveSize.borderRadius"
-              [style.cursor]="live ? 'default' : 'pointer'"
-              style="background:none;border:1px solid;font-weight:bold;letter-spacing:0.05em;display:flex;align-items:center;justify-content:center;padding:0;gap:4px;font-family:system-ui,-apple-system,sans-serif;transition:opacity 0.15s"
-              [title]="(live || isLive) ? l.liveActiveTooltip : l.liveTooltip"
-            >
-              @if (live || isLive) {
-                <span
-                  [style.width.px]="liveSize.dot"
-                  [style.height.px]="liveSize.dot"
-                  [style.background-color]="theme.liveDotColor"
-                  style="border-radius:50%;display:inline-block;flex-shrink:0"
-                ></span>
-              }
-              {{ (live || isLive) ? l.liveActiveLabel : l.liveLabel }}
-            </button>
+            @if (showLive) {
+              <button
+                (click)="!live && jumpToLive.emit()"
+                [style.color]="(live || isLive) ? theme.controlBarBackground : theme.buttonActiveColor"
+                [style.background-color]="(live || isLive) ? theme.buttonActiveColor : 'transparent'"
+                [style.border-color]="theme.buttonActiveColor"
+                [style.opacity]="1"
+                [style.width.px]="liveSize.width"
+                [style.min-width.px]="liveSize.width"
+                [style.height.px]="liveSize.height"
+                [style.font-size]="liveSize.fontSize"
+                [style.border-radius]="liveSize.borderRadius"
+                [style.cursor]="live ? 'default' : 'pointer'"
+                style="background:none;border:1px solid;font-weight:bold;letter-spacing:0.05em;display:flex;align-items:center;justify-content:center;padding:0;gap:4px;font-family:system-ui,-apple-system,sans-serif;transition:opacity 0.15s"
+                [title]="(live || isLive) ? l.liveActiveTooltip : l.liveTooltip"
+              >
+                @if (live || isLive) {
+                  <span
+                    [style.width.px]="liveSize.dot"
+                    [style.height.px]="liveSize.dot"
+                    [style.background-color]="theme.liveDotColor"
+                    style="border-radius:50%;display:inline-block;flex-shrink:0"
+                  ></span>
+                }
+                {{ (live || isLive) ? l.liveActiveLabel : l.liveLabel }}
+              </button>
+            }
             @if (!isNormalSpeed && !live) {
               <button
                 (click)="resetSpeed.emit()"
@@ -130,15 +132,9 @@ import {
             (click)="rewind.emit()"
             [style.color]="isRewinding ? theme.buttonActiveColor : theme.buttonColor"
             [style.border-color]="isRewinding ? theme.buttonActiveColor + '33' : 'transparent'"
-            class="ct-btn ct-btn-wide"
+            class="ct-btn"
             [title]="isRewinding ? resolveRewindActive(absMultiplier) : l.rewindTooltip"
-          >
-            @if (isRewinding) {
-              <span style="font-size:11px;font-weight:bold">{{ absMultiplier }}×</span>◀◀
-            } @else {
-              ◀◀
-            }
-          </button>
+          >◀◀</button>
         }
 
         @if (!live) {
@@ -166,15 +162,9 @@ import {
             (click)="fastForward.emit()"
             [style.color]="isFastForward ? theme.buttonActiveColor : theme.buttonColor"
             [style.border-color]="isFastForward ? theme.buttonActiveColor + '33' : 'transparent'"
-            class="ct-btn ct-btn-wide"
+            class="ct-btn"
             [title]="isFastForward ? resolveFastForwardActive(absMultiplier) : l.fastForwardTooltip"
-          >
-            @if (isFastForward) {
-              ▶▶<span style="font-size:11px;font-weight:bold">{{ absMultiplier }}×</span>
-            } @else {
-              ▶▶
-            }
-          </button>
+          >▶▶</button>
         }
 
         @if (!live && showJumpToEnd !== false) {
@@ -193,33 +183,35 @@ import {
       <!-- Right: LIVE (if position=right) + swim-lane toggle -->
       @if (!isNarrow) {
         <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px">
-          @if (showLive && liveButtonPosition === 'right') {
+          @if (liveButtonPosition === 'right' && (showLive || (!isNormalSpeed && !live))) {
             <div style="display:flex;align-items:center;gap:4px">
-              <button
-                (click)="!live && jumpToLive.emit()"
-                [style.color]="(live || isLive) ? theme.controlBarBackground : theme.buttonActiveColor"
-                [style.background-color]="(live || isLive) ? theme.buttonActiveColor : 'transparent'"
-                [style.border-color]="theme.buttonActiveColor"
-                [style.opacity]="1"
-                [style.width.px]="liveSize.width"
-                [style.min-width.px]="liveSize.width"
-                [style.height.px]="liveSize.height"
-                [style.font-size]="liveSize.fontSize"
-                [style.border-radius]="liveSize.borderRadius"
-                [style.cursor]="live ? 'default' : 'pointer'"
-                style="background:none;border:1px solid;font-weight:bold;letter-spacing:0.05em;display:flex;align-items:center;justify-content:center;padding:0;gap:4px;font-family:system-ui,-apple-system,sans-serif;transition:opacity 0.15s"
-                [title]="(live || isLive) ? l.liveActiveTooltip : l.liveTooltip"
-              >
-                @if (live || isLive) {
-                  <span
-                    [style.width.px]="liveSize.dot"
-                    [style.height.px]="liveSize.dot"
-                    [style.background-color]="theme.liveDotColor"
-                    style="border-radius:50%;display:inline-block;flex-shrink:0"
-                  ></span>
-                }
-                {{ (live || isLive) ? l.liveActiveLabel : l.liveLabel }}
-              </button>
+              @if (showLive) {
+                <button
+                  (click)="!live && jumpToLive.emit()"
+                  [style.color]="(live || isLive) ? theme.controlBarBackground : theme.buttonActiveColor"
+                  [style.background-color]="(live || isLive) ? theme.buttonActiveColor : 'transparent'"
+                  [style.border-color]="theme.buttonActiveColor"
+                  [style.opacity]="1"
+                  [style.width.px]="liveSize.width"
+                  [style.min-width.px]="liveSize.width"
+                  [style.height.px]="liveSize.height"
+                  [style.font-size]="liveSize.fontSize"
+                  [style.border-radius]="liveSize.borderRadius"
+                  [style.cursor]="live ? 'default' : 'pointer'"
+                  style="background:none;border:1px solid;font-weight:bold;letter-spacing:0.05em;display:flex;align-items:center;justify-content:center;padding:0;gap:4px;font-family:system-ui,-apple-system,sans-serif;transition:opacity 0.15s"
+                  [title]="(live || isLive) ? l.liveActiveTooltip : l.liveTooltip"
+                >
+                  @if (live || isLive) {
+                    <span
+                      [style.width.px]="liveSize.dot"
+                      [style.height.px]="liveSize.dot"
+                      [style.background-color]="theme.liveDotColor"
+                      style="border-radius:50%;display:inline-block;flex-shrink:0"
+                    ></span>
+                  }
+                  {{ (live || isLive) ? l.liveActiveLabel : l.liveLabel }}
+                </button>
+              }
               @if (!isNormalSpeed && !live) {
                 <button
                   (click)="resetSpeed.emit()"
@@ -295,7 +287,6 @@ import {
       line-height: 1;
     }
     .ct-btn:hover { background-color: rgba(255,255,255,0.1); }
-    .ct-btn-wide { width: 64px; min-width: 64px; gap: 3px; }
     .ct-btn-play {
       font-size: 18px;
       width: 40px;

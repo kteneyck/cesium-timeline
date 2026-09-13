@@ -67,6 +67,12 @@ describe("TimelineControlsComponent", () => {
     expect(findBtnDE(fixture, DEFAULT_LABELS.liveLabel)).toBeNull();
   });
 
+  it("still shows the speed reset badge when showLive is false", () => {
+    setInputs({ showLive: false, multiplier: 4 });
+    expect(findBtnDE(fixture, DEFAULT_LABELS.liveLabel)).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain("4×");
+  });
+
   it("emits jumpToLive when LIVE button clicked", () => {
     setInputs({ isLive: false });
     const emitted = [];
