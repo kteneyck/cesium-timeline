@@ -1,5 +1,16 @@
 # @kteneyck/cesium-timeline-react
 
+## 0.13.0
+
+### Minor Changes
+
+- c223d25: add live button enabled flag
+
+### Patch Changes
+
+- Updated dependencies [c223d25]
+  - @kteneyck/cesium-timeline-core@0.13.0
+
 ## 0.12.0
 
 ### Minor Changes
