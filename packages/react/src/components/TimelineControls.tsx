@@ -306,15 +306,11 @@ export const TimelineControls: React.FC<ControlsProps> = ({
         {!live && (
           <button
             onClick={onRewind}
-            style={{ ...btn(isRewinding), width: '64px', minWidth: '64px', gap: '3px' }}
+            style={btn(isRewinding)}
             onMouseEnter={e => onEnter(e, isRewinding)}
             onMouseLeave={onLeave}
             title={isRewinding ? resolveLabel(L.rewindActiveTooltip, absMultiplier) : L.rewindTooltip}
-          >
-            {isRewinding ? (
-              <><span style={{ fontSize: '11px', fontWeight: 'bold' }}>{absMultiplier}×</span>◀◀</>
-            ) : '◀◀'}
-          </button>
+          >◀◀</button>
         )}
 
         {!live && (
@@ -342,15 +338,11 @@ export const TimelineControls: React.FC<ControlsProps> = ({
         {!live && (
           <button
             onClick={onFastForward}
-            style={{ ...btn(isFastForward), width: '64px', minWidth: '64px', gap: '3px' }}
+            style={btn(isFastForward)}
             onMouseEnter={e => onEnter(e, isFastForward)}
             onMouseLeave={onLeave}
             title={isFastForward ? resolveLabel(L.fastForwardActiveTooltip, absMultiplier) : L.fastForwardTooltip}
-          >
-            {isFastForward ? (
-              <>▶▶<span style={{ fontSize: '11px', fontWeight: 'bold' }}>{absMultiplier}×</span></>
-            ) : '▶▶'}
-          </button>
+          >▶▶</button>
         )}
 
         {!live && showJumpToEnd && (

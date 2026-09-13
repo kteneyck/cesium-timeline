@@ -130,15 +130,9 @@ import {
             (click)="rewind.emit()"
             [style.color]="isRewinding ? theme.buttonActiveColor : theme.buttonColor"
             [style.border-color]="isRewinding ? theme.buttonActiveColor + '33' : 'transparent'"
-            class="ct-btn ct-btn-wide"
+            class="ct-btn"
             [title]="isRewinding ? resolveRewindActive(absMultiplier) : l.rewindTooltip"
-          >
-            @if (isRewinding) {
-              <span style="font-size:11px;font-weight:bold">{{ absMultiplier }}×</span>◀◀
-            } @else {
-              ◀◀
-            }
-          </button>
+          >◀◀</button>
         }
 
         @if (!live) {
@@ -166,15 +160,9 @@ import {
             (click)="fastForward.emit()"
             [style.color]="isFastForward ? theme.buttonActiveColor : theme.buttonColor"
             [style.border-color]="isFastForward ? theme.buttonActiveColor + '33' : 'transparent'"
-            class="ct-btn ct-btn-wide"
+            class="ct-btn"
             [title]="isFastForward ? resolveFastForwardActive(absMultiplier) : l.fastForwardTooltip"
-          >
-            @if (isFastForward) {
-              ▶▶<span style="font-size:11px;font-weight:bold">{{ absMultiplier }}×</span>
-            } @else {
-              ▶▶
-            }
-          </button>
+          >▶▶</button>
         }
 
         @if (!live && showJumpToEnd !== false) {
@@ -295,7 +283,6 @@ import {
       line-height: 1;
     }
     .ct-btn:hover { background-color: rgba(255,255,255,0.1); }
-    .ct-btn-wide { width: 64px; min-width: 64px; gap: 3px; }
     .ct-btn-play {
       font-size: 18px;
       width: 40px;
