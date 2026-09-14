@@ -1,5 +1,16 @@
 # @kteneyck/cesium-timeline-react
 
+## 0.14.0
+
+### Minor Changes
+
+- 78a4479: decouple time multiplier from the live button for show flag
+
+### Patch Changes
+
+- Updated dependencies [78a4479]
+  - @kteneyck/cesium-timeline-core@0.14.0
+
 ## 0.13.0
 
 ### Minor Changes
