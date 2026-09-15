@@ -6,6 +6,8 @@ export {
   twoD,
   resolveItemStyle,
   clampSpan,
+  clampRangeToLimits,
+  clampMsToLimits,
   zoomRange,
   zoomAroundMs,
   totalSwimLaneHeight,

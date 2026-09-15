@@ -158,6 +158,14 @@ export interface TimelineBaseProps {
    * @default false
    */
   invertScrollZoom?: boolean;
+  /**
+   * When `true`, `startTime` and `endTime` become hard scroll/zoom limits:
+   * the user cannot pan or zoom the visible window past them (drag, wheel,
+   * pinch, edge-scroll, and range-select are all clamped). Has no effect
+   * unless `startTime` and/or `endTime` are provided.
+   * @default false
+   */
+  restrictToRange?: boolean;
 }
 
 /**

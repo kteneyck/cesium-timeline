@@ -71,6 +71,58 @@ describe('TimelineCanvas', () => {
     });
   });
 
+  describe('restrictToRange', () => {
+    const limitStartMs = REF_MS - 3_600_000;
+    const limitEndMs   = REF_MS + 3_600_000;
+
+    it('clamps zoomTo to the configured limits', () => {
+      const { handle } = renderCanvas({ restrictToRange: true, limitStartMs, limitEndMs });
+      act(() => {
+        // Recenter around a pivot near the end limit with the full-range span —
+        // mirrors the needle auto-scroll recenter that pushes 10% past an edge.
+        handle.current!.zoomTo(limitEndMs - 100_000, limitEndMs + 7_100_000);
+      });
+      const { startMs, endMs } = handle.current!.getVisibleRange();
+      expect(startMs).toBe(limitStartMs);
+      expect(endMs).toBe(limitEndMs);
+    });
+
+    // Regression test: the needle auto-scroll recenter (Timeline.tsx's 10%/90%
+    // threshold) can shift the visible window before `restrictToRange` takes
+    // effect (e.g. it flips from false to true, or the limits are set after the
+    // fact). Nothing should leave the window permanently out of bounds once
+    // restrictToRange/limits are in effect — draw() must self-correct.
+    it('self-corrects an out-of-bounds window when restrictToRange turns on', () => {
+      const { handle, rerender } = renderCanvas();
+      act(() => {
+        // Simulate a shift that happened while restrictToRange was off.
+        handle.current!.zoomTo(limitEndMs - 100_000, limitEndMs + 7_100_000);
+      });
+      const before = handle.current!.getVisibleRange();
+      expect(before.endMs).toBeGreaterThan(limitEndMs);
+
+      act(() => {
+        rerender(
+          <TimelineCanvas
+            ref={handle}
+            currentTime={Cesium.JulianDate.fromDate(new Date(REF_MS))}
+            defaultStartMs={REF_MS - 3_600_000}
+            defaultEndMs={REF_MS + 3_600_000}
+            theme={defaultTheme}
+            onTimeChange={vi.fn()}
+            restrictToRange={true}
+            limitStartMs={limitStartMs}
+            limitEndMs={limitEndMs}
+          />
+        );
+      });
+
+      const after = handle.current!.getVisibleRange();
+      expect(after.startMs).toBe(limitStartMs);
+      expect(after.endMs).toBe(limitEndMs);
+    });
+  });
+
   describe('swim lane CRUD', () => {
     it('appendSwimLane adds a lane', () => {
       const { handle } = renderCanvas();

@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { SimpleChange } from '@angular/core';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TimelineCanvasComponent } from './timeline-canvas.component';
 import { defaultTheme, MIN_SPAN_MS, MAX_SPAN_MS } from '@kteneyck/cesium-timeline-core';
@@ -66,6 +67,45 @@ describe('TimelineCanvasComponent', () => {
       component.zoomTo(REF_MS - MAX_SPAN_MS * 2, REF_MS + MAX_SPAN_MS * 2);
       const { startMs, endMs } = component.getVisibleRange();
       expect(endMs - startMs).toBe(MAX_SPAN_MS);
+    });
+  });
+
+  describe('restrictToRange', () => {
+    const limitStartMs = REF_MS - 3_600_000;
+    const limitEndMs   = REF_MS + 3_600_000;
+
+    it('clamps zoomTo to the configured limits', () => {
+      setInputs({ restrictToRange: true, limitStartMs, limitEndMs });
+      // Recenter around a pivot near the end limit with the full-range span —
+      // mirrors the needle auto-scroll recenter that pushes 10% past an edge.
+      component.zoomTo(limitEndMs - 100_000, limitEndMs + 7_100_000);
+      const { startMs, endMs } = component.getVisibleRange();
+      expect(startMs).toBe(limitStartMs);
+      expect(endMs).toBe(limitEndMs);
+    });
+
+    // Regression test: the needle auto-scroll recenter (timeline.component.ts's
+    // 10%/90% threshold) can shift the visible window before `restrictToRange`
+    // takes effect (e.g. it flips from false to true, or the limits are set
+    // after the fact). Nothing should leave the window permanently out of
+    // bounds once restrictToRange/limits are in effect — draw() must self-correct.
+    it('self-corrects an out-of-bounds window when restrictToRange turns on', () => {
+      setInputs();
+      // Simulate a shift that happened while restrictToRange was off.
+      component.zoomTo(limitEndMs - 100_000, limitEndMs + 7_100_000);
+      const before = component.getVisibleRange();
+      expect(before.endMs).toBeGreaterThan(limitEndMs);
+
+      component.restrictToRange = true;
+      component.limitStartMs = limitStartMs;
+      component.limitEndMs = limitEndMs;
+      component.ngOnChanges({
+        restrictToRange: new SimpleChange(false, true, false),
+      });
+
+      const after = component.getVisibleRange();
+      expect(after.startMs).toBe(limitStartMs);
+      expect(after.endMs).toBe(limitEndMs);
     });
   });
 
