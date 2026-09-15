@@ -197,8 +197,18 @@ export function clampRangeToLimits(
   if (limitStartMs == null && limitEndMs == null) return { startMs, endMs };
 
   const span = endMs - startMs;
-  if (limitStartMs != null && limitEndMs != null && span >= limitEndMs - limitStartMs) {
-    return { startMs: limitStartMs, endMs: limitEndMs };
+  if (limitStartMs != null && limitEndMs != null) {
+    const limitSpan = limitEndMs - limitStartMs;
+    // A limit range narrower than the smallest renderable span (including an
+    // inverted or zero-width one) can't be honoured as-is — drawing it would
+    // leave the canvas blank. Widen it around its midpoint instead.
+    if (limitSpan < MIN_SPAN_MS) {
+      const mid = (limitStartMs + limitEndMs) / 2;
+      return { startMs: mid - MIN_SPAN_MS / 2, endMs: mid + MIN_SPAN_MS / 2 };
+    }
+    if (span >= limitSpan) {
+      return { startMs: limitStartMs, endMs: limitEndMs };
+    }
   }
 
   let s = startMs;

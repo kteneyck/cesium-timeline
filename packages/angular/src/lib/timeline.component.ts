@@ -319,10 +319,15 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
         const rawMs = Cesium.JulianDate.toDate(this.clock!.currentTime).getTime();
         const ctMs  = this.clampTimeMs(rawMs);
         if (ctMs !== rawMs) {
-          // Hit a restrictToRange boundary during playback — stop right there
-          // instead of letting the needle run off the edge of the window.
-          this.clock!.currentTime   = Cesium.JulianDate.fromDate(new Date(ctMs));
-          this.clock!.shouldAnimate = false;
+          // Hit a restrictToRange boundary — snap the needle to it. Only stop
+          // playback when the clamp opposes the direction of travel; a clock
+          // sitting outside the range and heading back into it keeps running.
+          this.clock!.currentTime = Cesium.JulianDate.fromDate(new Date(ctMs));
+          const hitEndLimit   = ctMs < rawMs;
+          const movingForward = this.clock!.multiplier > 0;
+          if (hitEndLimit ? movingForward : !movingForward) {
+            this.clock!.shouldAnimate = false;
+          }
         }
         const ct = Cesium.JulianDate.clone(this.clock!.currentTime);
         this.currentTimeState = ct;

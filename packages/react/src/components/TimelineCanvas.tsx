@@ -38,6 +38,7 @@ import {
   zoomRange,
   zoomAroundMs,
   clampRangeToLimits,
+  clampMsToLimits,
 } from '@kteneyck/cesium-timeline-core';
 
 // Re-export for consumers
@@ -162,6 +163,13 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       );
       startMsRef.current = result.startMs;
       endMsRef.current   = result.endMs;
+      // Keep the needle inside the limits too, otherwise follow-scroll walks it
+      // off the pinned window and it gets drawn off-canvas.
+      curMsRef.current = clampMsToLimits(
+        curMsRef.current,
+        limitStartMsRef.current,
+        limitEndMsRef.current
+      );
     }, []);
 
     // ── Swim lane state (ref-based — no React re-renders) ──────────────────

@@ -285,6 +285,28 @@ describe('clampRangeToLimits', () => {
     expect(endMs).toBe(limitEnd);
     expect(startMs).toBe(limitEnd - 600_000);
   });
+
+  it('widens a zero-width limit range to the minimum renderable span', () => {
+    const { startMs, endMs } = clampRangeToLimits(limitStart, limitStart + 600_000, limitStart, limitStart);
+    expect(endMs - startMs).toBe(MIN_SPAN_MS);
+    expect((startMs + endMs) / 2).toBe(limitStart);
+  });
+
+  it('widens a sub-second limit range to the minimum renderable span', () => {
+    const narrowEnd = limitStart + 200;
+    const { startMs, endMs } = clampRangeToLimits(limitStart, limitStart + 600_000, limitStart, narrowEnd);
+    expect(endMs - startMs).toBe(MIN_SPAN_MS);
+    expect((startMs + endMs) / 2).toBe(limitStart + 100);
+  });
+
+  it('never returns a span that would blank the canvas', () => {
+    for (const limitSpan of [0, 1, 999, 1000, 5000]) {
+      const { startMs, endMs } = clampRangeToLimits(
+        limitStart, limitStart + 600_000, limitStart, limitStart + limitSpan,
+      );
+      expect(endMs - startMs).toBeGreaterThanOrEqual(MIN_SPAN_MS);
+    }
+  });
 });
 
 // ── clampMsToLimits ─────────────────────────────────────────────────────────────

@@ -33,6 +33,7 @@ import {
   zoomAroundMs,
   totalSwimLaneHeight,
   clampRangeToLimits,
+  clampMsToLimits,
 } from '@kteneyck/cesium-timeline-core';
 
 export { TICK_AREA_HEIGHT };
@@ -232,6 +233,9 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     const result = clampRangeToLimits(this.startMs, this.endMs, this.limitStartMs, this.limitEndMs);
     this.startMs = result.startMs;
     this.endMs = result.endMs;
+    // Keep the needle inside the limits too, otherwise follow-scroll walks it
+    // off the pinned window and it gets drawn off-canvas.
+    this.curMs = clampMsToLimits(this.curMs, this.limitStartMs, this.limitEndMs);
   }
 
   getVisibleRange(): { startMs: number; endMs: number } {

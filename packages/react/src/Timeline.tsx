@@ -195,10 +195,15 @@ export const Timeline: React.FC<TimelineProps> = ({
         const rawMs = Cesium.JulianDate.toDate(clock.currentTime).getTime();
         const ctMs  = clampTimeMs(rawMs);
         if (ctMs !== rawMs) {
-          // Hit a restrictToRange boundary during playback — stop right there
-          // instead of letting the needle run off the edge of the window.
-          clock.currentTime  = Cesium.JulianDate.fromDate(new Date(ctMs));
-          clock.shouldAnimate = false;
+          // Hit a restrictToRange boundary — snap the needle to it. Only stop
+          // playback when the clamp opposes the direction of travel; a clock
+          // sitting outside the range and heading back into it keeps running.
+          clock.currentTime = Cesium.JulianDate.fromDate(new Date(ctMs));
+          const hitEndLimit   = ctMs < rawMs;
+          const movingForward = clock.multiplier > 0;
+          if (hitEndLimit ? movingForward : !movingForward) {
+            clock.shouldAnimate = false;
+          }
         }
         const ct = Cesium.JulianDate.clone(clock.currentTime);
         setCurrentTime(ct);

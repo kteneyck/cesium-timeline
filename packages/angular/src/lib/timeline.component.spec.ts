@@ -249,6 +249,7 @@ describe('TimelineComponent', () => {
       const clock = new (Cesium as any).Clock();
       clock.currentTime = Cesium.JulianDate.fromDate(new Date(start + 1000));
       clock.shouldAnimate = true;
+      clock.multiplier = -1; // actually rewinding, i.e. into the start wall
       component.restrictToRange = true;
       attachClock(clock);
 
@@ -257,6 +258,36 @@ describe('TimelineComponent', () => {
 
       expect(Cesium.JulianDate.toDate(clock.currentTime).getTime()).toBe(start);
       expect(clock.shouldAnimate).toBe(false);
+    });
+
+    it('keeps playing when a clock below the range is moving back into it', () => {
+      const clock = new (Cesium as any).Clock();
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(start - 3_600_000));
+      clock.shouldAnimate = true;
+      clock.multiplier = 1; // forward, i.e. heading toward the range
+      component.restrictToRange = true;
+      attachClock(clock);
+
+      clock.onTick.fire();
+
+      // Snapped to the start limit, but playback must survive — the clamp is
+      // in the same direction as travel, not against it.
+      expect(Cesium.JulianDate.toDate(clock.currentTime).getTime()).toBe(start);
+      expect(clock.shouldAnimate).toBe(true);
+    });
+
+    it('keeps rewinding when a clock above the range is moving back into it', () => {
+      const clock = new (Cesium as any).Clock();
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(end + 3_600_000));
+      clock.shouldAnimate = true;
+      clock.multiplier = -1; // rewinding, i.e. heading toward the range
+      component.restrictToRange = true;
+      attachClock(clock);
+
+      clock.onTick.fire();
+
+      expect(Cesium.JulianDate.toDate(clock.currentTime).getTime()).toBe(end);
+      expect(clock.shouldAnimate).toBe(true);
     });
 
     it('does not clamp the needle when restrictToRange is not set', () => {

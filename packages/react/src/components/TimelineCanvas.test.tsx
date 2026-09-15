@@ -5,6 +5,28 @@ import { TimelineCanvas, TimelineCanvasHandle } from './TimelineCanvas';
 import { defaultTheme, MIN_SPAN_MS, MAX_SPAN_MS } from '@kteneyck/cesium-timeline-core';
 import * as Cesium from 'cesium';
 
+// Capture the state the engine is actually asked to render, so needle position
+// can be asserted (there is no public getter for it).
+const { drawStates } = vi.hoisted(() => ({
+  drawStates: [] as Array<{ startMs: number; endMs: number; currentMs: number }>,
+}));
+
+vi.mock('@kteneyck/cesium-timeline-core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@kteneyck/cesium-timeline-core')>();
+  return {
+    ...actual,
+    drawTimeline: (
+      ctx: CanvasRenderingContext2D,
+      w: number,
+      h: number,
+      state: Parameters<typeof actual.drawTimeline>[3],
+    ) => {
+      drawStates.push({ startMs: state.startMs, endMs: state.endMs, currentMs: state.currentMs });
+      return actual.drawTimeline(ctx, w, h, state);
+    },
+  };
+});
+
 vi.mock('cesium', () => {
   const dates = new Map<number, Date>();
   let id = 0;
@@ -85,6 +107,37 @@ describe('TimelineCanvas', () => {
       const { startMs, endMs } = handle.current!.getVisibleRange();
       expect(startMs).toBe(limitStartMs);
       expect(endMs).toBe(limitEndMs);
+    });
+
+    it('never renders the needle outside the limits', () => {
+      const { handle } = renderCanvas({ restrictToRange: true, limitStartMs, limitEndMs });
+      drawStates.length = 0;
+      act(() => {
+        handle.current!.zoomTo(limitStartMs, limitEndMs, limitEndMs + 7_200_000);
+      });
+      const last = drawStates[drawStates.length - 1];
+      expect(last.currentMs).toBe(limitEndMs);
+    });
+
+    // Regression test: follow-scroll advances currentMs alongside the window.
+    // Once the window pins against a limit the needle must stop with it rather
+    // than walking off the pinned window and drawing off-canvas.
+    it('clamps the needle to the limits during follow-scroll', () => {
+      const { handle } = renderCanvas({ restrictToRange: true, limitStartMs, limitEndMs });
+      act(() => {
+        handle.current!.zoomTo(limitEndMs - 600_000, limitEndMs, limitEndMs - 1_000);
+      });
+
+      act(() => { handle.current!.startFollow(1); });
+      act(() => { handle.current!.correctFollow(limitEndMs + 3_600_000); });
+      act(() => { handle.current!.stopFollow(); });
+
+      drawStates.length = 0;
+      act(() => { handle.current!.zoomTo(limitEndMs - 600_000, limitEndMs); });
+
+      const last = drawStates[drawStates.length - 1];
+      expect(last.currentMs).toBeLessThanOrEqual(limitEndMs);
+      expect(last.currentMs).toBeGreaterThanOrEqual(limitStartMs);
     });
 
     // Regression test: the needle auto-scroll recenter (Timeline.tsx's 10%/90%
