@@ -1,5 +1,11 @@
 # @kteneyck/cesium-timeline-core
 
+## 0.15.0
+
+### Minor Changes
+
+- 7d7b1ae: Add restrictToRange to bound timeline scrolling to start/end
+
 ## 0.14.0
 
 ### Minor Changes

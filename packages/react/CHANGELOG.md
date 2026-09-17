@@ -1,5 +1,16 @@
 # @kteneyck/cesium-timeline-react
 
+## 0.15.0
+
+### Minor Changes
+
+- 7d7b1ae: Add restrictToRange to bound timeline scrolling to start/end
+
+### Patch Changes
+
+- Updated dependencies [7d7b1ae]
+  - @kteneyck/cesium-timeline-core@0.15.0
+
 ## 0.14.0
 
 ### Minor Changes
