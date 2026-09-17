@@ -641,6 +641,26 @@ const end   = Cesium.JulianDate.fromIso8601('2026-12-31T23:59:59Z');
 />
 ```
 
+### Restricting Pan/Zoom to a Range
+
+By default the visible window can be panned or zoomed anywhere, regardless of `startTime`/`endTime` — those props only seed the initial view. Set `restrictToRange` to turn them into hard limits: drag, wheel, pinch, edge-scroll, and zoom-to-selection can no longer move the window past them, and playback stops at the boundary instead of running off the edge.
+
+```tsx
+const start = Cesium.JulianDate.fromIso8601('2026-01-01T00:00:00Z');
+const end   = Cesium.JulianDate.fromIso8601('2026-01-31T23:59:59Z');
+
+<Timeline
+  clock={viewer.clock}
+  startTime={start}
+  endTime={end}
+  restrictToRange
+  height={120}
+  onTimeChange={(t) => { viewer.clock.currentTime = t; }}
+/>
+```
+
+> `restrictToRange` has no effect unless `startTime` and/or `endTime` are provided — with only one bound set, panning/zooming is limited on that side only.
+
 ### Configuring Max Ticks
 
 Useful when the timeline is shown at a small height or in a compact layout.
