@@ -160,4 +160,119 @@ describe('Timeline', () => {
     // After tick the LIVE button should show as inactive (time is in past)
     expect(getByText('LIVE')).toBeTruthy();
   });
+
+  describe('restrictToRange — needle clamping', () => {
+    const start = REF_MS - 3_600_000;
+    const end   = REF_MS + 3_600_000;
+
+    it('stops playback at the end boundary instead of running past it', () => {
+      const clock = new (Cesium as any).Clock();
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(end - 1000));
+      clock.shouldAnimate = true;
+      render(
+        <Timeline
+          clock={clock}
+          timezone="UTC"
+          startTime={Cesium.JulianDate.fromDate(new Date(start))}
+          endTime={Cesium.JulianDate.fromDate(new Date(end))}
+          restrictToRange
+        />
+      );
+
+      // Playback advances past the end limit.
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(end + 3_600_000));
+      act(() => { clock.onTick.fire(); });
+
+      expect(Cesium.JulianDate.toDate(clock.currentTime).getTime()).toBe(end);
+      expect(clock.shouldAnimate).toBe(false);
+    });
+
+    it('stops rewind at the start boundary instead of running past it', () => {
+      const clock = new (Cesium as any).Clock();
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(start + 1000));
+      clock.shouldAnimate = true;
+      clock.multiplier = -1; // actually rewinding, i.e. into the start wall
+      render(
+        <Timeline
+          clock={clock}
+          timezone="UTC"
+          startTime={Cesium.JulianDate.fromDate(new Date(start))}
+          endTime={Cesium.JulianDate.fromDate(new Date(end))}
+          restrictToRange
+        />
+      );
+
+      // Rewind advances past the start limit.
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(start - 3_600_000));
+      act(() => { clock.onTick.fire(); });
+
+      expect(Cesium.JulianDate.toDate(clock.currentTime).getTime()).toBe(start);
+      expect(clock.shouldAnimate).toBe(false);
+    });
+
+    it('keeps playing when a clock below the range is moving back into it', () => {
+      const clock = new (Cesium as any).Clock();
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(start - 3_600_000));
+      clock.shouldAnimate = true;
+      clock.multiplier = 1; // forward, i.e. heading toward the range
+      render(
+        <Timeline
+          clock={clock}
+          timezone="UTC"
+          startTime={Cesium.JulianDate.fromDate(new Date(start))}
+          endTime={Cesium.JulianDate.fromDate(new Date(end))}
+          restrictToRange
+        />
+      );
+
+      act(() => { clock.onTick.fire(); });
+
+      // Snapped to the start limit, but playback must survive — the clamp is
+      // in the same direction as travel, not against it.
+      expect(Cesium.JulianDate.toDate(clock.currentTime).getTime()).toBe(start);
+      expect(clock.shouldAnimate).toBe(true);
+    });
+
+    it('keeps rewinding when a clock above the range is moving back into it', () => {
+      const clock = new (Cesium as any).Clock();
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(end + 3_600_000));
+      clock.shouldAnimate = true;
+      clock.multiplier = -1; // rewinding, i.e. heading toward the range
+      render(
+        <Timeline
+          clock={clock}
+          timezone="UTC"
+          startTime={Cesium.JulianDate.fromDate(new Date(start))}
+          endTime={Cesium.JulianDate.fromDate(new Date(end))}
+          restrictToRange
+        />
+      );
+
+      act(() => { clock.onTick.fire(); });
+
+      expect(Cesium.JulianDate.toDate(clock.currentTime).getTime()).toBe(end);
+      expect(clock.shouldAnimate).toBe(true);
+    });
+
+    it('does not clamp the needle when restrictToRange is not set', () => {
+      const clock = new (Cesium as any).Clock();
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(end - 1000));
+      clock.shouldAnimate = true;
+      render(
+        <Timeline
+          clock={clock}
+          timezone="UTC"
+          startTime={Cesium.JulianDate.fromDate(new Date(start))}
+          endTime={Cesium.JulianDate.fromDate(new Date(end))}
+        />
+      );
+
+      const pastEnd = end + 3_600_000;
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(pastEnd));
+      act(() => { clock.onTick.fire(); });
+
+      expect(Cesium.JulianDate.toDate(clock.currentTime).getTime()).toBe(pastEnd);
+      expect(clock.shouldAnimate).toBe(true);
+    });
+  });
 });

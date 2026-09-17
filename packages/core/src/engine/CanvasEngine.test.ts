@@ -5,6 +5,8 @@ import {
   makeLabel,
   nextTic,
   clampSpan,
+  clampRangeToLimits,
+  clampMsToLimits,
   zoomRange,
   zoomAroundMs,
   calcEpochMs,
@@ -229,6 +231,115 @@ describe('zoomAroundMs', () => {
   it('clamps result when zoom would go below MIN_SPAN_MS', () => {
     const { startMs, endMs } = zoomAroundMs(start, end, 1e-12, (start + end) / 2);
     expect(endMs - startMs).toBe(MIN_SPAN_MS);
+  });
+});
+
+// ── clampRangeToLimits ──────────────────────────────────────────────────────────
+
+describe('clampRangeToLimits', () => {
+  const limitStart = 1_000_000_000_000;
+  const limitEnd   = limitStart + 3_600_000; // 1-hour limit window
+
+  it('returns the range unchanged when no limits are given', () => {
+    const { startMs, endMs } = clampRangeToLimits(0, 100, undefined, undefined);
+    expect(startMs).toBe(0);
+    expect(endMs).toBe(100);
+  });
+
+  it('returns the range unchanged when already within limits', () => {
+    const s = limitStart + 600_000;
+    const e = s + 600_000;
+    const { startMs, endMs } = clampRangeToLimits(s, e, limitStart, limitEnd);
+    expect(startMs).toBe(s);
+    expect(endMs).toBe(e);
+  });
+
+  it('shifts the window forward when panned past the start limit', () => {
+    const span = 600_000;
+    const { startMs, endMs } = clampRangeToLimits(limitStart - 300_000, limitStart - 300_000 + span, limitStart, limitEnd);
+    expect(startMs).toBe(limitStart);
+    expect(endMs).toBe(limitStart + span);
+  });
+
+  it('shifts the window backward when panned past the end limit', () => {
+    const span = 600_000;
+    const { startMs, endMs } = clampRangeToLimits(limitEnd - span + 300_000, limitEnd + 300_000, limitStart, limitEnd);
+    expect(endMs).toBe(limitEnd);
+    expect(startMs).toBe(limitEnd - span);
+  });
+
+  it('collapses to the full limit span when zoomed out beyond it', () => {
+    const { startMs, endMs } = clampRangeToLimits(limitStart - 1_000_000, limitEnd + 1_000_000, limitStart, limitEnd);
+    expect(startMs).toBe(limitStart);
+    expect(endMs).toBe(limitEnd);
+  });
+
+  it('only enforces the start limit when the end limit is omitted', () => {
+    const { startMs, endMs } = clampRangeToLimits(limitStart - 500, limitStart + 599_500, limitStart, undefined);
+    expect(startMs).toBe(limitStart);
+    expect(endMs).toBe(limitStart + 600_000);
+  });
+
+  it('only enforces the end limit when the start limit is omitted', () => {
+    const { startMs, endMs } = clampRangeToLimits(limitEnd - 599_500, limitEnd + 500, undefined, limitEnd);
+    expect(endMs).toBe(limitEnd);
+    expect(startMs).toBe(limitEnd - 600_000);
+  });
+
+  it('widens a zero-width limit range to the minimum renderable span', () => {
+    const { startMs, endMs } = clampRangeToLimits(limitStart, limitStart + 600_000, limitStart, limitStart);
+    expect(endMs - startMs).toBe(MIN_SPAN_MS);
+    expect((startMs + endMs) / 2).toBe(limitStart);
+  });
+
+  it('widens a sub-second limit range to the minimum renderable span', () => {
+    const narrowEnd = limitStart + 200;
+    const { startMs, endMs } = clampRangeToLimits(limitStart, limitStart + 600_000, limitStart, narrowEnd);
+    expect(endMs - startMs).toBe(MIN_SPAN_MS);
+    expect((startMs + endMs) / 2).toBe(limitStart + 100);
+  });
+
+  it('never returns a span that would blank the canvas', () => {
+    for (const limitSpan of [0, 1, 999, 1000, 5000]) {
+      const { startMs, endMs } = clampRangeToLimits(
+        limitStart, limitStart + 600_000, limitStart, limitStart + limitSpan,
+      );
+      expect(endMs - startMs).toBeGreaterThanOrEqual(MIN_SPAN_MS);
+    }
+  });
+});
+
+// ── clampMsToLimits ─────────────────────────────────────────────────────────────
+
+describe('clampMsToLimits', () => {
+  const limitStart = 1_000_000_000_000;
+  const limitEnd   = limitStart + 3_600_000;
+
+  it('returns the value unchanged when no limits are given', () => {
+    expect(clampMsToLimits(42, undefined, undefined)).toBe(42);
+  });
+
+  it('returns the value unchanged when already within limits', () => {
+    const mid = limitStart + 1_800_000;
+    expect(clampMsToLimits(mid, limitStart, limitEnd)).toBe(mid);
+  });
+
+  it('clamps to the start limit', () => {
+    expect(clampMsToLimits(limitStart - 500, limitStart, limitEnd)).toBe(limitStart);
+  });
+
+  it('clamps to the end limit', () => {
+    expect(clampMsToLimits(limitEnd + 500, limitStart, limitEnd)).toBe(limitEnd);
+  });
+
+  it('only enforces the start limit when the end limit is omitted', () => {
+    expect(clampMsToLimits(limitStart - 500, limitStart, undefined)).toBe(limitStart);
+    expect(clampMsToLimits(limitEnd + 500, limitStart, undefined)).toBe(limitEnd + 500);
+  });
+
+  it('only enforces the end limit when the start limit is omitted', () => {
+    expect(clampMsToLimits(limitEnd + 500, undefined, limitEnd)).toBe(limitEnd);
+    expect(clampMsToLimits(limitStart - 500, undefined, limitEnd)).toBe(limitStart - 500);
   });
 });
 

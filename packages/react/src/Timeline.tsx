@@ -8,6 +8,7 @@ import {
   defaultTheme,
   toJulianDate,
   TICK_AREA_HEIGHT,
+  clampMsToLimits,
 } from '@kteneyck/cesium-timeline-core';
 import { TimelineControls } from './components/TimelineControls';
 import { TimelineCanvas, TimelineCanvasHandle } from './components/TimelineCanvas';
@@ -68,6 +69,8 @@ export interface TimelineProps {
   live?: boolean;
   /** @see TimelineBaseProps.invertScrollZoom */
   invertScrollZoom?: boolean;
+  /** @see TimelineBaseProps.restrictToRange */
+  restrictToRange?: boolean;
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
@@ -108,6 +111,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   showLive,
   live,
   invertScrollZoom,
+  restrictToRange,
 }) => {
   const now = () => Date.now();
   const defaultStartMs = useMemo(
@@ -124,6 +128,23 @@ export const Timeline: React.FC<TimelineProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [providedEnd],
   );
+
+  // Hard bounds for the needle (current time) when `restrictToRange` is set —
+  // only meaningful (and only defined) when the corresponding prop was given.
+  const limitStartMs = providedStart != null ? defaultStartMs : undefined;
+  const limitEndMs   = providedEnd   != null ? defaultEndMs   : undefined;
+
+  // Read via refs inside the clock-tick effects below so those effects don't
+  // need to resubscribe (and potentially miss a tick) every time these change.
+  const restrictToRangeRef = useRef(restrictToRange);
+  useEffect(() => { restrictToRangeRef.current = restrictToRange; }, [restrictToRange]);
+  const limitStartMsRef = useRef(limitStartMs);
+  useEffect(() => { limitStartMsRef.current = limitStartMs; }, [limitStartMs]);
+  const limitEndMsRef = useRef(limitEndMs);
+  useEffect(() => { limitEndMsRef.current = limitEndMs; }, [limitEndMs]);
+
+  const clampTimeMs = (ms: number): number =>
+    restrictToRangeRef.current ? clampMsToLimits(ms, limitStartMsRef.current, limitEndMsRef.current) : ms;
 
   const [currentTime, setCurrentTime] = useState<Cesium.JulianDate>(() =>
     toJulianDate(initialTime ?? (providedStart ?? Cesium.JulianDate.fromDate(new Date())))
@@ -171,6 +192,19 @@ export const Timeline: React.FC<TimelineProps> = ({
     if (!clock) return;
     const onTick = () => {
       if (!isDraggingRef.current) {
+        const rawMs = Cesium.JulianDate.toDate(clock.currentTime).getTime();
+        const ctMs  = clampTimeMs(rawMs);
+        if (ctMs !== rawMs) {
+          // Hit a restrictToRange boundary — snap the needle to it. Only stop
+          // playback when the clamp opposes the direction of travel; a clock
+          // sitting outside the range and heading back into it keeps running.
+          clock.currentTime = Cesium.JulianDate.fromDate(new Date(ctMs));
+          const hitEndLimit   = ctMs < rawMs;
+          const movingForward = clock.multiplier > 0;
+          if (hitEndLimit ? movingForward : !movingForward) {
+            clock.shouldAnimate = false;
+          }
+        }
         const ct = Cesium.JulianDate.clone(clock.currentTime);
         setCurrentTime(ct);
         setIsPlaying(clock.shouldAnimate);
@@ -179,7 +213,6 @@ export const Timeline: React.FC<TimelineProps> = ({
         if (canvasRef.current) {
           const { startMs, endMs } = canvasRef.current.getVisibleRange();
           const span = endMs - startMs;
-          const ctMs = Cesium.JulianDate.toDate(ct).getTime();
           const pos = ctMs - startMs;
           if (pos <= span * 0.1) {
             canvasRef.current.zoomTo(ctMs - span * 0.1, ctMs + span * 0.9, ctMs);
@@ -198,12 +231,12 @@ export const Timeline: React.FC<TimelineProps> = ({
     if (clock) return;
     const id = setInterval(() => {
       if (isDraggingRef.current) return;
-      const ct = Cesium.JulianDate.fromDate(new Date());
+      const ctMs = clampTimeMs(Date.now());
+      const ct   = Cesium.JulianDate.fromDate(new Date(ctMs));
       setCurrentTime(ct);
       if (canvasRef.current) {
         const { startMs, endMs } = canvasRef.current.getVisibleRange();
         const span = endMs - startMs;
-        const ctMs = Cesium.JulianDate.toDate(ct).getTime();
         const pos = ctMs - startMs;
         if (pos <= span * 0.1) canvasRef.current.zoomTo(ctMs - span * 0.1, ctMs + span * 0.9, ctMs);
         else if (pos >= span * 0.9) canvasRef.current.zoomTo(ctMs - span * 0.9, ctMs + span * 0.1, ctMs);
@@ -220,7 +253,7 @@ export const Timeline: React.FC<TimelineProps> = ({
     if (canvasRef.current) {
       const { startMs, endMs } = canvasRef.current.getVisibleRange();
       const span = endMs - startMs;
-      const newMs = Cesium.JulianDate.toDate(t).getTime();
+      const newMs = clampTimeMs(Cesium.JulianDate.toDate(t).getTime());
       canvasRef.current.zoomTo(newMs - span / 2, newMs + span / 2);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -248,9 +281,12 @@ export const Timeline: React.FC<TimelineProps> = ({
   };
 
   const handleTimeChange = (t: Cesium.JulianDate) => {
-    setCurrentTime(t);
-    if (clock) clock.currentTime = Cesium.JulianDate.clone(t);
-    onTimeChange?.(t);
+    const rawMs = Cesium.JulianDate.toDate(t).getTime();
+    const clampedMs = clampTimeMs(rawMs);
+    const finalT = clampedMs === rawMs ? t : Cesium.JulianDate.fromDate(new Date(clampedMs));
+    setCurrentTime(finalT);
+    if (clock) clock.currentTime = Cesium.JulianDate.clone(finalT);
+    onTimeChange?.(finalT);
   };
 
   const handlePlayPause = (playing: boolean) => {
@@ -293,11 +329,11 @@ export const Timeline: React.FC<TimelineProps> = ({
   };
 
   const handleJumpToLive = () => {
-    const t = Cesium.JulianDate.fromDate(new Date());
+    const nowMs = clampTimeMs(Date.now());
+    const t = Cesium.JulianDate.fromDate(new Date(nowMs));
     if (clock) clock.currentTime = Cesium.JulianDate.clone(t);
     setCurrentTime(t);
     applyMultiplier(1);
-    const nowMs = Date.now();
     if (canvasRef.current) {
       const { startMs, endMs } = canvasRef.current.getVisibleRange();
       const span = endMs - startMs;
@@ -379,6 +415,9 @@ export const Timeline: React.FC<TimelineProps> = ({
           onDragEnd={() => { isDraggingRef.current = false; }}
           disableNeedleDrag={!!live}
           invertScrollZoom={invertScrollZoom}
+          restrictToRange={restrictToRange}
+          limitStartMs={providedStart != null ? defaultStartMs : undefined}
+          limitEndMs={providedEnd != null ? defaultEndMs : undefined}
           swimLanes={swimLanes}
           showSwimLanes={swimLanesExpanded}
           onSwimLaneItemClick={onSwimLaneItemClick}

@@ -37,6 +37,8 @@ import {
   isInSwimLaneRegion as coreIsInSwimLaneRegion,
   zoomRange,
   zoomAroundMs,
+  clampRangeToLimits,
+  clampMsToLimits,
 } from '@kteneyck/cesium-timeline-core';
 
 // Re-export for consumers
@@ -83,6 +85,12 @@ interface TimelineCanvasProps {
   disableNeedleDrag?: boolean;
   /** @see TimelineBaseProps.invertScrollZoom */
   invertScrollZoom?: boolean;
+  /** @see TimelineBaseProps.restrictToRange */
+  restrictToRange?: boolean;
+  /** Hard lower bound for the visible window when `restrictToRange` is true. */
+  limitStartMs?: number;
+  /** Hard upper bound for the visible window when `restrictToRange` is true. */
+  limitEndMs?: number;
   onRangeSelect?: (start: Cesium.JulianDate, end: Cesium.JulianDate) => void;
   // Swim lane props
   swimLanes?: SwimLane[];
@@ -107,6 +115,9 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       onSwimLaneReorder,
       disableNeedleDrag,
       invertScrollZoom,
+      restrictToRange,
+      limitStartMs,
+      limitEndMs,
     } = props;
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -133,6 +144,33 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
 
     const invertScrollZoomRef = useRef(invertScrollZoom ?? false);
     useEffect(() => { invertScrollZoomRef.current = invertScrollZoom ?? false; }, [invertScrollZoom]);
+
+    const restrictToRangeRef = useRef(restrictToRange ?? false);
+    useEffect(() => { restrictToRangeRef.current = restrictToRange ?? false; draw(); }, [restrictToRange]); // eslint-disable-line react-hooks/exhaustive-deps
+    const limitStartMsRef = useRef(limitStartMs);
+    useEffect(() => { limitStartMsRef.current = limitStartMs; draw(); }, [limitStartMs]); // eslint-disable-line react-hooks/exhaustive-deps
+    const limitEndMsRef = useRef(limitEndMs);
+    useEffect(() => { limitEndMsRef.current = limitEndMs; draw(); }, [limitEndMs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Clamp the visible window (in place) to the configured scroll/zoom limits.
+    const clampToLimits = useCallback(() => {
+      if (!restrictToRangeRef.current) return;
+      const result = clampRangeToLimits(
+        startMsRef.current,
+        endMsRef.current,
+        limitStartMsRef.current,
+        limitEndMsRef.current
+      );
+      startMsRef.current = result.startMs;
+      endMsRef.current   = result.endMs;
+      // Keep the needle inside the limits too, otherwise follow-scroll walks it
+      // off the pinned window and it gets drawn off-canvas.
+      curMsRef.current = clampMsToLimits(
+        curMsRef.current,
+        limitStartMsRef.current,
+        limitEndMsRef.current
+      );
+    }, []);
 
     // ── Swim lane state (ref-based — no React re-renders) ──────────────────
     const swimLanesRef     = useRef<SwimLane[]>(swimLanesProp ?? []);
@@ -233,6 +271,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         const centerMs = (startMs + endMs) / 2;
         startMsRef.current = centerMs - span / 2;
         endMsRef.current   = centerMs + span / 2;
+        clampToLimits();
         if (currentMs !== undefined) curMsRef.current = currentMs;
         draw();
       },
@@ -255,6 +294,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           startMsRef.current += shiftMs;
           endMsRef.current   += shiftMs;
           curMsRef.current   += shiftMs;
+          clampToLimits();
           draw();
           followRAF.current = requestAnimationFrame(scroll);
         };
@@ -273,6 +313,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         curMsRef.current    = currentMs;
         startMsRef.current += drift;
         endMsRef.current   += drift;
+        clampToLimits();
       },
       // ── Swim lane CRUD ──────────────────────────────────────────────
       appendSwimLane(lane: SwimLane) {
@@ -304,6 +345,11 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     // ── Core draw function ────────────────────────────────────────────────
     // Delegates to the core engine's drawTimeline() for all actual rendering.
     const draw = useCallback(() => {
+      // Safety net: guarantees the visible window can never be rendered outside
+      // the configured limits, regardless of what path put it there (e.g. the
+      // needle auto-scroll recenter firing before `restrictToRange` took effect).
+      clampToLimits();
+
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
@@ -336,7 +382,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       }
 
       ctx.restore();
-    }, [getRenderState]);
+    }, [getRenderState, clampToLimits]);
 
     // ── Initial draw + resize observer ────────────────────────────────────
     useLayoutEffect(() => {
@@ -370,6 +416,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         const shift  = direction * span * 0.01;
         startMsRef.current += shift;
         endMsRef.current   += shift;
+        clampToLimits();
 
         if (canvas) {
           const rect = canvas.getBoundingClientRect();
@@ -383,7 +430,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         edgeRAF.current = requestAnimationFrame(scroll);
       };
       edgeRAF.current = requestAnimationFrame(scroll);
-    }, [draw, onTimeChange]);
+    }, [draw, onTimeChange, clampToLimits]);
 
     const stopEdgeScroll = useCallback(() => {
       if (edgeRAF.current !== null) {
@@ -556,6 +603,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
             const shift = (dx / w) * (endMsRef.current - startMsRef.current);
             startMsRef.current += shift;
             endMsRef.current   += shift;
+            clampToLimits();
             draw();
           }
         } else if (mouseMode.current === 'zoom') {
@@ -608,9 +656,10 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
             const selEnd   = Math.max(sel.startMs, sel.endMs);
             startMsRef.current = selStart;
             endMsRef.current   = selEnd;
+            clampToLimits();
             // If the needle is outside the selected range, clamp it to the nearest
             // edge so the clock-tick auto-scroll doesn't immediately override the zoom.
-            const clampedMs = Math.max(selStart, Math.min(selEnd, curMsRef.current));
+            const clampedMs = Math.max(startMsRef.current, Math.min(endMsRef.current, curMsRef.current));
             if (clampedMs !== curMsRef.current) {
               curMsRef.current = clampedMs;
               onTimeChange(Cesium.JulianDate.fromDate(new Date(clampedMs)));
@@ -637,15 +686,16 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup',   onMouseUp);
       };
-    }, [draw, onTimeChange, onDragEnd, startEdgeScroll, stopEdgeScroll]);
+    }, [draw, onTimeChange, onDragEnd, startEdgeScroll, stopEdgeScroll, clampToLimits]);
 
     // Zoom around center (uses core zoomRange)
     const zoomFrom = useCallback((amount: number) => {
       const result = zoomRange(startMsRef.current, endMsRef.current, amount);
       startMsRef.current = result.startMs;
       endMsRef.current   = result.endMs;
+      clampToLimits();
       draw();
-    }, [draw]);
+    }, [draw, clampToLimits]);
 
     const handleWheel = useCallback((e: WheelEvent) => {
       e.preventDefault();
@@ -751,6 +801,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
             const shift = (dx / rect.width) * (endMsRef.current - startMsRef.current);
             startMsRef.current += shift;
             endMsRef.current   += shift;
+            clampToLimits();
             draw();
           }
 
@@ -762,6 +813,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
             const result  = zoomAroundMs(startMsRef.current, endMsRef.current, pinchDist.current / newDist, pivotMs);
             startMsRef.current = result.startMs;
             endMsRef.current   = result.endMs;
+            clampToLimits();
             draw();
           }
           pinchDist.current = newDist;
@@ -789,7 +841,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         canvas.removeEventListener('touchmove',  onTouchMove);
         canvas.removeEventListener('touchend',   onTouchEnd);
       };
-    }, [draw, onDragStart, onDragEnd, onTimeChange, zoomFrom, startEdgeScroll, stopEdgeScroll]);
+    }, [draw, onDragStart, onDragEnd, onTimeChange, zoomFrom, startEdgeScroll, stopEdgeScroll, clampToLimits]);
 
     // Show grab cursor only when hovering near the needle.
     const handleCanvasMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {

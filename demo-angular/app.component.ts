@@ -305,6 +305,11 @@ function makeSwimLanes(): SwimLane[] {
               @if (viewEndTime)   { <div>⏹ {{ viewEndTime   | date:'yyyy-MM-dd HH:mm' }}</div> }
             </div>
           }
+
+          <div class="prop-row">
+            <label>Restrict To Range</label>
+            <input type="checkbox" [(ngModel)]="restrictToRange" />
+          </div>
         </div>
 
         <div class="divider"></div>
@@ -369,6 +374,7 @@ function makeSwimLanes(): SwimLane[] {
           [jumpToTime]="jumpToTime"
           [startTime]="viewStartTime"
           [endTime]="viewEndTime"
+          [restrictToRange]="restrictToRange"
           [theme]="theme"
           [swimLanes]="swimLanes"
           [showSwimLanes]="showSwimLanes"
@@ -425,6 +431,7 @@ export class AppComponent implements OnInit, OnDestroy {
   windowEndInput   = '';
   viewStartTime: Date | undefined;
   viewEndTime: Date | undefined;
+  restrictToRange = false;
 
   readonly timezoneOptions: [string, string][] = [
     ['local',               'Local (browser)'],

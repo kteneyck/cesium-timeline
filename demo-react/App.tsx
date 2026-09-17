@@ -38,6 +38,7 @@ export const TestApp: React.FC = () => {
   const [windowEndInput, setWindowEndInput] = useState('');
   const [viewStartTime, setViewStartTime] = useState<Date | undefined>(undefined);
   const [viewEndTime, setViewEndTime] = useState<Date | undefined>(undefined);
+  const [restrictToRange, setRestrictToRange] = useState(false);
 
   const TIMEZONE_OPTIONS: [string, string][] = [
     ['local',                 'Local (browser)'],
@@ -667,6 +668,15 @@ export const TestApp: React.FC = () => {
                 {viewEndTime   && <div>⏹ {toDatetimeLocalValue(viewEndTime).replace('T', ' ')}</div>}
               </div>
             )}
+
+            <div className="prop-row">
+              <label>Restrict To Range</label>
+              <input
+                type="checkbox"
+                checked={restrictToRange}
+                onChange={e => setRestrictToRange(e.target.checked)}
+              />
+            </div>
           </div>
 
           <div className="divider" />
@@ -754,6 +764,7 @@ export const TestApp: React.FC = () => {
             jumpToTime={jumpToTime}
             startTime={viewStartTime}
             endTime={viewEndTime}
+            restrictToRange={restrictToRange}
             theme={theme}
             swimLanes={swimLanes}
             showSwimLanes={showSwimLanes}

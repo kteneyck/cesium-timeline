@@ -179,6 +179,67 @@ export function zoomAroundMs(
   };
 }
 
+/**
+ * Clamp a visible range so it never extends past the given hard limits.
+ * Used to enforce scroll/zoom boundaries (see `restrictToRange`).
+ *
+ * When the visible span is wider than the limit span, the range collapses to
+ * the full limit span (i.e. zooming out stops at the limits). Otherwise the
+ * range is shifted (not resized) so it fits entirely within the limits.
+ * Either limit may be omitted to leave that side unrestricted.
+ */
+export function clampRangeToLimits(
+  startMs: number,
+  endMs: number,
+  limitStartMs?: number,
+  limitEndMs?: number
+): { startMs: number; endMs: number } {
+  if (limitStartMs == null && limitEndMs == null) return { startMs, endMs };
+
+  const span = endMs - startMs;
+  if (limitStartMs != null && limitEndMs != null) {
+    const limitSpan = limitEndMs - limitStartMs;
+    // A limit range narrower than the smallest renderable span (including an
+    // inverted or zero-width one) can't be honoured as-is — drawing it would
+    // leave the canvas blank. Widen it around its midpoint instead.
+    if (limitSpan < MIN_SPAN_MS) {
+      const mid = (limitStartMs + limitEndMs) / 2;
+      return { startMs: mid - MIN_SPAN_MS / 2, endMs: mid + MIN_SPAN_MS / 2 };
+    }
+    if (span >= limitSpan) {
+      return { startMs: limitStartMs, endMs: limitEndMs };
+    }
+  }
+
+  let s = startMs;
+  let e = endMs;
+  if (limitEndMs != null && e > limitEndMs) {
+    e = limitEndMs;
+    s = e - span;
+  }
+  if (limitStartMs != null && s < limitStartMs) {
+    s = limitStartMs;
+    e = s + span;
+  }
+  return { startMs: s, endMs: e };
+}
+
+/**
+ * Clamp a single point in time to optional hard limits.
+ * Used to keep the current-time needle from advancing past `restrictToRange`
+ * bounds (e.g. during playback) — either limit may be omitted.
+ */
+export function clampMsToLimits(
+  ms: number,
+  limitStartMs?: number,
+  limitEndMs?: number
+): number {
+  let v = ms;
+  if (limitEndMs != null && v > limitEndMs) v = limitEndMs;
+  if (limitStartMs != null && v < limitStartMs) v = limitStartMs;
+  return v;
+}
+
 /** Compute the total content height of all swim lanes. */
 export function totalSwimLaneHeight(lanes: SwimLane[]): number {
   let total = 0;

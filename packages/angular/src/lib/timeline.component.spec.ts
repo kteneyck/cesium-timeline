@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { SimpleChange } from '@angular/core';
+import { Component, SimpleChange } from '@angular/core';
+import { By } from '@angular/platform-browser';
 import { TimelineComponent } from './timeline.component';
 import * as Cesium from 'cesium';
 
@@ -31,6 +32,21 @@ vi.mock('cesium', () => {
 
   return { JulianDate, Clock };
 });
+
+/** Host that binds the inputs through a template, the way a consumer does. */
+@Component({
+  standalone: true,
+  imports: [TimelineComponent],
+  template: `<ct-timeline
+    [startTime]="startTime"
+    [endTime]="endTime"
+    [restrictToRange]="true"
+  />`,
+})
+class HostComponent {
+  startTime?: Cesium.JulianDate;
+  endTime?: Cesium.JulianDate;
+}
 
 describe('TimelineComponent', () => {
   let fixture: ComponentFixture<TimelineComponent>;
@@ -137,5 +153,155 @@ describe('TimelineComponent', () => {
 
   it('ngOnDestroy does not throw', () => {
     expect(() => fixture.destroy()).not.toThrow();
+  });
+
+  describe('restrictToRange — lifecycle ordering', () => {
+    const T0 = Date.UTC(2026, 1, 24, 12, 0, 0);
+
+    // Angular runs ngOnChanges BEFORE ngOnInit, so on the first pass
+    // defaultStartMs/defaultEndMs are still their field initializers (0).
+    // A first-render jumpToTime must not be clamped against those.
+    it('does not clamp a first-render jumpToTime to the epoch', () => {
+      const fresh = TestBed.createComponent(TimelineComponent);
+      const c = fresh.componentInstance;
+      const target = T0 + 1_800_000;
+
+      c.restrictToRange = true;
+      c.startTime = Cesium.JulianDate.fromDate(new Date(T0));
+      c.endTime   = Cesium.JulianDate.fromDate(new Date(T0 + 3_600_000));
+      c.jumpToTime = Cesium.JulianDate.fromDate(new Date(target));
+
+      const emitted: Cesium.JulianDate[] = [];
+      c.timeChange.subscribe((t: Cesium.JulianDate) => emitted.push(t));
+
+      c.ngOnChanges({
+        startTime:  new SimpleChange(undefined, c.startTime, true),
+        endTime:    new SimpleChange(undefined, c.endTime, true),
+        jumpToTime: new SimpleChange(undefined, c.jumpToTime, true),
+      });
+
+      expect(emitted.length).toBe(1);
+      expect(Cesium.JulianDate.toDate(emitted[0]).getTime()).toBe(target);
+      fresh.destroy();
+    });
+
+    // Driven through a real host binding: the parent calls canvasComp.zoomTo()
+    // inside its own ngOnChanges, before Angular propagates the new
+    // [limitStartMs]/[limitEndMs] bindings down to the child — so the new range
+    // must not be clamped against the previous limits.
+    it('sizes the window from the new limits when startTime/endTime are rebound', () => {
+      const host = TestBed.createComponent(HostComponent);
+      host.componentInstance.startTime = Cesium.JulianDate.fromDate(new Date(T0));
+      host.componentInstance.endTime   = Cesium.JulianDate.fromDate(new Date(T0 + 3_600_000));
+      host.detectChanges();
+
+      const timeline: TimelineComponent =
+        host.debugElement.query(By.directive(TimelineComponent)).componentInstance;
+      timeline.canvasComp!.zoomTo(T0, T0 + 3_600_000);
+
+      // Rebind to a later, wider window.
+      const newStart = T0 + 10 * 3_600_000;
+      const newEnd   = T0 + 12 * 3_600_000;
+      host.componentInstance.startTime = Cesium.JulianDate.fromDate(new Date(newStart));
+      host.componentInstance.endTime   = Cesium.JulianDate.fromDate(new Date(newEnd));
+      // Zoneless: field mutation doesn't mark the host dirty on its own.
+      host.componentRef.changeDetectorRef.markForCheck();
+      host.detectChanges();
+
+      const { startMs, endMs } = timeline.canvasComp!.getVisibleRange();
+      expect(endMs - startMs).toBe(2 * 3_600_000);
+      expect(startMs).toBe(newStart);
+      expect(endMs).toBe(newEnd);
+      host.destroy();
+    });
+  });
+
+  describe('restrictToRange — needle clamping', () => {
+    const start = Date.now() - 3_600_000;
+    const end   = Date.now() + 3_600_000;
+
+    function attachClock(clock: InstanceType<typeof Cesium.Clock>) {
+      component.startTime = Cesium.JulianDate.fromDate(new Date(start));
+      component.endTime   = Cesium.JulianDate.fromDate(new Date(end));
+      component.defaultStartMs = start;
+      component.defaultEndMs   = end;
+      component.clock = clock;
+      component.ngOnChanges({
+        clock: new SimpleChange(undefined, clock, false),
+      });
+    }
+
+    it('stops playback at the end boundary instead of running past it', () => {
+      const clock = new (Cesium as any).Clock();
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(end - 1000));
+      clock.shouldAnimate = true;
+      component.restrictToRange = true;
+      attachClock(clock);
+
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(end + 3_600_000));
+      clock.onTick.fire();
+
+      expect(Cesium.JulianDate.toDate(clock.currentTime).getTime()).toBe(end);
+      expect(clock.shouldAnimate).toBe(false);
+    });
+
+    it('stops rewind at the start boundary instead of running past it', () => {
+      const clock = new (Cesium as any).Clock();
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(start + 1000));
+      clock.shouldAnimate = true;
+      clock.multiplier = -1; // actually rewinding, i.e. into the start wall
+      component.restrictToRange = true;
+      attachClock(clock);
+
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(start - 3_600_000));
+      clock.onTick.fire();
+
+      expect(Cesium.JulianDate.toDate(clock.currentTime).getTime()).toBe(start);
+      expect(clock.shouldAnimate).toBe(false);
+    });
+
+    it('keeps playing when a clock below the range is moving back into it', () => {
+      const clock = new (Cesium as any).Clock();
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(start - 3_600_000));
+      clock.shouldAnimate = true;
+      clock.multiplier = 1; // forward, i.e. heading toward the range
+      component.restrictToRange = true;
+      attachClock(clock);
+
+      clock.onTick.fire();
+
+      // Snapped to the start limit, but playback must survive — the clamp is
+      // in the same direction as travel, not against it.
+      expect(Cesium.JulianDate.toDate(clock.currentTime).getTime()).toBe(start);
+      expect(clock.shouldAnimate).toBe(true);
+    });
+
+    it('keeps rewinding when a clock above the range is moving back into it', () => {
+      const clock = new (Cesium as any).Clock();
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(end + 3_600_000));
+      clock.shouldAnimate = true;
+      clock.multiplier = -1; // rewinding, i.e. heading toward the range
+      component.restrictToRange = true;
+      attachClock(clock);
+
+      clock.onTick.fire();
+
+      expect(Cesium.JulianDate.toDate(clock.currentTime).getTime()).toBe(end);
+      expect(clock.shouldAnimate).toBe(true);
+    });
+
+    it('does not clamp the needle when restrictToRange is not set', () => {
+      const clock = new (Cesium as any).Clock();
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(end - 1000));
+      clock.shouldAnimate = true;
+      attachClock(clock);
+
+      const pastEnd = end + 3_600_000;
+      clock.currentTime = Cesium.JulianDate.fromDate(new Date(pastEnd));
+      clock.onTick.fire();
+
+      expect(Cesium.JulianDate.toDate(clock.currentTime).getTime()).toBe(pastEnd);
+      expect(clock.shouldAnimate).toBe(true);
+    });
   });
 });

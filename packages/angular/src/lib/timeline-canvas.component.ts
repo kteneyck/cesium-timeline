@@ -32,6 +32,8 @@ import {
   zoomRange,
   zoomAroundMs,
   totalSwimLaneHeight,
+  clampRangeToLimits,
+  clampMsToLimits,
 } from '@kteneyck/cesium-timeline-core';
 
 export { TICK_AREA_HEIGHT };
@@ -73,6 +75,12 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
   @Input() disableNeedleDrag = false;
   /** @see TimelineBaseProps.invertScrollZoom */
   @Input() invertScrollZoom = false;
+  /** @see TimelineBaseProps.restrictToRange */
+  @Input() restrictToRange = false;
+  /** Hard lower bound for the visible window when `restrictToRange` is true. */
+  @Input() limitStartMs?: number;
+  /** Hard upper bound for the visible window when `restrictToRange` is true. */
+  @Input() limitEndMs?: number;
 
   @Output() timeChange = new EventEmitter<Cesium.JulianDate>();
   @Output() dragStart = new EventEmitter<void>();
@@ -185,6 +193,9 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       this.showSwimLanesState = this.showSwimLanes ?? (this.swimLanesState.length > 0);
       this.draw();
     }
+    if (changes['restrictToRange'] || changes['limitStartMs'] || changes['limitEndMs']) {
+      this.draw();
+    }
   }
 
   ngOnDestroy(): void {
@@ -211,8 +222,20 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     const center = (startMs + endMs) / 2;
     this.startMs = center - span / 2;
     this.endMs = center + span / 2;
+    this.clampToLimits();
     if (currentMs !== undefined) this.curMs = currentMs;
     this.draw();
+  }
+
+  /** Clamp the visible window (in place) to the configured scroll/zoom limits. */
+  private clampToLimits(): void {
+    if (!this.restrictToRange) return;
+    const result = clampRangeToLimits(this.startMs, this.endMs, this.limitStartMs, this.limitEndMs);
+    this.startMs = result.startMs;
+    this.endMs = result.endMs;
+    // Keep the needle inside the limits too, otherwise follow-scroll walks it
+    // off the pinned window and it gets drawn off-canvas.
+    this.curMs = clampMsToLimits(this.curMs, this.limitStartMs, this.limitEndMs);
   }
 
   getVisibleRange(): { startMs: number; endMs: number } {
@@ -233,6 +256,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       this.startMs += shift;
       this.endMs += shift;
       this.curMs += shift;
+      this.clampToLimits();
       this.draw();
       this.followRAF = requestAnimationFrame(scroll);
     };
@@ -253,6 +277,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     this.curMs = currentMs;
     this.startMs += drift;
     this.endMs += drift;
+    this.clampToLimits();
   }
 
   appendSwimLane(lane: SwimLane): void {
@@ -286,6 +311,11 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
   // ── Core draw ──────────────────────────────────────────────────────────
 
   private draw(): void {
+    // Safety net: guarantees the visible window can never be rendered outside
+    // the configured limits, regardless of what path put it there (e.g. the
+    // needle auto-scroll recenter firing before `restrictToRange` took effect).
+    this.clampToLimits();
+
     const canvas = this.canvasRef?.nativeElement;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -361,6 +391,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     const result = zoomRange(this.startMs, this.endMs, amount);
     this.startMs = result.startMs;
     this.endMs = result.endMs;
+    this.clampToLimits();
     this.draw();
   }
 
@@ -374,6 +405,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       const shift = direction * span * 0.01;
       this.startMs += shift;
       this.endMs += shift;
+      this.clampToLimits();
 
       if (canvas) {
         const rect = canvas.getBoundingClientRect();
@@ -549,6 +581,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
         const shift = (dx / w) * (this.endMs - this.startMs);
         this.startMs += shift;
         this.endMs += shift;
+        this.clampToLimits();
         this.draw();
       }
     } else if (this.mouseMode === 'zoom') {
@@ -616,15 +649,17 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
           selEnd   = Math.max(selEnd, this.curMs);
           this.startMs = selStart;
           this.endMs   = selEnd;
+          this.clampToLimits();
           const startJd = Cesium.JulianDate.fromDate(new Date(selStart));
           const endJd   = Cesium.JulianDate.fromDate(new Date(selEnd));
           this.ngZone.run(() => this.rangeSelect.emit({ start: startJd, end: endJd }));
         } else {
           this.startMs = selStart;
           this.endMs   = selEnd;
+          this.clampToLimits();
           // If the needle is outside the selected range, clamp it to the nearest
           // edge so the clock-tick auto-scroll doesn't immediately override the zoom.
-          const clampedMs = Math.max(selStart, Math.min(selEnd, this.curMs));
+          const clampedMs = Math.max(this.startMs, Math.min(this.endMs, this.curMs));
           const needleMoved = clampedMs !== this.curMs;
           if (needleMoved) {
             this.curMs = clampedMs;
@@ -873,6 +908,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
         const shift = (dx / rect.width) * (this.endMs - this.startMs);
         this.startMs += shift;
         this.endMs += shift;
+        this.clampToLimits();
         this.draw();
       }
     } else if (this.touchMode === 'pinch' && e.touches.length >= 2) {
@@ -883,6 +919,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
         const result  = zoomAroundMs(this.startMs, this.endMs, this.pinchDist / newDist, pivotMs);
         this.startMs = result.startMs;
         this.endMs   = result.endMs;
+        this.clampToLimits();
         this.draw();
       }
       this.pinchDist = newDist;

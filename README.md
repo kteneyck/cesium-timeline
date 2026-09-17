@@ -121,7 +121,7 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 - **Click-to-seek** — click anywhere on the timeline to jump to that time.
 - **Edge scroll** — drag the needle within 8% of either edge and the visible window scrolls smoothly underneath. The needle stays pinned to the cursor position as the window shifts.
 - **Auto-scroll during playback** — visible window pans automatically when the needle reaches 10% from either edge.
-- **Infinite scrolling window** — timeline is not clamped to `startTime`/`endTime`; the window can pan anywhere.
+- **Infinite scrolling window** — by default the timeline is not clamped to `startTime`/`endTime`; the window can pan anywhere. Set `restrictToRange` to hard-limit panning/zooming to those bounds instead.
 - **Adaptive tick labels** — label granularity adapts to zoom level: milliseconds → seconds → HH:MM:SS → HH:MM → Month Day → Month Year → Year. Tick dates are shown only when the visible window spans more than 24 hours.
 - **Configurable timezone** — tick labels and the datetime display can show any IANA timezone (e.g. `"UTC"`, `"America/New_York"`) or the browser's local time. A short abbreviation (e.g. `UTC`, `EST`, `PDT`) is displayed to the right of the date line whenever a non-local timezone is active.
 - **Netflix/Hulu-style controls** — transport buttons (⏮ ◀◀ ▶/⏸ ▶▶ ⏭) always stay centered; speed badge and LIVE button in the left column never cause layout shift.
@@ -182,6 +182,7 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 | `liveButtonPosition` | `'left' \| 'right'` | `'left'` | Position of the LIVE button — beside the datetime display (`'left'`) or the opposite side of the control bar (`'right'`).                                                                                                               |
 | `showLive` | `boolean` | `true` | Show or hide the LIVE button in the control bar.                                                                                                                                                                                        |
 | `invertScrollZoom` | `boolean` | `false` | Reverses the scroll-wheel zoom direction. By default scroll up zooms in and scroll down zooms out. Set to `true` for scroll down zooms in, scroll up zooms out.                                                                |
+| `restrictToRange` | `boolean` | `false` | When `true`, `startTime`/`endTime` become hard scroll/zoom limits — drag, wheel, pinch, edge-scroll, and zoom-to-selection can no longer move the visible window past them. Has no effect unless `startTime` and/or `endTime` are provided. |
 
 ---
 
