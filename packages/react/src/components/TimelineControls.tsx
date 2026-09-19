@@ -209,9 +209,11 @@ export const TimelineControls: React.FC<ControlsProps> = ({
         fontSize: '11px',
         color: theme.buttonActiveColor,
         borderColor: `${theme.buttonActiveColor}44`,
-        width: `${liveSize.width}px`,
+        width: 'auto',
         minWidth: `${liveSize.width}px`,
         height: `${liveSize.height}px`,
+        paddingLeft: '8px',
+        paddingRight: '8px',
       }}
       onMouseEnter={e => onEnter(e, true)}
       onMouseLeave={onLeave}
@@ -343,7 +345,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
         {!live && (
           <button
             onClick={onFastForward}
-            style={btn(isFastForward)}
+            style={{ ...btn(isFastForward), width: 'auto', paddingLeft: '6px', paddingRight: '6px' }}
             onMouseEnter={e => onEnter(e, isFastForward)}
             onMouseLeave={onLeave}
             title={isFastForward ? resolveLabel(L.fastForwardActiveTooltip, absMultiplier) : L.fastForwardTooltip}

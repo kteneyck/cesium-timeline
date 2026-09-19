@@ -98,10 +98,9 @@ import {
                 (click)="resetSpeed.emit()"
                 [style.color]="theme.buttonActiveColor"
                 [style.border-color]="theme.buttonActiveColor + '44'"
-                [style.width.px]="liveSize.width"
                 [style.min-width.px]="liveSize.width"
                 [style.height.px]="liveSize.height"
-                style="background:none;border:1px solid;cursor:pointer;font-size:11px;border-radius:4px;display:flex;align-items:center;justify-content:center;padding:0;font-family:system-ui,-apple-system,sans-serif;transition:background-color 0.15s"
+                style="background:none;border:1px solid;cursor:pointer;font-size:11px;border-radius:4px;display:flex;align-items:center;justify-content:center;width:auto;padding:0 8px;font-family:system-ui,-apple-system,sans-serif;transition:background-color 0.15s"
                 [title]="l.resetSpeedTooltip"
               >{{ isRewinding ? '◀ ' + absMultiplier + '×' : absMultiplier + '× ▶' }}</button>
             }
@@ -162,7 +161,7 @@ import {
             (click)="fastForward.emit()"
             [style.color]="isFastForward ? theme.buttonActiveColor : theme.buttonColor"
             [style.border-color]="isFastForward ? theme.buttonActiveColor + '33' : 'transparent'"
-            class="ct-btn"
+            class="ct-btn ct-btn-wide"
             [title]="isFastForward ? resolveFastForwardActive(absMultiplier) : l.fastForwardTooltip"
           >▶▶</button>
         }
@@ -217,10 +216,9 @@ import {
                   (click)="resetSpeed.emit()"
                   [style.color]="theme.buttonActiveColor"
                   [style.border-color]="theme.buttonActiveColor + '44'"
-                  [style.width.px]="liveSize.width"
                   [style.min-width.px]="liveSize.width"
                   [style.height.px]="liveSize.height"
-                  style="background:none;border:1px solid;cursor:pointer;font-size:11px;border-radius:4px;display:flex;align-items:center;justify-content:center;padding:0;font-family:system-ui,-apple-system,sans-serif;transition:background-color 0.15s"
+                  style="background:none;border:1px solid;cursor:pointer;font-size:11px;border-radius:4px;display:flex;align-items:center;justify-content:center;width:auto;padding:0 8px;font-family:system-ui,-apple-system,sans-serif;transition:background-color 0.15s"
                   [title]="l.resetSpeedTooltip"
                 >{{ isRewinding ? '◀ ' + absMultiplier + '×' : absMultiplier + '× ▶' }}</button>
               }
@@ -287,6 +285,10 @@ import {
       line-height: 1;
     }
     .ct-btn:hover { background-color: rgba(255,255,255,0.1); }
+    .ct-btn-wide {
+      width: auto;
+      padding: 0 6px;
+    }
     .ct-btn-play {
       font-size: 18px;
       width: 40px;
