@@ -39,6 +39,10 @@ export interface TimelineProps {
   maxTicks?: number;
   ffSpeeds?: number[];
   rwSpeeds?: number[];
+  /** @see TimelineBaseProps.minSpeed */
+  minSpeed?: number;
+  /** @see TimelineBaseProps.maxSpeed */
+  maxSpeed?: number;
   theme?: Partial<TimelineTheme>;
   className?: string;
   /** @see TimelineBaseProps.timezone */
@@ -92,6 +96,8 @@ export const Timeline: React.FC<TimelineProps> = ({
   maxTicks,
   ffSpeeds = DEFAULT_FF_SPEEDS,
   rwSpeeds = DEFAULT_RW_SPEEDS,
+  minSpeed = 1,
+  maxSpeed = 100,
   theme: customTheme,
   className,
   timezone,
@@ -314,6 +320,12 @@ export const Timeline: React.FC<TimelineProps> = ({
     applyMultiplier(next);
   };
 
+  /** Sets the playback speed to an explicit absolute value, preserving direction. */
+  const handleSetSpeed = (value: number) => {
+    const clamped = Math.min(maxSpeed, Math.max(minSpeed, value));
+    applyMultiplier(multiplier < 0 ? -clamped : clamped);
+  };
+
   const handleJumpToStart = () => {
     const t = toJulianDate(providedStart ?? Cesium.JulianDate.fromDate(new Date(defaultStartMs)));
     if (clock) clock.currentTime = Cesium.JulianDate.clone(t);
@@ -384,6 +396,9 @@ export const Timeline: React.FC<TimelineProps> = ({
             onJumpToEnd={handleJumpToEnd}
             onJumpToLive={handleJumpToLive}
             onResetSpeed={() => applyMultiplier(1)}
+            onSetSpeed={handleSetSpeed}
+            minSpeed={minSpeed}
+            maxSpeed={maxSpeed}
             onDateTimeClick={onDateTimeClick}
             dateTimeFormat={dateTimeFormat}
             timezone={timezone}

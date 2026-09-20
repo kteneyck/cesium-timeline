@@ -99,11 +99,33 @@ describe("TimelineControlsComponent", () => {
     expect(fixture.nativeElement.textContent).toContain("4\u00D7");
   });
 
-  it("emits resetSpeed when speed badge clicked", () => {
+  it("opens the speed overlay when the speed badge is clicked", () => {
+    setInputs({ multiplier: 4 });
+    expect(fixture.nativeElement.querySelector("input[type=range]")).toBeNull();
+    findBtnDE(fixture, "4\u00D7")?.triggerEventHandler("click", null);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector("input[type=range]")).not.toBeNull();
+  });
+
+  it("emits setSpeed when the overlay slider changes", () => {
+    setInputs({ multiplier: 4 });
+    const emitted = [];
+    component.setSpeed.subscribe(v => emitted.push(v));
+    findBtnDE(fixture, "4\u00D7")?.triggerEventHandler("click", null);
+    fixture.detectChanges();
+    const slider = fixture.nativeElement.querySelector("input[type=range]");
+    slider.value = "10";
+    slider.dispatchEvent(new Event("input"));
+    expect(emitted).toEqual([10]);
+  });
+
+  it("emits resetSpeed when the overlay reset link is clicked", () => {
     setInputs({ multiplier: 4 });
     const emitted = [];
     component.resetSpeed.subscribe(() => emitted.push(1));
     findBtnDE(fixture, "4\u00D7")?.triggerEventHandler("click", null);
+    fixture.detectChanges();
+    findBtnDE(fixture, DEFAULT_LABELS.resetSpeedLabel)?.triggerEventHandler("click", null);
     expect(emitted.length).toBe(1);
   });
 

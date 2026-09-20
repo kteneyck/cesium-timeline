@@ -26,6 +26,11 @@ export interface ControlsProps {
   onJumpToEnd: () => void;
   onJumpToLive: () => void;
   onResetSpeed: () => void;
+  onSetSpeed: (value: number) => void;
+  /** @see TimelineBaseProps.minSpeed */
+  minSpeed?: number;
+  /** @see TimelineBaseProps.maxSpeed */
+  maxSpeed?: number;
   isLive: boolean;
   hasStartTime: boolean;
   hasEndTime: boolean;
@@ -94,6 +99,9 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   onJumpToEnd,
   onJumpToLive,
   onResetSpeed,
+  onSetSpeed,
+  minSpeed = 1,
+  maxSpeed = 100,
   onDateTimeClick,
   theme,
   swimLanesVisible,
@@ -126,6 +134,45 @@ export const TimelineControls: React.FC<ControlsProps> = ({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // ── Playback-speed overlay (slider + input, opened from the speed badge) ──
+  const [speedOverlayOpen, setSpeedOverlayOpen] = useState(false);
+  const [speedInputValue, setSpeedInputValue] = useState(() => String(Math.abs(multiplier)));
+  const speedBadgeRef = useRef<HTMLButtonElement>(null);
+  const speedOverlayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setSpeedInputValue(String(Math.abs(multiplier)));
+  }, [multiplier]);
+
+  useEffect(() => {
+    if (multiplier === 1 || live) setSpeedOverlayOpen(false);
+  }, [multiplier, live]);
+
+  useEffect(() => {
+    if (!speedOverlayOpen) return;
+    const handlePointerDown = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (speedOverlayRef.current?.contains(target)) return;
+      if (speedBadgeRef.current?.contains(target)) return;
+      setSpeedOverlayOpen(false);
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSpeedOverlayOpen(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [speedOverlayOpen]);
+
+  const commitSpeedInput = () => {
+    const parsed = Math.round(Number(speedInputValue));
+    if (Number.isFinite(parsed)) onSetSpeed(parsed);
+    else setSpeedInputValue(String(Math.abs(multiplier)));
+  };
 
   const baseBtn: React.CSSProperties = {
     background: 'none',
@@ -200,10 +247,11 @@ export const TimelineControls: React.FC<ControlsProps> = ({
     </button>
   );
 
-  /** Speed reset badge — shown independently of the LIVE button; hidden in live mode. */
+  /** Speed badge — shown independently of the LIVE button; hidden in live mode. */
   const SpeedBadge = (!isNormalSpeed && !live) ? (
     <button
-      onClick={() => onResetSpeed()}
+      ref={speedBadgeRef}
+      onClick={() => setSpeedOverlayOpen(o => !o)}
       style={{
         ...baseBtn,
         fontSize: '11px',
@@ -223,10 +271,87 @@ export const TimelineControls: React.FC<ControlsProps> = ({
     </button>
   ) : null;
 
+  const SpeedOverlay = (speedOverlayOpen && SpeedBadge) ? (
+    <div
+      ref={speedOverlayRef}
+      style={{
+        position: 'absolute',
+        top: 'calc(100% + 6px)',
+        [liveButtonPosition === 'right' ? 'right' : 'left']: 0,
+        zIndex: 20,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        padding: '10px 12px',
+        borderRadius: '6px',
+        backgroundColor: theme.controlBarBackground,
+        border: `1px solid ${theme.controlBarBorder}`,
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+        minWidth: '170px',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+      } as React.CSSProperties}
+    >
+      <div style={{ fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.03em', color: theme.labelColor }}>
+        {L.speedOverlayTitle}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <input
+          type="range"
+          min={minSpeed}
+          max={maxSpeed}
+          step={1}
+          value={absMultiplier}
+          onChange={e => onSetSpeed(Number(e.target.value))}
+          aria-label={L.speedInputLabel}
+          style={{ flex: 1, accentColor: theme.buttonActiveColor }}
+        />
+        <input
+          type="number"
+          min={minSpeed}
+          max={maxSpeed}
+          value={speedInputValue}
+          onChange={e => setSpeedInputValue(e.target.value)}
+          onBlur={commitSpeedInput}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { commitSpeedInput(); (e.target as HTMLInputElement).blur(); }
+          }}
+          aria-label={L.speedInputLabel}
+          style={{
+            width: '48px',
+            fontSize: '12px',
+            padding: '2px 4px',
+            borderRadius: '4px',
+            border: `1px solid ${theme.controlBarBorder}`,
+            backgroundColor: 'transparent',
+            color: theme.labelColor,
+            fontFamily: 'inherit',
+          }}
+        />
+      </div>
+      <button
+        onClick={() => { onResetSpeed(); setSpeedOverlayOpen(false); }}
+        style={{
+          alignSelf: 'flex-start',
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          fontSize: '11px',
+          color: theme.buttonActiveColor,
+          cursor: 'pointer',
+          textDecoration: 'underline',
+          fontFamily: 'inherit',
+        }}
+      >
+        {L.resetSpeedLabel}
+      </button>
+    </div>
+  ) : null;
+
   const LiveAndSpeedGroup = (LiveButton || SpeedBadge) && (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', position: 'relative' }}>
       {LiveButton}
       {SpeedBadge}
+      {SpeedOverlay}
     </div>
   );
 

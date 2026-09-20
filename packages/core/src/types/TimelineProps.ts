@@ -78,6 +78,17 @@ export interface TimelineBaseProps {
    */
   rwSpeeds?: number[];
   /**
+   * Lower bound of the slider/input in the playback-speed overlay (opened by
+   * clicking the speed badge). Direction (forward/rewind) is preserved.
+   * @default 1
+   */
+  minSpeed?: number;
+  /**
+   * Upper bound of the slider/input in the playback-speed overlay.
+   * @default 100
+   */
+  maxSpeed?: number;
+  /**
    * IANA timezone string used for all datetime display on the timeline.
    * Examples: `'UTC'`, `'America/New_York'`, `'Europe/London'`.
    * Use `'local'` (default) to use the browser's local timezone.
@@ -198,6 +209,12 @@ export interface ControlsBaseProps {
   onJumpToLive: () => void;
   /** Reset the playback speed to 1×. */
   onResetSpeed: () => void;
+  /** Set the playback speed to an explicit absolute value (current direction is preserved). */
+  onSetSpeed: (value: number) => void;
+  /** @see TimelineBaseProps.minSpeed */
+  minSpeed?: number;
+  /** @see TimelineBaseProps.maxSpeed */
+  maxSpeed?: number;
   /** Whether the needle is near the current wall-clock time (within 2 s). */
   isLive: boolean;
   /** Whether to enable the ⏮ jump-to-start button (true when startTime prop was provided). */

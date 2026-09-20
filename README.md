@@ -127,8 +127,9 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 - **Netflix/Hulu-style controls** — transport buttons (⏮ ◀◀ ▶/⏸ ▶▶ ⏭) always stay centered; speed badge and LIVE button in the left column never cause layout shift.
 - **Conditional start/end buttons** — ⏮ and ⏭ are only rendered when `startTime` and `endTime` props are explicitly provided.
 - **Speed cycling** — FF cycles through `ffSpeeds` (default `2×→4×→8×→16×→32×→1×`); RW cycles through `rwSpeeds` (default `−1×→−2×→−4×→−8×→−16×→−32×`). Both arrays are fully configurable.
+- **Playback-speed overlay** — click the speed badge to open a popover with a slider and a number input for setting an exact speed within `minSpeed`–`maxSpeed`.
 - **LIVE button** — shows a red dot + filled background when within 10 s of wall clock; dim outline otherwise. Clicking jumps to `Date.now()` and resets speed to 1×. Configurable size (`sm`/`md`/`lg`) and position (`left`/`right`). Dot color is themeable via `liveDotColor`.
-- **Speed badge** — shown in the left column when multiplier ≠ 1×; click to reset to 1×.
+- **Speed badge** — shown in the left column when multiplier ≠ 1×; click to open the playback-speed overlay (slider + input).
 - **Two-line datetime display** — time displayed large/bold; date displayed smaller in the theme's active color.
 - **Clickable datetime** — pass `onDateTimeClick` to open your own date picker; pass the result back via `jumpToTime` to pan the canvas and set the time.
 - **Token-based datetime format** — built-in presets plus custom format strings with 17 supported tokens.
@@ -161,6 +162,8 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 | `maxTicks` | `number` | unlimited | Maximum number of major ticks on the canvas at once. When exceeded the tick scale is automatically coarsened.                                                                                                                           |
 | `ffSpeeds` | `number[]` | `[2,4,8,16,32,1]` | Speed steps cycled by the ▶▶ button. Last entry wraps back to first.                                                                                                                                                                    |
 | `rwSpeeds` | `number[]` | `[1,2,4,8,16,32]` | Absolute-value speed steps cycled by the ◀◀ button (negated internally).                                                                                                                                                                |
+| `minSpeed` | `number` | `1` | Lower bound of the slider/input in the playback-speed overlay (opened by clicking the speed badge).                                                                                                                                     |
+| `maxSpeed` | `number` | `100` | Upper bound of the slider/input in the playback-speed overlay.                                                                                                                                                                          |
 | `dateTimeFormat` | `string` | `'MMM DD YYYY HH:mm:ss'` | Token-based format string for the controls datetime display                                                                                                                                                                             |
 | `timezone` | `string` | browser local | IANA timezone name (e.g. `'UTC'`, `'America/New_York'`) or `'local'` for the browser's timezone. Controls both tick labels and the datetime display. When set, a short abbreviation (e.g. `UTC`, `EST`) appears to the right of the date. |
 | `onDateTimeClick` | `() => void` | — | Called when the user clicks the datetime display. Use to open your own date picker.                                                                                                                                                     |
@@ -383,7 +386,14 @@ The control bar uses a 3-column CSS grid so the transport buttons are always cen
 
 - Appears inline beside the LIVE button when multiplier ≠ 1×.
 - Shows `◀ N×` for reverse, `N× ▶` for fast-forward.
-- Clicking resets to 1× speed.
+- Clicking opens the playback-speed overlay (see below).
+
+### Playback Speed Overlay
+
+- Opened by clicking the speed badge; closes on outside click, `Escape`, or when speed returns to 1×.
+- Contains a range slider and a number input, both bounded by `minSpeed`–`maxSpeed` (default `1`–`100`).
+- Direction (forward vs. reverse) is preserved — the overlay only changes the magnitude.
+- A "Reset to 1×" link inside the overlay resets speed and closes it.
 
 ### Configuring Playback Speeds
 
@@ -440,7 +450,10 @@ Every label and tooltip in the control bar is overridable via the `labels` prop.
 | `liveActiveLabel` | `"LIVE"` | LIVE button text when at live time (red dot is rendered separately) |
 | `liveTooltip` | `"Jump to live (now)"` | LIVE button tooltip when not at live time |
 | `liveActiveTooltip` | `"Currently live"` | LIVE button tooltip when at live time |
-| `resetSpeedTooltip` | `"Reset to 1× speed"` | Tooltip on the speed-reset badge |
+| `resetSpeedTooltip` | `"Playback speed — click to adjust"` | Tooltip on the speed badge (opens the playback-speed overlay) |
+| `speedOverlayTitle` | `"Playback speed"` | Heading at the top of the playback-speed overlay |
+| `speedInputLabel` | `"Speed multiplier"` | Shared aria-label for the overlay's slider and number input |
+| `resetSpeedLabel` | `"Reset to 1×"` | Label on the reset link inside the playback-speed overlay |
 | `jumpToStartTooltip` | `"Jump to start"` | ⏮ button tooltip when a start time is set |
 | `noStartTimeTooltip` | `"No start time set"` | ⏮ button tooltip when no start time is set |
 | `jumpToEndTooltip` | `"Jump to end"` | ⏭ button tooltip when an end time is set |

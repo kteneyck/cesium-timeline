@@ -35,8 +35,17 @@ export interface TimelineLabels {
   liveActiveTooltip: string;
 
   // ── Speed badge ───────────────────────────────────────────────────────────
-  /** Tooltip on the speed-reset badge (shown when playback is not 1×). */
+  /**
+   * Tooltip on the speed badge (shown when playback is not 1×).
+   * Clicking the badge opens the playback-speed overlay (slider + input).
+   */
   resetSpeedTooltip: string;
+  /** Heading shown at the top of the playback-speed overlay. */
+  speedOverlayTitle: string;
+  /** Shared aria-label for the overlay's slider and number input. */
+  speedInputLabel: string;
+  /** Label on the "reset to 1×" link inside the playback-speed overlay. */
+  resetSpeedLabel: string;
 
   // ── Jump to start / end ───────────────────────────────────────────────────
   /** Tooltip on the ⏮ jump-to-start button when a start time is set. */
@@ -114,7 +123,10 @@ export const DEFAULT_LABELS: Required<TimelineLabels> = {
   liveTooltip: 'Jump to live (now)',
   liveActiveTooltip: 'Currently live',
 
-  resetSpeedTooltip: 'Reset to 1× speed',
+  resetSpeedTooltip: 'Playback speed — click to adjust',
+  speedOverlayTitle: 'Playback speed',
+  speedInputLabel: 'Speed multiplier',
+  resetSpeedLabel: 'Reset to 1×',
 
   jumpToStartTooltip: 'Jump to start',
   noStartTimeTooltip: 'No start time set',
