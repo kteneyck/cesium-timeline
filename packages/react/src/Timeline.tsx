@@ -320,10 +320,13 @@ export const Timeline: React.FC<TimelineProps> = ({
     applyMultiplier(next);
   };
 
-  /** Sets the playback speed to an explicit absolute value, preserving direction. */
+  /**
+   * Sets the playback speed to an explicit absolute value, preserving direction.
+   * The slider is bounded by minSpeed/maxSpeed, but a value typed directly into
+   * the number input is applied as-is, even outside that range.
+   */
   const handleSetSpeed = (value: number) => {
-    const clamped = Math.min(maxSpeed, Math.max(minSpeed, value));
-    applyMultiplier(multiplier < 0 ? -clamped : clamped);
+    applyMultiplier(multiplier < 0 ? -value : value);
   };
 
   const handleJumpToStart = () => {

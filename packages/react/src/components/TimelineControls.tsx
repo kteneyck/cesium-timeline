@@ -197,9 +197,8 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   const commitSpeedInput = () => {
     const parsed = Math.round(Number(speedInputValue));
     if (Number.isFinite(parsed)) {
-      const clamped = Math.min(maxSpeed, Math.max(minSpeed, parsed));
-      onSetSpeed(clamped);
-      setSpeedInputValue(String(clamped));
+      onSetSpeed(parsed);
+      setSpeedInputValue(String(parsed));
     } else {
       setSpeedInputValue(String(Math.abs(multiplier)));
     }

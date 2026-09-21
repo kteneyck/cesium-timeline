@@ -129,7 +129,7 @@ describe('TimelineControls', () => {
     expect(onSetSpeed).toHaveBeenCalledWith(10);
   });
 
-  it('clamps a number input value above maxSpeed on blur', () => {
+  it('allows a number input value above maxSpeed and applies it as-is on blur', () => {
     const onSetSpeed = vi.fn();
     render(<TimelineControls {...makeProps({ multiplier: 4, onSetSpeed, maxSpeed: 100 })} />);
     const badge = document.querySelector('[title="Playback speed — click to adjust"]') as HTMLButtonElement;
@@ -138,8 +138,8 @@ describe('TimelineControls', () => {
     fireEvent.change(numberInput, { target: { value: '500' } });
     expect(numberInput.value).toBe('500');
     fireEvent.blur(numberInput);
-    expect(onSetSpeed).toHaveBeenCalledWith(100);
-    expect(numberInput.value).toBe('100');
+    expect(onSetSpeed).toHaveBeenCalledWith(500);
+    expect(numberInput.value).toBe('500');
   });
 
   it('calls onResetSpeed when the overlay reset link is clicked', () => {

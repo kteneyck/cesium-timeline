@@ -422,10 +422,13 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
     this.applyMultiplier(next);
   }
 
-  /** Sets the playback speed to an explicit absolute value, preserving direction. */
+  /**
+   * Sets the playback speed to an explicit absolute value, preserving direction.
+   * The slider is bounded by minSpeed/maxSpeed, but a value typed directly into
+   * the number input is applied as-is, even outside that range.
+   */
   handleSetSpeed(value: number): void {
-    const clamped = Math.min(this.maxSpeed, Math.max(this.minSpeed, value));
-    this.applyMultiplier(this.multiplierState < 0 ? -clamped : clamped);
+    this.applyMultiplier(this.multiplierState < 0 ? -value : value);
   }
 
   handleJumpToStart(): void {

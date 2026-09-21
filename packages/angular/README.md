@@ -323,7 +323,7 @@ The control bar uses a 3-column CSS grid so the transport buttons are always cen
 - Opened above the speed badge (so it stays visible when the timeline sits near the bottom of the page); closes on outside click, `Escape`, or when speed returns to 1×.
 - Positioned with `position: fixed` at a very high z-index, computed from the badge's on-screen coordinates — it escapes any ancestor's `overflow: hidden` clipping and renders above other page content (e.g. a Cesium `Viewer` globe placed elsewhere on the page).
 - Contains a range slider bounded by `minSpeed`–`maxSpeed` (default `1`–`100`), and a number input for typing an exact value.
-- The number input accepts any typed value (including outside the slider's range) and clamps it to `minSpeed`–`maxSpeed` when the input loses focus or Enter is pressed.
+- The number input accepts any typed value, including outside `minSpeed`–`maxSpeed` — it's applied as-is (not clamped) when the input loses focus or Enter is pressed, letting you exceed the slider's range.
 - Direction (forward vs. reverse) is preserved — the overlay only changes the magnitude.
 - A "Reset" button inside the overlay (with a tooltip explaining it resets to 1×) resets speed and closes it.
 

@@ -534,9 +534,8 @@ export class TimelineControlsComponent implements AfterViewInit, OnChanges, OnDe
   commitSpeedInput(): void {
     const parsed = Math.round(Number(this.speedInputValue));
     if (Number.isFinite(parsed)) {
-      const clamped = Math.min(this.maxSpeed, Math.max(this.minSpeed, parsed));
-      this.setSpeed.emit(clamped);
-      this.speedInputValue = String(clamped);
+      this.setSpeed.emit(parsed);
+      this.speedInputValue = String(parsed);
     } else {
       this.speedInputValue = String(this.absMultiplier);
     }
