@@ -61,6 +61,8 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
             [dateTimeFormat]="dateTimeFormat"
             [timezone]="timezone"
             [theme]="finalTheme"
+            [minSpeed]="minSpeed"
+            [maxSpeed]="maxSpeed"
             [swimLanesVisible]="hasSwimLanes ? swimLanesExpanded : undefined"
             (playPause)="handlePlayPause($event)"
             (jumpToStart)="handleJumpToStart()"
@@ -69,6 +71,7 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
             (jumpToEnd)="handleJumpToEnd()"
             (jumpToLive)="handleJumpToLive()"
             (resetSpeed)="applyMultiplier(1)"
+            (setSpeed)="handleSetSpeed($event)"
             (dateTimeClick)="dateTimeClick.emit()"
             (toggleSwimLanes)="handleToggleSwimLanes()"
             [labels]="labels"
@@ -128,6 +131,10 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
   @Input() maxTicks?: number;
   @Input() ffSpeeds: number[] = DEFAULT_FF_SPEEDS;
   @Input() rwSpeeds: number[] = DEFAULT_RW_SPEEDS;
+  /** @see TimelineBaseProps.minSpeed */
+  @Input() minSpeed = 1;
+  /** @see TimelineBaseProps.maxSpeed */
+  @Input() maxSpeed = 100;
   @Input() theme?: Partial<TimelineTheme>;
   @Input() cssClass?: string;
   @Input() timezone?: string;
@@ -413,6 +420,15 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
     const idx = speeds.indexOf(curAbs);
     const next = -(speeds[idx < 0 || idx === speeds.length - 1 ? 0 : idx + 1]);
     this.applyMultiplier(next);
+  }
+
+  /**
+   * Sets the playback speed to an explicit absolute value, preserving direction.
+   * The slider is bounded by minSpeed/maxSpeed, but a value typed directly into
+   * the number input is applied as-is, even outside that range.
+   */
+  handleSetSpeed(value: number): void {
+    this.applyMultiplier(this.multiplierState < 0 ? -value : value);
   }
 
   handleJumpToStart(): void {

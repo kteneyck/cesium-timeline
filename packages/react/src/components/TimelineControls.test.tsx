@@ -32,6 +32,7 @@ function makeProps(overrides: Partial<ControlsProps> = {}): ControlsProps {
     onJumpToEnd: vi.fn(),
     onJumpToLive: vi.fn(),
     onResetSpeed: vi.fn(),
+    onSetSpeed: vi.fn(),
     theme: defaultTheme,
     ...overrides,
   };
@@ -64,10 +65,10 @@ describe('TimelineControls', () => {
     expect(screen.queryByText('LIVE')).toBeNull();
   });
 
-  it('still shows the speed reset badge when showLive is false', () => {
+  it('still shows the speed badge when showLive is false', () => {
     render(<TimelineControls {...makeProps({ showLive: false, multiplier: 2 })} />);
     expect(screen.queryByText('LIVE')).toBeNull();
-    expect(document.querySelector('[title="Reset to 1× speed"]')).not.toBeNull();
+    expect(document.querySelector('[title="Playback speed — click to adjust"]')).not.toBeNull();
   });
 
   it('calls onPlayPause(true) when play button clicked while stopped', () => {
@@ -102,19 +103,51 @@ describe('TimelineControls', () => {
 
   it('does NOT show speed badge when multiplier=1', () => {
     render(<TimelineControls {...makeProps({ multiplier: 1 })} />);
-    expect(document.querySelector('[title="Reset to 1× speed"]')).toBeNull();
+    expect(document.querySelector('[title="Playback speed — click to adjust"]')).toBeNull();
   });
 
   it('shows speed badge when multiplier != 1', () => {
     render(<TimelineControls {...makeProps({ multiplier: 4 })} />);
-    expect(document.querySelector('[title="Reset to 1× speed"]')).not.toBeNull();
+    expect(document.querySelector('[title="Playback speed — click to adjust"]')).not.toBeNull();
   });
 
-  it('calls onResetSpeed when speed badge clicked', () => {
+  it('opens the speed overlay when the speed badge is clicked', () => {
+    render(<TimelineControls {...makeProps({ multiplier: 4 })} />);
+    expect(screen.queryByLabelText('Speed multiplier')).toBeNull();
+    const badge = document.querySelector('[title="Playback speed — click to adjust"]') as HTMLButtonElement;
+    fireEvent.click(badge);
+    expect(screen.getAllByLabelText('Speed multiplier').length).toBe(2); // slider + number input
+  });
+
+  it('calls onSetSpeed when the overlay slider changes', () => {
+    const onSetSpeed = vi.fn();
+    render(<TimelineControls {...makeProps({ multiplier: 4, onSetSpeed })} />);
+    const badge = document.querySelector('[title="Playback speed — click to adjust"]') as HTMLButtonElement;
+    fireEvent.click(badge);
+    const slider = document.querySelector('input[type="range"]') as HTMLInputElement;
+    fireEvent.change(slider, { target: { value: '10' } });
+    expect(onSetSpeed).toHaveBeenCalledWith(10);
+  });
+
+  it('allows a number input value above maxSpeed and applies it as-is on blur', () => {
+    const onSetSpeed = vi.fn();
+    render(<TimelineControls {...makeProps({ multiplier: 4, onSetSpeed, maxSpeed: 100 })} />);
+    const badge = document.querySelector('[title="Playback speed — click to adjust"]') as HTMLButtonElement;
+    fireEvent.click(badge);
+    const numberInput = document.querySelector('input[type="number"]') as HTMLInputElement;
+    fireEvent.change(numberInput, { target: { value: '500' } });
+    expect(numberInput.value).toBe('500');
+    fireEvent.blur(numberInput);
+    expect(onSetSpeed).toHaveBeenCalledWith(500);
+    expect(numberInput.value).toBe('500');
+  });
+
+  it('calls onResetSpeed when the overlay reset link is clicked', () => {
     const onResetSpeed = vi.fn();
     render(<TimelineControls {...makeProps({ multiplier: 4, onResetSpeed })} />);
-    const badge = document.querySelector('[title="Reset to 1× speed"]') as HTMLButtonElement;
+    const badge = document.querySelector('[title="Playback speed — click to adjust"]') as HTMLButtonElement;
     fireEvent.click(badge);
+    fireEvent.click(screen.getByText('Reset'));
     expect(onResetSpeed).toHaveBeenCalledOnce();
   });
 

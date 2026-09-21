@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import * as Cesium from 'cesium';
 import {
   type TimelineTheme,
@@ -26,6 +26,11 @@ export interface ControlsProps {
   onJumpToEnd: () => void;
   onJumpToLive: () => void;
   onResetSpeed: () => void;
+  onSetSpeed: (value: number) => void;
+  /** @see TimelineBaseProps.minSpeed */
+  minSpeed?: number;
+  /** @see TimelineBaseProps.maxSpeed */
+  maxSpeed?: number;
   isLive: boolean;
   hasStartTime: boolean;
   hasEndTime: boolean;
@@ -94,6 +99,9 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   onJumpToEnd,
   onJumpToLive,
   onResetSpeed,
+  onSetSpeed,
+  minSpeed = 1,
+  maxSpeed = 100,
   onDateTimeClick,
   theme,
   swimLanesVisible,
@@ -126,6 +134,75 @@ export const TimelineControls: React.FC<ControlsProps> = ({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // ── Playback-speed overlay (slider + input, opened from the speed badge) ──
+  const [speedOverlayOpen, setSpeedOverlayOpen] = useState(false);
+  const [speedInputValue, setSpeedInputValue] = useState(() => String(Math.abs(multiplier)));
+  const speedBadgeRef = useRef<HTMLButtonElement>(null);
+  const speedOverlayRef = useRef<HTMLDivElement>(null);
+
+  // Fixed-position coordinates (viewport-relative) so the overlay escapes any
+  // ancestor's `overflow: hidden` and stacks above other page content (e.g. a
+  // Cesium globe elsewhere on the page). Recomputed on open/resize/scroll.
+  const [speedOverlayPos, setSpeedOverlayPos] = useState<{ bottom: number; left?: number; right?: number } | null>(null);
+
+  useEffect(() => {
+    setSpeedInputValue(String(Math.abs(multiplier)));
+  }, [multiplier]);
+
+  useEffect(() => {
+    if (multiplier === 1 || live) setSpeedOverlayOpen(false);
+  }, [multiplier, live]);
+
+  useLayoutEffect(() => {
+    if (!speedOverlayOpen) { setSpeedOverlayPos(null); return; }
+    const updatePosition = () => {
+      const badge = speedBadgeRef.current;
+      if (!badge) return;
+      const rect = badge.getBoundingClientRect();
+      setSpeedOverlayPos(
+        liveButtonPosition === 'right'
+          ? { bottom: window.innerHeight - rect.top + 6, right: window.innerWidth - rect.right }
+          : { bottom: window.innerHeight - rect.top + 6, left: rect.left }
+      );
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [speedOverlayOpen, liveButtonPosition]);
+
+  useEffect(() => {
+    if (!speedOverlayOpen) return;
+    const handlePointerDown = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (speedOverlayRef.current?.contains(target)) return;
+      if (speedBadgeRef.current?.contains(target)) return;
+      setSpeedOverlayOpen(false);
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSpeedOverlayOpen(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [speedOverlayOpen]);
+
+  const commitSpeedInput = () => {
+    const parsed = Math.round(Number(speedInputValue));
+    if (Number.isFinite(parsed)) {
+      onSetSpeed(parsed);
+      setSpeedInputValue(String(parsed));
+    } else {
+      setSpeedInputValue(String(Math.abs(multiplier)));
+    }
+  };
 
   const baseBtn: React.CSSProperties = {
     background: 'none',
@@ -200,18 +277,21 @@ export const TimelineControls: React.FC<ControlsProps> = ({
     </button>
   );
 
-  /** Speed reset badge — shown independently of the LIVE button; hidden in live mode. */
+  /** Speed badge — shown independently of the LIVE button; hidden in live mode. */
   const SpeedBadge = (!isNormalSpeed && !live) ? (
     <button
-      onClick={() => onResetSpeed()}
+      ref={speedBadgeRef}
+      onClick={() => setSpeedOverlayOpen(o => !o)}
       style={{
         ...baseBtn,
         fontSize: '11px',
         color: theme.buttonActiveColor,
         borderColor: `${theme.buttonActiveColor}44`,
-        width: `${liveSize.width}px`,
+        width: 'auto',
         minWidth: `${liveSize.width}px`,
         height: `${liveSize.height}px`,
+        paddingLeft: '8px',
+        paddingRight: '8px',
       }}
       onMouseEnter={e => onEnter(e, true)}
       onMouseLeave={onLeave}
@@ -221,10 +301,98 @@ export const TimelineControls: React.FC<ControlsProps> = ({
     </button>
   ) : null;
 
+  const SpeedOverlay = (speedOverlayOpen && SpeedBadge && speedOverlayPos) ? (
+    <div
+      ref={speedOverlayRef}
+      style={{
+        position: 'fixed',
+        ...speedOverlayPos,
+        zIndex: 2147483647,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        padding: '10px 12px',
+        borderRadius: '6px',
+        backgroundColor: theme.controlBarBackground,
+        border: `1px solid ${theme.controlBarBorder}`,
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+        minWidth: '170px',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+      }}
+    >
+      <style>{`
+        .ct-speed-input::-webkit-outer-spin-button,
+        .ct-speed-input::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .ct-speed-input {
+          -moz-appearance: textfield;
+        }
+      `}</style>
+      <div style={{ fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.03em', color: theme.labelColor }}>
+        {L.speedOverlayTitle}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <input
+          type="range"
+          min={minSpeed}
+          max={maxSpeed}
+          step={1}
+          value={absMultiplier}
+          onChange={e => onSetSpeed(Number(e.target.value))}
+          aria-label={L.speedInputLabel}
+          style={{ flex: 1, accentColor: theme.buttonActiveColor }}
+        />
+        <input
+          type="number"
+          className="ct-speed-input"
+          value={speedInputValue}
+          onChange={e => setSpeedInputValue(e.target.value)}
+          onBlur={commitSpeedInput}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { commitSpeedInput(); (e.target as HTMLInputElement).blur(); }
+          }}
+          aria-label={L.speedInputLabel}
+          style={{
+            width: '48px',
+            fontSize: '12px',
+            padding: '2px 4px',
+            borderRadius: '4px',
+            border: `1px solid ${theme.controlBarBorder}`,
+            backgroundColor: 'transparent',
+            color: theme.labelColor,
+            fontFamily: 'inherit',
+          }}
+        />
+      </div>
+      <button
+        onClick={() => { onResetSpeed(); setSpeedOverlayOpen(false); }}
+        title={L.resetSpeedTitle}
+        style={{
+          ...baseBtn,
+          alignSelf: 'flex-start',
+          width: 'auto',
+          height: `${liveSize.height}px`,
+          paddingLeft: '10px',
+          paddingRight: '10px',
+          fontSize: '11px',
+          color: theme.buttonActiveColor,
+          borderColor: `${theme.buttonActiveColor}44`,
+        }}
+        onMouseEnter={e => onEnter(e, true)}
+        onMouseLeave={onLeave}
+      >
+        {L.resetSpeedLabel}
+      </button>
+    </div>
+  ) : null;
+
   const LiveAndSpeedGroup = (LiveButton || SpeedBadge) && (
     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
       {LiveButton}
       {SpeedBadge}
+      {SpeedOverlay}
     </div>
   );
 
@@ -343,7 +511,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
         {!live && (
           <button
             onClick={onFastForward}
-            style={btn(isFastForward)}
+            style={{ ...btn(isFastForward), width: 'auto', paddingLeft: '6px', paddingRight: '6px' }}
             onMouseEnter={e => onEnter(e, isFastForward)}
             onMouseLeave={onLeave}
             title={isFastForward ? resolveLabel(L.fastForwardActiveTooltip, absMultiplier) : L.fastForwardTooltip}
