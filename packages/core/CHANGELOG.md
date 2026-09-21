@@ -1,5 +1,11 @@
 # @kteneyck/cesium-timeline-core
 
+## 0.16.0
+
+### Minor Changes
+
+- e7c2b98: restyle ff and reserve buttons, add controls for speed multiplier
+
 ## 0.15.0
 
 ### Minor Changes
