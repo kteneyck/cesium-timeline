@@ -196,8 +196,13 @@ export const TimelineControls: React.FC<ControlsProps> = ({
 
   const commitSpeedInput = () => {
     const parsed = Math.round(Number(speedInputValue));
-    if (Number.isFinite(parsed)) onSetSpeed(parsed);
-    else setSpeedInputValue(String(Math.abs(multiplier)));
+    if (Number.isFinite(parsed)) {
+      const clamped = Math.min(maxSpeed, Math.max(minSpeed, parsed));
+      onSetSpeed(clamped);
+      setSpeedInputValue(String(clamped));
+    } else {
+      setSpeedInputValue(String(Math.abs(multiplier)));
+    }
   };
 
   const baseBtn: React.CSSProperties = {
@@ -343,8 +348,6 @@ export const TimelineControls: React.FC<ControlsProps> = ({
         <input
           type="number"
           className="ct-speed-input"
-          min={minSpeed}
-          max={maxSpeed}
           value={speedInputValue}
           onChange={e => setSpeedInputValue(e.target.value)}
           onBlur={commitSpeedInput}

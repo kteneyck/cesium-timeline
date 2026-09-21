@@ -119,6 +119,21 @@ describe("TimelineControlsComponent", () => {
     expect(emitted).toEqual([10]);
   });
 
+  it("clamps a number input value above maxSpeed on blur", () => {
+    setInputs({ multiplier: 4 });
+    const emitted = [];
+    component.setSpeed.subscribe(v => emitted.push(v));
+    findBtnDE(fixture, "4×")?.triggerEventHandler("click", null);
+    fixture.detectChanges();
+    const numberInput = fixture.nativeElement.querySelector("input[type=number]");
+    numberInput.value = "500";
+    numberInput.dispatchEvent(new Event("input"));
+    numberInput.dispatchEvent(new Event("blur"));
+    fixture.detectChanges();
+    expect(emitted).toEqual([100]);
+    expect(numberInput.value).toBe("100");
+  });
+
   it("emits resetSpeed when the overlay reset link is clicked", () => {
     setInputs({ multiplier: 4 });
     const emitted = [];

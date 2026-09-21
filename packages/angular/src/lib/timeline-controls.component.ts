@@ -134,8 +134,6 @@ import {
                     <input
                       type="number"
                       class="ct-speed-input"
-                      [attr.min]="minSpeed"
-                      [attr.max]="maxSpeed"
                       [value]="speedInputValue"
                       (input)="onSpeedInputChange($event)"
                       (blur)="commitSpeedInput()"
@@ -301,8 +299,6 @@ import {
                       <input
                         type="number"
                         class="ct-speed-input"
-                        [attr.min]="minSpeed"
-                        [attr.max]="maxSpeed"
                         [value]="speedInputValue"
                         (input)="onSpeedInputChange($event)"
                         (blur)="commitSpeedInput()"
@@ -537,8 +533,13 @@ export class TimelineControlsComponent implements AfterViewInit, OnChanges, OnDe
 
   commitSpeedInput(): void {
     const parsed = Math.round(Number(this.speedInputValue));
-    if (Number.isFinite(parsed)) this.setSpeed.emit(parsed);
-    else this.speedInputValue = String(this.absMultiplier);
+    if (Number.isFinite(parsed)) {
+      const clamped = Math.min(this.maxSpeed, Math.max(this.minSpeed, parsed));
+      this.setSpeed.emit(clamped);
+      this.speedInputValue = String(clamped);
+    } else {
+      this.speedInputValue = String(this.absMultiplier);
+    }
   }
 
   @HostListener('document:pointerdown', ['$event'])
