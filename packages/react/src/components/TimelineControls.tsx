@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import * as Cesium from 'cesium';
 import {
   type TimelineTheme,
@@ -141,6 +141,11 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   const speedBadgeRef = useRef<HTMLButtonElement>(null);
   const speedOverlayRef = useRef<HTMLDivElement>(null);
 
+  // Fixed-position coordinates (viewport-relative) so the overlay escapes any
+  // ancestor's `overflow: hidden` and stacks above other page content (e.g. a
+  // Cesium globe elsewhere on the page). Recomputed on open/resize/scroll.
+  const [speedOverlayPos, setSpeedOverlayPos] = useState<{ bottom: number; left?: number; right?: number } | null>(null);
+
   useEffect(() => {
     setSpeedInputValue(String(Math.abs(multiplier)));
   }, [multiplier]);
@@ -148,6 +153,27 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   useEffect(() => {
     if (multiplier === 1 || live) setSpeedOverlayOpen(false);
   }, [multiplier, live]);
+
+  useLayoutEffect(() => {
+    if (!speedOverlayOpen) { setSpeedOverlayPos(null); return; }
+    const updatePosition = () => {
+      const badge = speedBadgeRef.current;
+      if (!badge) return;
+      const rect = badge.getBoundingClientRect();
+      setSpeedOverlayPos(
+        liveButtonPosition === 'right'
+          ? { bottom: window.innerHeight - rect.top + 6, right: window.innerWidth - rect.right }
+          : { bottom: window.innerHeight - rect.top + 6, left: rect.left }
+      );
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [speedOverlayOpen, liveButtonPosition]);
 
   useEffect(() => {
     if (!speedOverlayOpen) return;
@@ -271,14 +297,13 @@ export const TimelineControls: React.FC<ControlsProps> = ({
     </button>
   ) : null;
 
-  const SpeedOverlay = (speedOverlayOpen && SpeedBadge) ? (
+  const SpeedOverlay = (speedOverlayOpen && SpeedBadge && speedOverlayPos) ? (
     <div
       ref={speedOverlayRef}
       style={{
-        position: 'absolute',
-        bottom: 'calc(100% + 6px)',
-        [liveButtonPosition === 'right' ? 'right' : 'left']: 0,
-        zIndex: 20,
+        position: 'fixed',
+        ...speedOverlayPos,
+        zIndex: 2147483647,
         display: 'flex',
         flexDirection: 'column',
         gap: '8px',
@@ -289,7 +314,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
         boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
         minWidth: '170px',
         fontFamily: 'system-ui, -apple-system, sans-serif',
-      } as React.CSSProperties}
+      }}
     >
       <style>{`
         .ct-speed-input::-webkit-outer-spin-button,
@@ -362,7 +387,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   ) : null;
 
   const LiveAndSpeedGroup = (LiveButton || SpeedBadge) && (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', position: 'relative' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
       {LiveButton}
       {SpeedBadge}
       {SpeedOverlay}

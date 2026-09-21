@@ -321,6 +321,7 @@ The control bar uses a 3-column CSS grid so the transport buttons are always cen
 ### Playback Speed Overlay
 
 - Opened above the speed badge (so it stays visible when the timeline sits near the bottom of the page); closes on outside click, `Escape`, or when speed returns to 1×.
+- Positioned with `position: fixed` at a very high z-index, computed from the badge's on-screen coordinates — it escapes any ancestor's `overflow: hidden` clipping and renders above other page content (e.g. a Cesium `Viewer` globe placed elsewhere on the page).
 - Contains a range slider and a number input, both bounded by `minSpeed`–`maxSpeed` (default `1`–`100`).
 - Direction (forward vs. reverse) is preserved — the overlay only changes the magnitude.
 - A "Reset" button inside the overlay (with a tooltip explaining it resets to 1×) resets speed and closes it.

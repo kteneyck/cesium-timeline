@@ -69,7 +69,7 @@ import {
         </div>
 
         @if (liveButtonPosition === 'left' && (showLive || (!isNormalSpeed && !live))) {
-          <div style="display:flex;align-items:center;gap:4px;position:relative">
+          <div style="display:flex;align-items:center;gap:4px">
             @if (showLive) {
               <button
                 (click)="!live && jumpToLive.emit()"
@@ -108,13 +108,15 @@ import {
                 style="background:none;border:1px solid;cursor:pointer;font-size:11px;border-radius:4px;display:flex;align-items:center;justify-content:center;width:auto;padding:0 8px;font-family:system-ui,-apple-system,sans-serif;transition:background-color 0.15s"
                 [title]="l.resetSpeedTooltip"
               >{{ isRewinding ? '◀ ' + absMultiplier + '×' : absMultiplier + '× ▶' }}</button>
-              @if (speedOverlayOpen) {
+              @if (speedOverlayOpen && speedOverlayPos) {
                 <div
                   data-speed-overlay
                   [style.background-color]="theme.controlBarBackground"
                   [style.border]="'1px solid ' + theme.controlBarBorder"
                   [style.color]="theme.labelColor"
-                  style="position:absolute;bottom:calc(100% + 6px);left:0;z-index:20;display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.3);min-width:170px;font-family:system-ui,-apple-system,sans-serif"
+                  [style.bottom.px]="speedOverlayPos.bottom"
+                  [style.left.px]="speedOverlayPos.left"
+                  style="position:fixed;z-index:2147483647;display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.3);min-width:170px;font-family:system-ui,-apple-system,sans-serif"
                 >
                   <div style="font-size:11px;font-weight:bold;letter-spacing:0.03em">{{ l.speedOverlayTitle }}</div>
                   <div style="display:flex;align-items:center;gap:8px">
@@ -145,7 +147,7 @@ import {
                     />
                   </div>
                   <button
-                    (click)="resetSpeed.emit(); speedOverlayOpen = false"
+                    (click)="resetSpeed.emit(); closeSpeedOverlay()"
                     [style.color]="theme.buttonActiveColor"
                     [style.border-color]="theme.buttonActiveColor + '44'"
                     [style.height.px]="liveSize.height"
@@ -234,7 +236,7 @@ import {
       @if (!isNarrow) {
         <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px">
           @if (liveButtonPosition === 'right' && (showLive || (!isNormalSpeed && !live))) {
-            <div style="display:flex;align-items:center;gap:4px;position:relative">
+            <div style="display:flex;align-items:center;gap:4px">
               @if (showLive) {
                 <button
                   (click)="!live && jumpToLive.emit()"
@@ -273,13 +275,15 @@ import {
                   style="background:none;border:1px solid;cursor:pointer;font-size:11px;border-radius:4px;display:flex;align-items:center;justify-content:center;width:auto;padding:0 8px;font-family:system-ui,-apple-system,sans-serif;transition:background-color 0.15s"
                   [title]="l.resetSpeedTooltip"
                 >{{ isRewinding ? '◀ ' + absMultiplier + '×' : absMultiplier + '× ▶' }}</button>
-                @if (speedOverlayOpen) {
+                @if (speedOverlayOpen && speedOverlayPos) {
                   <div
                     data-speed-overlay
                     [style.background-color]="theme.controlBarBackground"
                     [style.border]="'1px solid ' + theme.controlBarBorder"
                     [style.color]="theme.labelColor"
-                    style="position:absolute;bottom:calc(100% + 6px);right:0;z-index:20;display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.3);min-width:170px;font-family:system-ui,-apple-system,sans-serif"
+                    [style.bottom.px]="speedOverlayPos.bottom"
+                    [style.right.px]="speedOverlayPos.right"
+                    style="position:fixed;z-index:2147483647;display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.3);min-width:170px;font-family:system-ui,-apple-system,sans-serif"
                   >
                     <div style="font-size:11px;font-weight:bold;letter-spacing:0.03em">{{ l.speedOverlayTitle }}</div>
                     <div style="display:flex;align-items:center;gap:8px">
@@ -310,7 +314,7 @@ import {
                       />
                     </div>
                     <button
-                      (click)="resetSpeed.emit(); speedOverlayOpen = false"
+                      (click)="resetSpeed.emit(); closeSpeedOverlay()"
                       [style.color]="theme.buttonActiveColor"
                       [style.border-color]="theme.buttonActiveColor + '44'"
                       [style.height.px]="liveSize.height"
@@ -440,7 +444,7 @@ export class TimelineControlsComponent implements AfterViewInit, OnChanges, OnDe
   @Output() setSpeed = new EventEmitter<number>();
   @Output() toggleSwimLanes = new EventEmitter<void>();
 
-  constructor(private cdr: ChangeDetectorRef) {}
+  constructor(private cdr: ChangeDetectorRef, private elRef: ElementRef<HTMLElement>) {}
 
   @ViewChild('container') containerRef!: ElementRef<HTMLDivElement>;
 
@@ -450,6 +454,12 @@ export class TimelineControlsComponent implements AfterViewInit, OnChanges, OnDe
   // ── Playback-speed overlay (slider + input, opened from the speed badge) ──
   speedOverlayOpen = false;
   speedInputValue = '1';
+  /** Fixed-position coordinates (viewport-relative) so the overlay escapes any
+   *  ancestor's `overflow: hidden` and stacks above other page content (e.g. a
+   *  Cesium globe elsewhere on the page). Recomputed on open/resize/scroll. */
+  speedOverlayPos: { bottom: number; left?: number; right?: number } | null = null;
+  private overlayResizeListener?: () => void;
+  private overlayScrollListener?: () => void;
 
   get isRewinding(): boolean { return this.multiplier < 0; }
   get isFastForward(): boolean { return this.multiplier > 1; }
@@ -480,13 +490,41 @@ export class TimelineControlsComponent implements AfterViewInit, OnChanges, OnDe
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['multiplier']) {
       this.speedInputValue = String(Math.abs(this.multiplier));
-      if (this.multiplier === 1) this.speedOverlayOpen = false;
+      if (this.multiplier === 1) this.closeSpeedOverlay();
     }
-    if (changes['live'] && this.live) this.speedOverlayOpen = false;
+    if (changes['live'] && this.live) this.closeSpeedOverlay();
   }
 
   toggleSpeedOverlay(): void {
-    this.speedOverlayOpen = !this.speedOverlayOpen;
+    if (this.speedOverlayOpen) {
+      this.closeSpeedOverlay();
+      return;
+    }
+    this.speedOverlayOpen = true;
+    this.updateSpeedOverlayPosition();
+    this.overlayResizeListener = () => this.updateSpeedOverlayPosition();
+    this.overlayScrollListener = () => this.updateSpeedOverlayPosition();
+    window.addEventListener('resize', this.overlayResizeListener);
+    window.addEventListener('scroll', this.overlayScrollListener, true);
+  }
+
+  closeSpeedOverlay(): void {
+    this.speedOverlayOpen = false;
+    this.speedOverlayPos = null;
+    if (this.overlayResizeListener) window.removeEventListener('resize', this.overlayResizeListener);
+    if (this.overlayScrollListener) window.removeEventListener('scroll', this.overlayScrollListener, true);
+    this.overlayResizeListener = undefined;
+    this.overlayScrollListener = undefined;
+  }
+
+  private updateSpeedOverlayPosition(): void {
+    const badge = this.elRef.nativeElement.querySelector('[data-speed-badge]');
+    if (!badge) return;
+    const rect = badge.getBoundingClientRect();
+    this.speedOverlayPos = this.liveButtonPosition === 'right'
+      ? { bottom: window.innerHeight - rect.top + 6, right: window.innerWidth - rect.right }
+      : { bottom: window.innerHeight - rect.top + 6, left: rect.left };
+    this.cdr.markForCheck();
   }
 
   onSliderChange(e: Event): void {
@@ -530,5 +568,7 @@ export class TimelineControlsComponent implements AfterViewInit, OnChanges, OnDe
 
   ngOnDestroy(): void {
     this.ro?.disconnect();
+    if (this.overlayResizeListener) window.removeEventListener('resize', this.overlayResizeListener);
+    if (this.overlayScrollListener) window.removeEventListener('scroll', this.overlayScrollListener, true);
   }
 }
