@@ -44,8 +44,10 @@ export interface TimelineLabels {
   speedOverlayTitle: string;
   /** Shared aria-label for the overlay's slider and number input. */
   speedInputLabel: string;
-  /** Label on the "reset to 1×" link inside the playback-speed overlay. */
+  /** Visible text on the reset button inside the playback-speed overlay. */
   resetSpeedLabel: string;
+  /** Tooltip on the reset button inside the playback-speed overlay. */
+  resetSpeedTitle: string;
 
   // ── Jump to start / end ───────────────────────────────────────────────────
   /** Tooltip on the ⏮ jump-to-start button when a start time is set. */
@@ -126,7 +128,8 @@ export const DEFAULT_LABELS: Required<TimelineLabels> = {
   resetSpeedTooltip: 'Playback speed — click to adjust',
   speedOverlayTitle: 'Playback speed',
   speedInputLabel: 'Speed multiplier',
-  resetSpeedLabel: 'Reset to 1×',
+  resetSpeedLabel: 'Reset',
+  resetSpeedTitle: 'Reset playback speed to 1×',
 
   jumpToStartTooltip: 'Jump to start',
   noStartTimeTooltip: 'No start time set',

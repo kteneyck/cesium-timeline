@@ -114,7 +114,7 @@ import {
                   [style.background-color]="theme.controlBarBackground"
                   [style.border]="'1px solid ' + theme.controlBarBorder"
                   [style.color]="theme.labelColor"
-                  style="position:absolute;top:calc(100% + 6px);left:0;z-index:20;display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.3);min-width:170px;font-family:system-ui,-apple-system,sans-serif"
+                  style="position:absolute;bottom:calc(100% + 6px);left:0;z-index:20;display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.3);min-width:170px;font-family:system-ui,-apple-system,sans-serif"
                 >
                   <div style="font-size:11px;font-weight:bold;letter-spacing:0.03em">{{ l.speedOverlayTitle }}</div>
                   <div style="display:flex;align-items:center;gap:8px">
@@ -131,6 +131,7 @@ import {
                     />
                     <input
                       type="number"
+                      class="ct-speed-input"
                       [attr.min]="minSpeed"
                       [attr.max]="maxSpeed"
                       [value]="speedInputValue"
@@ -146,7 +147,10 @@ import {
                   <button
                     (click)="resetSpeed.emit(); speedOverlayOpen = false"
                     [style.color]="theme.buttonActiveColor"
-                    style="align-self:flex-start;background:none;border:none;padding:0;font-size:11px;cursor:pointer;text-decoration:underline;font-family:inherit"
+                    [style.border-color]="theme.buttonActiveColor + '44'"
+                    [style.height.px]="liveSize.height"
+                    style="align-self:flex-start;background:none;border:1px solid;cursor:pointer;font-size:11px;border-radius:4px;padding:0 10px;font-family:inherit"
+                    [title]="l.resetSpeedTitle"
                   >{{ l.resetSpeedLabel }}</button>
                 </div>
               }
@@ -275,7 +279,7 @@ import {
                     [style.background-color]="theme.controlBarBackground"
                     [style.border]="'1px solid ' + theme.controlBarBorder"
                     [style.color]="theme.labelColor"
-                    style="position:absolute;top:calc(100% + 6px);right:0;z-index:20;display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.3);min-width:170px;font-family:system-ui,-apple-system,sans-serif"
+                    style="position:absolute;bottom:calc(100% + 6px);right:0;z-index:20;display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.3);min-width:170px;font-family:system-ui,-apple-system,sans-serif"
                   >
                     <div style="font-size:11px;font-weight:bold;letter-spacing:0.03em">{{ l.speedOverlayTitle }}</div>
                     <div style="display:flex;align-items:center;gap:8px">
@@ -292,6 +296,7 @@ import {
                       />
                       <input
                         type="number"
+                        class="ct-speed-input"
                         [attr.min]="minSpeed"
                         [attr.max]="maxSpeed"
                         [value]="speedInputValue"
@@ -307,7 +312,10 @@ import {
                     <button
                       (click)="resetSpeed.emit(); speedOverlayOpen = false"
                       [style.color]="theme.buttonActiveColor"
-                      style="align-self:flex-start;background:none;border:none;padding:0;font-size:11px;cursor:pointer;text-decoration:underline;font-family:inherit"
+                      [style.border-color]="theme.buttonActiveColor + '44'"
+                      [style.height.px]="liveSize.height"
+                      style="align-self:flex-start;background:none;border:1px solid;cursor:pointer;font-size:11px;border-radius:4px;padding:0 10px;font-family:inherit"
+                      [title]="l.resetSpeedTitle"
                     >{{ l.resetSpeedLabel }}</button>
                   </div>
                 }
@@ -385,6 +393,14 @@ import {
       min-width: 40px;
       height: 40px;
       border-radius: 50%;
+    }
+    .ct-speed-input::-webkit-outer-spin-button,
+    .ct-speed-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    .ct-speed-input {
+      -moz-appearance: textfield;
     }
   `],
 })

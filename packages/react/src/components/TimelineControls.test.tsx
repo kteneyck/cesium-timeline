@@ -134,7 +134,7 @@ describe('TimelineControls', () => {
     render(<TimelineControls {...makeProps({ multiplier: 4, onResetSpeed })} />);
     const badge = document.querySelector('[title="Playback speed — click to adjust"]') as HTMLButtonElement;
     fireEvent.click(badge);
-    fireEvent.click(screen.getByText('Reset to 1×'));
+    fireEvent.click(screen.getByText('Reset'));
     expect(onResetSpeed).toHaveBeenCalledOnce();
   });
 

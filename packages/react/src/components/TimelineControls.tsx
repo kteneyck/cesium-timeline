@@ -276,7 +276,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
       ref={speedOverlayRef}
       style={{
         position: 'absolute',
-        top: 'calc(100% + 6px)',
+        bottom: 'calc(100% + 6px)',
         [liveButtonPosition === 'right' ? 'right' : 'left']: 0,
         zIndex: 20,
         display: 'flex',
@@ -291,6 +291,16 @@ export const TimelineControls: React.FC<ControlsProps> = ({
         fontFamily: 'system-ui, -apple-system, sans-serif',
       } as React.CSSProperties}
     >
+      <style>{`
+        .ct-speed-input::-webkit-outer-spin-button,
+        .ct-speed-input::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .ct-speed-input {
+          -moz-appearance: textfield;
+        }
+      `}</style>
       <div style={{ fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.03em', color: theme.labelColor }}>
         {L.speedOverlayTitle}
       </div>
@@ -307,6 +317,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
         />
         <input
           type="number"
+          className="ct-speed-input"
           min={minSpeed}
           max={maxSpeed}
           value={speedInputValue}
@@ -330,17 +341,20 @@ export const TimelineControls: React.FC<ControlsProps> = ({
       </div>
       <button
         onClick={() => { onResetSpeed(); setSpeedOverlayOpen(false); }}
+        title={L.resetSpeedTitle}
         style={{
+          ...baseBtn,
           alignSelf: 'flex-start',
-          background: 'none',
-          border: 'none',
-          padding: 0,
+          width: 'auto',
+          height: `${liveSize.height}px`,
+          paddingLeft: '10px',
+          paddingRight: '10px',
           fontSize: '11px',
           color: theme.buttonActiveColor,
-          cursor: 'pointer',
-          textDecoration: 'underline',
-          fontFamily: 'inherit',
+          borderColor: `${theme.buttonActiveColor}44`,
         }}
+        onMouseEnter={e => onEnter(e, true)}
+        onMouseLeave={onLeave}
       >
         {L.resetSpeedLabel}
       </button>

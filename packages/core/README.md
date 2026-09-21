@@ -320,10 +320,10 @@ The control bar uses a 3-column CSS grid so the transport buttons are always cen
 
 ### Playback Speed Overlay
 
-- Opened by clicking the speed badge; closes on outside click, `Escape`, or when speed returns to 1×.
+- Opened above the speed badge (so it stays visible when the timeline sits near the bottom of the page); closes on outside click, `Escape`, or when speed returns to 1×.
 - Contains a range slider and a number input, both bounded by `minSpeed`–`maxSpeed` (default `1`–`100`).
 - Direction (forward vs. reverse) is preserved — the overlay only changes the magnitude.
-- A "Reset to 1×" link inside the overlay resets speed and closes it.
+- A "Reset" button inside the overlay (with a tooltip explaining it resets to 1×) resets speed and closes it.
 
 ### Configuring Playback Speeds
 
