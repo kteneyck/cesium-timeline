@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { DebugElement } from "@angular/core";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { TimelineControlsComponent } from "./timeline-controls.component";
 import { defaultTheme, DEFAULT_LABELS } from "@kteneyck/cesium-timeline-core";
 import * as Cesium from "cesium";
@@ -21,6 +21,10 @@ vi.mock("cesium", () => {
 function findBtnDE(fixture, text) {
   const btns = fixture.debugElement.queryAll(By.css("button"));
   return btns.find(b => b.nativeElement.textContent?.includes(text)) ?? null;
+}
+
+function findBtnByTitle(fixture, title) {
+  return fixture.debugElement.query(By.css(`button[title="${title}"]`));
 }
 
 describe("TimelineControlsComponent", () => {
@@ -85,7 +89,7 @@ describe("TimelineControlsComponent", () => {
     setInputs({ isPlaying: false });
     const values = [];
     component.playPause.subscribe(v => values.push(v));
-    findBtnDE(fixture, "\u25B6")?.triggerEventHandler("click", null);
+    findBtnByTitle(fixture, DEFAULT_LABELS.playTooltip).triggerEventHandler("click", null);
     expect(values).toContain(true);
   });
 
@@ -153,7 +157,7 @@ describe("TimelineControlsComponent", () => {
     setInputs();
     const emitted = [];
     component.rewind.subscribe(() => emitted.push(1));
-    findBtnDE(fixture, "\u25C0\u25C0")?.triggerEventHandler("click", null);
+    findBtnByTitle(fixture, DEFAULT_LABELS.rewindTooltip).triggerEventHandler("click", null);
     expect(emitted.length).toBe(1);
   });
 
@@ -161,7 +165,91 @@ describe("TimelineControlsComponent", () => {
     setInputs();
     const emitted = [];
     component.fastForward.subscribe(() => emitted.push(1));
-    findBtnDE(fixture, "\u25B6\u25B6")?.triggerEventHandler("click", null);
+    findBtnByTitle(fixture, DEFAULT_LABELS.fastForwardTooltip).triggerEventHandler("click", null);
     expect(emitted.length).toBe(1);
+  });
+
+  it("renders transport controls as SVG icons, not text glyphs", () => {
+    setInputs();
+    const titles = [
+      DEFAULT_LABELS.jumpToStartTooltip,
+      DEFAULT_LABELS.rewindTooltip,
+      DEFAULT_LABELS.playTooltip,
+      DEFAULT_LABELS.fastForwardTooltip,
+      DEFAULT_LABELS.jumpToEndTooltip,
+    ];
+    for (const title of titles) {
+      const btn = findBtnByTitle(fixture, title).nativeElement;
+      expect(btn.querySelector("svg")).not.toBeNull();
+      expect(btn.textContent.trim()).toBe("");
+    }
+  });
+
+  describe("compact (two-row) layout", () => {
+    const OriginalResizeObserver = global.ResizeObserver;
+    let roCallback;
+
+    beforeEach(() => {
+      global.ResizeObserver = class {
+        constructor(cb) { roCallback = cb; }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      };
+    });
+
+    afterEach(() => {
+      global.ResizeObserver = OriginalResizeObserver;
+    });
+
+    /** Render, then report a phone-sized container so the controls switch to the compact layout. */
+    function setNarrowInputs(overrides = {}) {
+      setInputs(overrides);
+      roCallback([{ contentRect: { width: 360 } }]);
+      fixture.detectChanges();
+    }
+
+    function root() {
+      return fixture.nativeElement.querySelector("[data-layout]");
+    }
+
+    it("splits status and transport into two rows", () => {
+      setNarrowInputs({ swimLanesVisible: true });
+      expect(root().dataset.layout).toBe("compact");
+      expect(root().style.flexDirection).toBe("column");
+
+      const [statusRow, transportRow] = Array.from(root().children);
+      expect(statusRow.textContent).toContain(DEFAULT_LABELS.liveLabel);
+      expect(statusRow.querySelector(`[title="${DEFAULT_LABELS.collapseSwimLanesTooltip}"]`)).not.toBeNull();
+      expect(transportRow.querySelector(`[title="${DEFAULT_LABELS.jumpToStartTooltip}"]`)).not.toBeNull();
+      expect(transportRow.querySelector(`[title="${DEFAULT_LABELS.jumpToEndTooltip}"]`)).not.toBeNull();
+      expect(transportRow.style.justifyContent).toBe("space-evenly");
+    });
+
+    it("marks the container for 44px transport touch targets", () => {
+      setNarrowInputs();
+      expect(root().classList.contains("ct-narrow")).toBe(true);
+      expect(root().querySelector(".ct-transport .ct-btn")).not.toBeNull();
+    });
+
+    it("keeps the speed badge reachable in the status row", () => {
+      setNarrowInputs({ multiplier: 4 });
+      const [statusRow] = Array.from(root().children);
+      expect(statusRow.querySelector("[data-speed-badge]")).not.toBeNull();
+    });
+
+    it("omits the transport row in live mode", () => {
+      setNarrowInputs({ live: true });
+      expect(root().children).toHaveLength(1);
+      expect(findBtnByTitle(fixture, DEFAULT_LABELS.rewindTooltip)).toBeNull();
+    });
+
+    it("returns to the full layout when widened", () => {
+      setNarrowInputs();
+      roCallback([{ contentRect: { width: 900 } }]);
+      fixture.detectChanges();
+      expect(root().dataset.layout).toBe("full");
+      expect(root().style.display).toBe("grid");
+    });
   });
 });
