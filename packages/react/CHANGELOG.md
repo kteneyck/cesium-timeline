@@ -1,5 +1,16 @@
 # @kteneyck/cesium-timeline-react
 
+## 0.17.0
+
+### Minor Changes
+
+- 90052b7: Two-row compact control bar below 520px (datetime/LIVE/speed on top, full-width transport row with 44px touch targets), and SVG transport icons in place of Unicode glyphs
+
+### Patch Changes
+
+- Updated dependencies [90052b7]
+  - @kteneyck/cesium-timeline-core@0.17.0
+
 ## 0.16.0
 
 ### Minor Changes
