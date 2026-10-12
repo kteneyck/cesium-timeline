@@ -46,7 +46,7 @@ describe('Timeline', () => {
 
   it('handleFastForward cycles through ffSpeeds', () => {
     const onMultiplierChange = vi.fn();
-    const { getByText } = render(
+    const { getByTitle } = render(
       <Timeline
         ffSpeeds={[2, 4, 8]}
         onMultiplierChange={onMultiplierChange}
@@ -54,35 +54,35 @@ describe('Timeline', () => {
       />
     );
     // First click: multiplier 1 → next speed = 2
-    act(() => { getByText('▶▶').click(); });
+    act(() => { getByTitle('Fast forward').click(); });
     expect(onMultiplierChange).toHaveBeenCalledWith(2);
   });
 
   it('handleFastForward wraps around at the end of ffSpeeds', () => {
     const onMultiplierChange = vi.fn();
-    const { getByText } = render(
+    const { getByTitle } = render(
       <Timeline
         ffSpeeds={[2, 1]}
         onMultiplierChange={onMultiplierChange}
         timezone="UTC"
       />
     );
-    act(() => { getByText('▶▶').click(); }); // → 2
-    act(() => { getByText('▶▶').click(); }); // → wraps to 2 again (1 acts as reset sentinel)
+    act(() => { getByTitle('Fast forward').click(); }); // → 2
+    act(() => { getByTitle(/× speed/).click(); }); // → wraps to 2 again (1 acts as reset sentinel)
     // second click calls applyMultiplier with the value at index after 2 (which is 1)
     expect(onMultiplierChange).toHaveBeenLastCalledWith(1);
   });
 
   it('handleRewindSpeed produces negative multiplier', () => {
     const onMultiplierChange = vi.fn();
-    const { getByText } = render(
+    const { getByTitle } = render(
       <Timeline
         rwSpeeds={[1, 2, 4]}
         onMultiplierChange={onMultiplierChange}
         timezone="UTC"
       />
     );
-    act(() => { getByText('◀◀').click(); });
+    act(() => { getByTitle('Rewind').click(); });
     expect(onMultiplierChange).toHaveBeenCalledWith(-1);
   });
 
@@ -103,10 +103,10 @@ describe('Timeline', () => {
 
   it('onPlayPause callback fires when play clicked', () => {
     const onPlayPause = vi.fn();
-    const { getByText } = render(
+    const { getByTitle } = render(
       <Timeline onPlayPause={onPlayPause} timezone="UTC" />
     );
-    act(() => { getByText('▶').click(); });
+    act(() => { getByTitle('Play').click(); });
     expect(onPlayPause).toHaveBeenCalledWith(true);
   });
 
@@ -141,10 +141,10 @@ describe('Timeline', () => {
 
   it('onMultiplierChange fires when rewinding', () => {
     const onMultiplierChange = vi.fn();
-    const { getByText } = render(
+    const { getByTitle } = render(
       <Timeline onMultiplierChange={onMultiplierChange} timezone="UTC" />
     );
-    act(() => { getByText('◀◀').click(); });
+    act(() => { getByTitle('Rewind').click(); });
     expect(onMultiplierChange).toHaveBeenCalled();
     expect(onMultiplierChange.mock.calls[0][0]).toBeLessThan(0);
   });

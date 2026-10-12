@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TimelineControls, ControlsProps } from './TimelineControls';
 import { defaultTheme } from '@kteneyck/cesium-timeline-core';
 import * as Cesium from 'cesium';
@@ -74,7 +74,7 @@ describe('TimelineControls', () => {
   it('calls onPlayPause(true) when play button clicked while stopped', () => {
     const onPlayPause = vi.fn();
     render(<TimelineControls {...makeProps({ isPlaying: false, onPlayPause })} />);
-    fireEvent.click(screen.getByText('▶'));
+    fireEvent.click(screen.getByTitle('Play'));
     expect(onPlayPause).toHaveBeenCalledWith(true);
   });
 
@@ -87,17 +87,17 @@ describe('TimelineControls', () => {
     expect(onPlayPause).toHaveBeenCalledWith(false);
   });
 
-  it('calls onRewind when ◀◀ clicked', () => {
+  it('calls onRewind when rewind clicked', () => {
     const onRewind = vi.fn();
     render(<TimelineControls {...makeProps({ onRewind })} />);
-    fireEvent.click(screen.getByText('◀◀'));
+    fireEvent.click(screen.getByTitle('Rewind'));
     expect(onRewind).toHaveBeenCalledOnce();
   });
 
-  it('calls onFastForward when ▶▶ clicked', () => {
+  it('calls onFastForward when fast forward clicked', () => {
     const onFastForward = vi.fn();
     render(<TimelineControls {...makeProps({ onFastForward })} />);
-    fireEvent.click(screen.getByText('▶▶'));
+    fireEvent.click(screen.getByTitle('Fast forward'));
     expect(onFastForward).toHaveBeenCalledOnce();
   });
 
@@ -151,14 +151,14 @@ describe('TimelineControls', () => {
     expect(onResetSpeed).toHaveBeenCalledOnce();
   });
 
-  it('hides ⏮ button when showJumpToStart=false', () => {
+  it('hides jump-to-start button when showJumpToStart=false', () => {
     render(<TimelineControls {...makeProps({ showJumpToStart: false })} />);
-    expect(screen.queryByText('⏮')).toBeNull();
+    expect(screen.queryByTitle('Jump to start')).toBeNull();
   });
 
-  it('disables ⏮ button when hasStartTime=false', () => {
+  it('disables jump-to-start button when hasStartTime=false', () => {
     render(<TimelineControls {...makeProps({ hasStartTime: false })} />);
-    const btn = screen.getByText('⏮').closest('button') as HTMLButtonElement;
+    const btn = screen.getByTitle('No start time set') as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
   });
 
@@ -176,5 +176,67 @@ describe('TimelineControls', () => {
       labels: { liveActiveLabel: '🔴 LIVE' },
     })} />);
     expect(screen.getByText('🔴 LIVE')).toBeTruthy();
+  });
+
+  describe('compact (two-row) layout', () => {
+    const OriginalResizeObserver = globalThis.ResizeObserver;
+
+    beforeEach(() => {
+      // Report a phone-sized container so the controls switch to the compact layout.
+      globalThis.ResizeObserver = class {
+        constructor(private cb: ResizeObserverCallback) {}
+        observe() {
+          this.cb([{ contentRect: { width: 360 } } as ResizeObserverEntry], this as unknown as ResizeObserver);
+        }
+        unobserve() {}
+        disconnect() {}
+      } as unknown as typeof ResizeObserver;
+    });
+
+    afterEach(() => {
+      globalThis.ResizeObserver = OriginalResizeObserver;
+    });
+
+    it('splits status and transport into two rows', () => {
+      const { container } = render(<TimelineControls {...makeProps({ swimLanesVisible: true, onToggleSwimLanes: vi.fn() })} />);
+      const root = container.firstElementChild as HTMLElement;
+      expect(root.dataset.layout).toBe('compact');
+      expect(root.style.flexDirection).toBe('column');
+
+      const [statusRow, transportRow] = Array.from(root.children) as HTMLElement[];
+      expect(statusRow.textContent).toContain('LIVE');
+      expect(statusRow.querySelector('[title="Collapse swim lanes"]')).not.toBeNull();
+      expect(transportRow.querySelector('[title="Jump to start"]')).not.toBeNull();
+      expect(transportRow.querySelector('[title="Jump to end"]')).not.toBeNull();
+      expect(transportRow.style.justifyContent).toBe('space-evenly');
+    });
+
+    it('enlarges transport buttons to 44px touch targets', () => {
+      render(<TimelineControls {...makeProps()} />);
+      const rewind = screen.getByTitle('Rewind');
+      expect(rewind.style.height).toBe('44px');
+      expect(rewind.style.minWidth).toBe('44px');
+    });
+
+    it('keeps the speed badge reachable in the status row', () => {
+      render(<TimelineControls {...makeProps({ multiplier: 4 })} />);
+      expect(document.querySelector('[title="Playback speed — click to adjust"]')).not.toBeNull();
+    });
+
+    it('omits the transport row in live mode', () => {
+      const { container } = render(<TimelineControls {...makeProps({ live: true })} />);
+      const root = container.firstElementChild as HTMLElement;
+      expect(root.children).toHaveLength(1);
+      expect(screen.queryByTitle('Rewind')).toBeNull();
+    });
+  });
+
+  it('renders transport controls as SVG icons, not text glyphs', () => {
+    render(<TimelineControls {...makeProps()} />);
+    for (const title of ['Jump to start', 'Rewind', 'Play', 'Fast forward', 'Jump to end']) {
+      const btn = screen.getByTitle(title);
+      expect(btn.querySelector('svg')).not.toBeNull();
+      expect(btn.textContent).toBe('');
+    }
   });
 });

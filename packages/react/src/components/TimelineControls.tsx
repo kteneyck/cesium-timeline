@@ -52,12 +52,63 @@ export interface ControlsProps {
 }
 
 const NARROW_BREAKPOINT = 520;
+/** Minimum touch-target size for transport buttons in the compact layout. */
+const TOUCH_TARGET = 44;
 
 /** Two vertical bars rendered as SVG — consistent across all platforms. */
 const PauseIcon = () => (
   <svg width="14" height="16" viewBox="0 0 14 16" fill="currentColor" aria-hidden="true">
     <rect x="1" y="0" width="4" height="16" rx="1" />
     <rect x="9" y="0" width="4" height="16" rx="1" />
+  </svg>
+);
+
+/**
+ * Transport icons — SVG rather than Unicode glyphs (⏮ ◀◀ ▶ ▶▶ ⏭), which render
+ * as color emoji on iOS and at inconsistent sizes across fonts. A thin stroke in
+ * the fill color softens the triangle corners.
+ */
+const iconProps = {
+  fill: 'currentColor',
+  stroke: 'currentColor',
+  strokeWidth: 1,
+  strokeLinejoin: 'round' as const,
+  'aria-hidden': true,
+};
+
+const PlayIcon = () => (
+  <svg width="14" height="16" viewBox="0 0 14 16" {...iconProps}>
+    <polygon points="2,1.5 13,8 2,14.5" />
+  </svg>
+);
+
+const RewindIcon = () => (
+  <svg width="18" height="16" viewBox="0 0 18 16" {...iconProps}>
+    <polygon points="8.5,2 1.5,8 8.5,14" />
+    <polygon points="16.5,2 9.5,8 16.5,14" />
+  </svg>
+);
+
+const FastForwardIcon = () => (
+  <svg width="18" height="16" viewBox="0 0 18 16" {...iconProps}>
+    <polygon points="1.5,2 8.5,8 1.5,14" />
+    <polygon points="9.5,2 16.5,8 9.5,14" />
+  </svg>
+);
+
+const JumpToStartIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" {...iconProps}>
+    <rect x="1.5" y="2" width="1.5" height="12" />
+    <polygon points="9,2.5 4.5,8 9,13.5" />
+    <polygon points="14.5,2.5 10,8 14.5,13.5" />
+  </svg>
+);
+
+const JumpToEndIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" {...iconProps}>
+    <polygon points="1.5,2.5 6,8 1.5,13.5" />
+    <polygon points="7,2.5 11.5,8 7,13.5" />
+    <rect x="13" y="2" width="1.5" height="12" />
   </svg>
 );
 
@@ -161,7 +212,8 @@ export const TimelineControls: React.FC<ControlsProps> = ({
       if (!badge) return;
       const rect = badge.getBoundingClientRect();
       setSpeedOverlayPos(
-        liveButtonPosition === 'right'
+        // In the compact layout the LIVE/speed group always sits on the right edge.
+        liveButtonPosition === 'right' || isNarrow
           ? { bottom: window.innerHeight - rect.top + 6, right: window.innerWidth - rect.right }
           : { bottom: window.innerHeight - rect.top + 6, left: rect.left }
       );
@@ -173,7 +225,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };
-  }, [speedOverlayOpen, liveButtonPosition]);
+  }, [speedOverlayOpen, liveButtonPosition, isNarrow]);
 
   useEffect(() => {
     if (!speedOverlayOpen) return;
@@ -396,178 +448,186 @@ export const TimelineControls: React.FC<ControlsProps> = ({
     </div>
   );
 
+  const { timeFormat, dateFormat } = splitForDisplay(dateTimeFormat);
+  const tzAbbr = getTimezoneAbbr(currentTime, timezone);
+
+  const DateTimeDisplay = (
+    <div
+      onClick={live ? undefined : onDateTimeClick}
+      title={(!live && onDateTimeClick) ? L.dateTimeClickTooltip : undefined}
+      style={{
+        color: theme.labelColor,
+        fontFamily: 'monospace',
+        lineHeight: 1.15,
+        cursor: (!live && onDateTimeClick) ? 'pointer' : 'default',
+        borderRadius: '4px',
+        padding: '2px 4px',
+        transition: 'background 0.15s',
+        // Compact: time and date share one line (wrapping if they must).
+        ...(isNarrow ? { display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: '8px', minWidth: 0 } : {}),
+      }}
+      onMouseEnter={e => { if (!live && onDateTimeClick) e.currentTarget.style.background = theme.buttonHoverColor + '44'; }}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+    >
+      {timeFormat && (
+        <div style={{ fontSize: isNarrow ? '1.5em' : '2em', fontWeight: 'bold', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
+          {formatDateTime(currentTime, timeFormat, timezone)}
+        </div>
+      )}
+      {dateFormat && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '1.15em', letterSpacing: '0.03em', color: theme.buttonActiveColor }}>
+            {formatDateTime(currentTime, dateFormat, timezone)}
+          </span>
+          {tzAbbr && (
+            <span style={{
+              fontSize: '0.9em',
+              color: theme.labelColor,
+              opacity: 0.7,
+              fontWeight: 'bold',
+              letterSpacing: '0.04em',
+            }}>
+              {tzAbbr}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  /** Larger hit areas for the transport buttons in the compact layout. */
+  const touch: React.CSSProperties = isNarrow
+    ? { width: `${TOUCH_TARGET}px`, minWidth: `${TOUCH_TARGET}px`, height: `${TOUCH_TARGET}px` }
+    : {};
+
+  const Transport = !live && (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '2px',
+        ...(isNarrow ? { justifyContent: 'space-evenly' } : {}),
+      }}
+    >
+      {showJumpToStart && (
+        <button
+          onClick={hasStartTime ? onJumpToStart : undefined}
+          disabled={!hasStartTime}
+          style={{ ...btn(false), ...touch, opacity: hasStartTime ? 1 : 0.3, cursor: hasStartTime ? 'pointer' : 'default' }}
+          onMouseEnter={hasStartTime ? e => onEnter(e, false) : undefined}
+          onMouseLeave={hasStartTime ? onLeave : undefined}
+          title={hasStartTime ? L.jumpToStartTooltip : L.noStartTimeTooltip}
+        ><JumpToStartIcon /></button>
+      )}
+
+      <button
+        onClick={onRewind}
+        style={{ ...btn(isRewinding), ...touch }}
+        onMouseEnter={e => onEnter(e, isRewinding)}
+        onMouseLeave={onLeave}
+        title={isRewinding ? resolveLabel(L.rewindActiveTooltip, absMultiplier) : L.rewindTooltip}
+      ><RewindIcon /></button>
+
+      <button
+        onClick={() => onPlayPause(!isPlaying)}
+        style={{
+          ...baseBtn,
+          color: theme.buttonActiveColor,
+          fontSize: '18px',
+          width: isNarrow ? '48px' : '40px',
+          minWidth: isNarrow ? '48px' : '40px',
+          height: isNarrow ? '48px' : '40px',
+          borderColor: `${theme.buttonActiveColor}55`,
+          borderRadius: '50%',
+          paddingLeft: isPlaying ? '0' : '2px',
+        }}
+        onMouseEnter={e => onEnter(e, true)}
+        onMouseLeave={onLeave}
+        title={isPlaying ? L.pauseTooltip : (isRewinding ? L.playFromRewindTooltip : L.playTooltip)}
+      >
+        {isPlaying ? <PauseIcon /> : <PlayIcon />}
+      </button>
+
+      <button
+        onClick={onFastForward}
+        style={{ ...btn(isFastForward), ...touch }}
+        onMouseEnter={e => onEnter(e, isFastForward)}
+        onMouseLeave={onLeave}
+        title={isFastForward ? resolveLabel(L.fastForwardActiveTooltip, absMultiplier) : L.fastForwardTooltip}
+      ><FastForwardIcon /></button>
+
+      {showJumpToEnd && (
+        <button
+          onClick={hasEndTime ? onJumpToEnd : undefined}
+          disabled={!hasEndTime}
+          style={{ ...btn(false), ...touch, opacity: hasEndTime ? 1 : 0.3, cursor: hasEndTime ? 'pointer' : 'default' }}
+          onMouseEnter={hasEndTime ? e => onEnter(e, false) : undefined}
+          onMouseLeave={hasEndTime ? onLeave : undefined}
+          title={hasEndTime ? L.jumpToEndTooltip : L.noEndTimeTooltip}
+        ><JumpToEndIcon /></button>
+      )}
+    </div>
+  );
+
+  const SwimLaneToggle = onToggleSwimLanes != null && swimLanesVisible != null && (
+    <button
+      onClick={onToggleSwimLanes}
+      style={{
+        ...baseBtn,
+        color: theme.buttonActiveColor,
+        borderColor: `${theme.buttonActiveColor}33`,
+      }}
+      onMouseEnter={e => onEnter(e, swimLanesVisible)}
+      onMouseLeave={onLeave}
+      title={swimLanesVisible ? L.collapseSwimLanesTooltip : L.expandSwimLanesTooltip}
+    >
+      {swimLanesVisible ? <ChevronDownIcon /> : <ChevronUpIcon />}
+    </button>
+  );
+
   return (
     <div
       ref={containerRef}
+      data-layout={isNarrow ? 'compact' : 'full'}
       style={{
-        display: isNarrow ? 'flex' : 'grid',
-        gridTemplateColumns: isNarrow ? undefined : '1fr auto 1fr',
-        alignItems: 'center',
-        padding: '6px 16px',
+        ...(isNarrow
+          ? { display: 'flex', flexDirection: 'column', gap: '4px', padding: '6px 12px' }
+          : { display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', padding: '6px 16px' }),
         backgroundColor: theme.controlBarBackground,
         borderBottom: `1px solid ${theme.controlBarBorder}`,
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
-      {/* ── Left: Datetime + (LIVE if position=left) ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-        <div
-          onClick={live ? undefined : onDateTimeClick}
-          title={(!live && onDateTimeClick) ? L.dateTimeClickTooltip : undefined}
-          style={{
-            color: theme.labelColor,
-            fontFamily: 'monospace',
-            lineHeight: 1.15,
-            cursor: (!live && onDateTimeClick) ? 'pointer' : 'default',
-            borderRadius: '4px',
-            padding: '2px 4px',
-            transition: 'background 0.15s',
-          }}
-          onMouseEnter={e => { if (!live && onDateTimeClick) e.currentTarget.style.background = theme.buttonHoverColor + '44'; }}
-          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-        >
-          {(() => {
-            const { timeFormat, dateFormat } = splitForDisplay(dateTimeFormat);
-            const tzAbbr = getTimezoneAbbr(currentTime, timezone);
-            return (
-              <>
-                {timeFormat && (
-                  <div style={{ fontSize: '2em', fontWeight: 'bold', letterSpacing: '0.02em' }}>
-                    {formatDateTime(currentTime, timeFormat, timezone)}
-                  </div>
-                )}
-                {dateFormat && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '1.15em', letterSpacing: '0.03em', color: theme.buttonActiveColor }}>
-                      {formatDateTime(currentTime, dateFormat, timezone)}
-                    </span>
-                    {tzAbbr && (
-                      <span style={{
-                        fontSize: '0.9em',
-                        color: theme.labelColor,
-                        opacity: 0.7,
-                        fontWeight: 'bold',
-                        letterSpacing: '0.04em',
-                      }}>
-                        {tzAbbr}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </>
-            );
-          })()}
-        </div>
+      {isNarrow ? (
+        <>
+          {/* ── Row 1: Datetime · LIVE/speed · swim-lane toggle ── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>{DateTimeDisplay}</div>
+            {LiveAndSpeedGroup}
+            {SwimLaneToggle}
+          </div>
 
-        {liveButtonPosition === 'left' && LiveAndSpeedGroup}
-      </div>
+          {/* ── Row 2: Transport buttons, spread across the full width ── */}
+          {Transport}
+        </>
+      ) : (
+        <>
+          {/* ── Left: Datetime + (LIVE if position=left) ── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            {DateTimeDisplay}
+            {liveButtonPosition === 'left' && LiveAndSpeedGroup}
+          </div>
 
-      {/* ── Center: Transport buttons ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', ...(isNarrow ? { flex: 1, justifyContent: 'center' } : {}) }}>
+          {/* ── Center: Transport buttons ── */}
+          {/* Empty placeholder in live mode keeps the right column in place. */}
+          {Transport || <div />}
 
-        {!live && showJumpToStart && (
-          <button
-            onClick={hasStartTime ? onJumpToStart : undefined}
-            disabled={!hasStartTime}
-            style={{ ...btn(false), opacity: hasStartTime ? 1 : 0.3, cursor: hasStartTime ? 'pointer' : 'default' }}
-            onMouseEnter={hasStartTime ? e => onEnter(e, false) : undefined}
-            onMouseLeave={hasStartTime ? onLeave : undefined}
-            title={hasStartTime ? L.jumpToStartTooltip : L.noStartTimeTooltip}
-          >⏮</button>
-        )}
-
-        {!live && (
-          <button
-            onClick={onRewind}
-            style={btn(isRewinding)}
-            onMouseEnter={e => onEnter(e, isRewinding)}
-            onMouseLeave={onLeave}
-            title={isRewinding ? resolveLabel(L.rewindActiveTooltip, absMultiplier) : L.rewindTooltip}
-          >◀◀</button>
-        )}
-
-        {!live && (
-          <button
-            onClick={() => onPlayPause(!isPlaying)}
-            style={{
-              ...baseBtn,
-              color: theme.buttonActiveColor,
-              fontSize: '18px',
-              width: '40px',
-              minWidth: '40px',
-              height: '40px',
-              borderColor: `${theme.buttonActiveColor}55`,
-              borderRadius: '50%',
-              paddingLeft: isPlaying ? '0' : '2px',
-            }}
-            onMouseEnter={e => onEnter(e, true)}
-            onMouseLeave={onLeave}
-            title={isPlaying ? L.pauseTooltip : (isRewinding ? L.playFromRewindTooltip : L.playTooltip)}
-          >
-            {isPlaying ? <PauseIcon /> : '▶'}
-          </button>
-        )}
-
-        {!live && (
-          <button
-            onClick={onFastForward}
-            style={{ ...btn(isFastForward), width: 'auto', paddingLeft: '6px', paddingRight: '6px' }}
-            onMouseEnter={e => onEnter(e, isFastForward)}
-            onMouseLeave={onLeave}
-            title={isFastForward ? resolveLabel(L.fastForwardActiveTooltip, absMultiplier) : L.fastForwardTooltip}
-          >▶▶</button>
-        )}
-
-        {!live && showJumpToEnd && (
-          <button
-            onClick={hasEndTime ? onJumpToEnd : undefined}
-            disabled={!hasEndTime}
-            style={{ ...btn(false), opacity: hasEndTime ? 1 : 0.3, cursor: hasEndTime ? 'pointer' : 'default' }}
-            onMouseEnter={hasEndTime ? e => onEnter(e, false) : undefined}
-            onMouseLeave={hasEndTime ? onLeave : undefined}
-            title={hasEndTime ? L.jumpToEndTooltip : L.noEndTimeTooltip}
-          >⏭</button>
-        )}
-
-      </div>
-
-      {/* ── Right: LIVE (if position=right) + swim-lane toggle (or spacer) ── */}
-      {!isNarrow && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px' }}>
-          {liveButtonPosition === 'right' && LiveAndSpeedGroup}
-          {onToggleSwimLanes != null && swimLanesVisible != null && (
-            <button
-              onClick={onToggleSwimLanes}
-              style={{
-                ...baseBtn,
-                color: theme.buttonActiveColor,
-                borderColor: `${theme.buttonActiveColor}33`,
-              }}
-              onMouseEnter={e => onEnter(e, swimLanesVisible)}
-              onMouseLeave={onLeave}
-              title={swimLanesVisible ? L.collapseSwimLanesTooltip : L.expandSwimLanesTooltip}
-            >
-              {swimLanesVisible ? <ChevronDownIcon /> : <ChevronUpIcon />}
-            </button>
-          )}
-        </div>
-      )}
-
-      {isNarrow && onToggleSwimLanes != null && swimLanesVisible != null && (
-        <button
-          onClick={onToggleSwimLanes}
-          style={{
-            ...baseBtn,
-            color: theme.buttonActiveColor,
-            borderColor: `${theme.buttonActiveColor}33`,
-            marginLeft: '4px',
-          }}
-          onMouseEnter={e => onEnter(e, swimLanesVisible)}
-          onMouseLeave={onLeave}
-          title={swimLanesVisible ? L.collapseSwimLanesTooltip : L.expandSwimLanesTooltip}
-        >
-          {swimLanesVisible ? <ChevronDownIcon /> : <ChevronUpIcon />}
-        </button>
+          {/* ── Right: LIVE (if position=right) + swim-lane toggle (or spacer) ── */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px' }}>
+            {liveButtonPosition === 'right' && LiveAndSpeedGroup}
+            {SwimLaneToggle}
+          </div>
+        </>
       )}
     </div>
   );
