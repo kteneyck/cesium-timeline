@@ -1,5 +1,13 @@
 # @kteneyck/cesium-timeline-angular
 
+## 0.17.1
+
+### Patch Changes
+
+- fc0e95d: Shorter compact control bar on small screens (34px play/pause ring, 44×32 transport buttons, tighter padding), and reset button margins so host-page global button styles don't inflate the control bar
+- Updated dependencies [fc0e95d]
+  - @kteneyck/cesium-timeline-core@0.17.1
+
 ## 0.17.0
 
 ### Minor Changes
