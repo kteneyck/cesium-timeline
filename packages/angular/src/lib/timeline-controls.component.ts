@@ -39,10 +39,10 @@ const NARROW_BREAKPOINT = 520;
       [class.ct-narrow]="isNarrow"
       [style.display]="isNarrow ? 'flex' : 'grid'"
       [style.flex-direction]="isNarrow ? 'column' : undefined"
-      [style.gap]="isNarrow ? '4px' : undefined"
+      [style.gap]="isNarrow ? '2px' : undefined"
       [style.grid-template-columns]="isNarrow ? undefined : '1fr auto 1fr'"
       [style.align-items]="isNarrow ? undefined : 'center'"
-      [style.padding]="isNarrow ? '6px 12px' : '6px 16px'"
+      [style.padding]="isNarrow ? '4px 12px' : '6px 16px'"
       [style.background-color]="theme.controlBarBackground"
       [style.border-bottom]="'1px solid ' + theme.controlBarBorder"
       [style.font-family]="'system-ui, -apple-system, sans-serif'"
@@ -328,6 +328,7 @@ const NARROW_BREAKPOINT = 520;
       cursor: pointer;
       font-size: 16px;
       padding: 0;
+      margin: 0; /* guard against host-page global button styles */
       display: flex;
       align-items: center;
       justify-content: center;
@@ -357,7 +358,8 @@ const NARROW_BREAKPOINT = 520;
       height: 40px;
       border-radius: 50%;
     }
-    /* Compact (two-row) layout: time and date share a line; larger touch targets. */
+    /* Compact (two-row) layout: time and date share a line; transport buttons are
+       wide-but-short tap targets so the stacked bar doesn't eat vertical space. */
     .ct-datetime-inline {
       display: flex;
       flex-wrap: wrap;
@@ -368,12 +370,12 @@ const NARROW_BREAKPOINT = 520;
     .ct-narrow .ct-transport .ct-btn {
       width: 44px;
       min-width: 44px;
-      height: 44px;
+      height: 32px;
     }
     .ct-narrow .ct-transport .ct-btn-play {
-      width: 48px;
-      min-width: 48px;
-      height: 48px;
+      width: 34px;
+      min-width: 34px;
+      height: 34px;
     }
     .ct-speed-input::-webkit-outer-spin-button,
     .ct-speed-input::-webkit-inner-spin-button {
