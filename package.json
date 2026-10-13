@@ -16,6 +16,8 @@
     "build:angular": "npm run build -w @kteneyck/cesium-timeline-angular",
     "dev:demo-react": "vite --config vite.react-demo.config.ts",
     "dev:demo-angular": "vite --config vite.angular-demo.config.ts",
+    "build:demo-react": "vite build --config vite.react-demo.config.ts",
+    "build:demo-angular": "vite build --config vite.angular-demo.config.ts",
     "test": "npm run test:core && npm run test:react && npm run test:angular",
     "test:core": "npm test -w @kteneyck/cesium-timeline-core",
     "test:react": "npm test -w @kteneyck/cesium-timeline-react",
