@@ -52,8 +52,13 @@ export interface ControlsProps {
 }
 
 const NARROW_BREAKPOINT = 520;
-/** Minimum touch-target size for transport buttons in the compact layout. */
-const TOUCH_TARGET = 44;
+/**
+ * Transport button sizes in the compact layout: full-width tap targets kept
+ * short so the stacked control bar doesn't eat vertical space on phones.
+ */
+const COMPACT_BTN_WIDTH = 44;
+const COMPACT_BTN_HEIGHT = 32;
+const COMPACT_PLAY_SIZE = 34;
 
 /** Two vertical bars rendered as SVG — consistent across all platforms. */
 const PauseIcon = () => (
@@ -262,6 +267,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
     cursor: 'pointer',
     fontSize: '16px',
     padding: '0',
+    margin: '0', // guard against host-page global button styles
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -495,10 +501,11 @@ export const TimelineControls: React.FC<ControlsProps> = ({
     </div>
   );
 
-  /** Larger hit areas for the transport buttons in the compact layout. */
+  /** Wide-but-short hit areas for the transport buttons in the compact layout. */
   const touch: React.CSSProperties = isNarrow
-    ? { width: `${TOUCH_TARGET}px`, minWidth: `${TOUCH_TARGET}px`, height: `${TOUCH_TARGET}px` }
+    ? { width: `${COMPACT_BTN_WIDTH}px`, minWidth: `${COMPACT_BTN_WIDTH}px`, height: `${COMPACT_BTN_HEIGHT}px` }
     : {};
+  const playSize = isNarrow ? `${COMPACT_PLAY_SIZE}px` : '40px';
 
   const Transport = !live && (
     <div
@@ -534,9 +541,9 @@ export const TimelineControls: React.FC<ControlsProps> = ({
           ...baseBtn,
           color: theme.buttonActiveColor,
           fontSize: '18px',
-          width: isNarrow ? '48px' : '40px',
-          minWidth: isNarrow ? '48px' : '40px',
-          height: isNarrow ? '48px' : '40px',
+          width: playSize,
+          minWidth: playSize,
+          height: playSize,
           borderColor: `${theme.buttonActiveColor}55`,
           borderRadius: '50%',
           paddingLeft: isPlaying ? '0' : '2px',
@@ -591,7 +598,7 @@ export const TimelineControls: React.FC<ControlsProps> = ({
       data-layout={isNarrow ? 'compact' : 'full'}
       style={{
         ...(isNarrow
-          ? { display: 'flex', flexDirection: 'column', gap: '4px', padding: '6px 12px' }
+          ? { display: 'flex', flexDirection: 'column', gap: '2px', padding: '4px 12px' }
           : { display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', padding: '6px 16px' }),
         backgroundColor: theme.controlBarBackground,
         borderBottom: `1px solid ${theme.controlBarBorder}`,

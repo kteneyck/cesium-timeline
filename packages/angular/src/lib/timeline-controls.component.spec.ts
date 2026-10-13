@@ -226,7 +226,7 @@ describe("TimelineControlsComponent", () => {
       expect(transportRow.style.justifyContent).toBe("space-evenly");
     });
 
-    it("marks the container for 44px transport touch targets", () => {
+    it("marks the container for compact transport button sizing", () => {
       setNarrowInputs();
       expect(root().classList.contains("ct-narrow")).toBe(true);
       expect(root().querySelector(".ct-transport .ct-btn")).not.toBeNull();

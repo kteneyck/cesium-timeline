@@ -211,11 +211,12 @@ describe('TimelineControls', () => {
       expect(transportRow.style.justifyContent).toBe('space-evenly');
     });
 
-    it('enlarges transport buttons to 44px touch targets', () => {
+    it('uses wide-but-short transport buttons and a smaller play button', () => {
       render(<TimelineControls {...makeProps()} />);
       const rewind = screen.getByTitle('Rewind');
-      expect(rewind.style.height).toBe('44px');
       expect(rewind.style.minWidth).toBe('44px');
+      expect(rewind.style.height).toBe('32px');
+      expect(screen.getByTitle('Play').style.height).toBe('34px');
     });
 
     it('keeps the speed badge reachable in the status row', () => {
