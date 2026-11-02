@@ -48,6 +48,26 @@ class HostComponent {
   endTime?: Cesium.JulianDate;
 }
 
+/** Host for initialVisibleRange tests — every relevant input bound via template. */
+@Component({
+  standalone: true,
+  imports: [TimelineComponent],
+  template: `<ct-timeline
+    [startTime]="startTime"
+    [endTime]="endTime"
+    [restrictToRange]="restrictToRange"
+    [initialVisibleRange]="initialVisibleRange"
+    [clock]="clock"
+  />`,
+})
+class InitialRangeHostComponent {
+  startTime?: Date;
+  endTime?: Date;
+  restrictToRange = false;
+  initialVisibleRange?: { start: Date; end: Date };
+  clock?: Cesium.Clock;
+}
+
 describe('TimelineComponent', () => {
   let fixture: ComponentFixture<TimelineComponent>;
   let component: TimelineComponent;
@@ -302,6 +322,154 @@ describe('TimelineComponent', () => {
 
       expect(Cesium.JulianDate.toDate(clock.currentTime).getTime()).toBe(pastEnd);
       expect(clock.shouldAnimate).toBe(true);
+    });
+  });
+
+  describe('initialVisibleRange', () => {
+    const HOUR = 3_600_000;
+    const REF  = Date.UTC(2026, 1, 24, 14, 0, 0);
+    const dayStart = REF - 12 * HOUR;
+    const dayEnd   = REF + 12 * HOUR;
+    const jd = (ms: number) => Cesium.JulianDate.fromDate(new Date(ms));
+
+    function mount(init: Partial<InitialRangeHostComponent> = {}) {
+      const host = TestBed.createComponent(InitialRangeHostComponent);
+      Object.assign(host.componentInstance, {
+        startTime: new Date(dayStart), endTime: new Date(dayEnd), ...init,
+      });
+      host.detectChanges();
+      const timeline: TimelineComponent =
+        host.debugElement.query(By.directive(TimelineComponent)).componentInstance;
+      const update = (next: Partial<InitialRangeHostComponent>) => {
+        Object.assign(host.componentInstance, next);
+        // Zoneless: field mutation doesn't mark the host dirty on its own.
+        host.componentRef.changeDetectorRef.markForCheck();
+        host.detectChanges();
+      };
+      const visible = () => {
+        const { start, end } = timeline.getVisibleRange();
+        return { startMs: Cesium.JulianDate.toDate(start).getTime(), endMs: Cesium.JulianDate.toDate(end).getTime() };
+      };
+      return { host, timeline, update, visible };
+    }
+
+    it('opens on the full span when not provided', () => {
+      const { host, visible } = mount();
+      expect(visible()).toEqual({ startMs: dayStart, endMs: dayEnd });
+      host.destroy();
+    });
+
+    it('opens on the given window instead of the full span', () => {
+      const { host, visible } = mount({ initialVisibleRange: { start: new Date(REF), end: new Date(REF + HOUR) } });
+      expect(visible()).toEqual({ startMs: REF, endMs: REF + HOUR });
+      host.destroy();
+    });
+
+    it('falls back to the full span when it has no width or does not overlap', () => {
+      const a = mount({ initialVisibleRange: { start: new Date(REF), end: new Date(REF) } });
+      expect(a.visible()).toEqual({ startMs: dayStart, endMs: dayEnd });
+      a.host.destroy();
+      const b = mount({ initialVisibleRange: { start: new Date(dayEnd + HOUR), end: new Date(dayEnd + 2 * HOUR) } });
+      expect(b.visible()).toEqual({ startMs: dayStart, endMs: dayEnd });
+      b.host.destroy();
+    });
+
+    it('is clipped to the limits with restrictToRange, and can still zoom out to them', () => {
+      const { host, timeline, visible } = mount({
+        restrictToRange: true,
+        initialVisibleRange: { start: new Date(dayStart - HOUR), end: new Date(dayStart + HOUR) },
+      });
+      expect(visible()).toEqual({ startMs: dayStart, endMs: dayStart + HOUR });
+      timeline.zoomTo(new Date(dayStart - 48 * HOUR), new Date(dayEnd + 48 * HOUR));
+      expect(visible()).toEqual({ startMs: dayStart, endMs: dayEnd });
+      host.destroy();
+    });
+
+    it('respects the minimum visible span', () => {
+      const { host, visible } = mount({ initialVisibleRange: { start: new Date(REF), end: new Date(REF + 100) } });
+      const { startMs, endMs } = visible();
+      expect(endMs - startMs).toBe(1_000);
+      expect((startMs + endMs) / 2).toBe(REF + 50);
+      host.destroy();
+    });
+
+    it('does not re-apply for an equal (new-identity) value, but applies a changed one once', () => {
+      const { host, timeline, update, visible } = mount({
+        initialVisibleRange: { start: new Date(REF), end: new Date(REF + HOUR) },
+      });
+      timeline.zoomTo(new Date(REF - 2 * HOUR), new Date(REF + 4 * HOUR)); // stand-in for user zoom
+      update({ initialVisibleRange: { start: new Date(REF), end: new Date(REF + HOUR) } });
+      expect(visible()).toEqual({ startMs: REF - 2 * HOUR, endMs: REF + 4 * HOUR });
+
+      update({ initialVisibleRange: { start: new Date(REF + 2 * HOUR), end: new Date(REF + 3 * HOUR) } });
+      expect(visible()).toEqual({ startMs: REF + 2 * HOUR, endMs: REF + 3 * HOUR });
+      host.destroy();
+    });
+
+    it('leaves the current view alone when removed', () => {
+      const { host, update, visible } = mount({ initialVisibleRange: { start: new Date(REF), end: new Date(REF + HOUR) } });
+      update({ initialVisibleRange: undefined });
+      expect(visible()).toEqual({ startMs: REF, endMs: REF + HOUR });
+      host.destroy();
+    });
+
+    it('wins over the full-span reset when startTime/endTime change', () => {
+      const { host, timeline, update, visible } = mount({
+        restrictToRange: true,
+        initialVisibleRange: { start: new Date(REF), end: new Date(REF + HOUR) },
+      });
+      timeline.zoomTo(new Date(dayStart), new Date(dayEnd));
+      const next = dayStart + 24 * HOUR;
+      update({
+        startTime: new Date(next), endTime: new Date(dayEnd + 24 * HOUR),
+        initialVisibleRange: { start: new Date(next + HOUR), end: new Date(next + 2 * HOUR) },
+      });
+      expect(visible()).toEqual({ startMs: next + HOUR, endMs: next + 2 * HOUR });
+      host.destroy();
+    });
+
+    describe('playhead auto-follow', () => {
+      const clockAt = (ms: number) => {
+        const clock = new (Cesium as any).Clock();
+        clock.currentTime = jd(ms);
+        return clock;
+      };
+
+      it('re-centres on an off-screen playhead when no initial window is set (existing behaviour)', () => {
+        const clock = clockAt(dayEnd + HOUR);
+        const { host, visible } = mount({ clock });
+        clock.onTick.fire();
+        const span = dayEnd - dayStart;
+        expect(visible()).toEqual({ startMs: dayEnd + HOUR - 0.9 * span, endMs: dayEnd + HOUR + 0.1 * span });
+        host.destroy();
+      });
+
+      it('keeps the initial window while the playhead is outside it, then resumes', () => {
+        const clock = clockAt(dayStart);
+        const { host, visible } = mount({ clock, initialVisibleRange: { start: new Date(REF), end: new Date(REF + HOUR) } });
+        clock.onTick.fire();
+        clock.onTick.fire();
+        expect(visible()).toEqual({ startMs: REF, endMs: REF + HOUR });
+
+        clock.currentTime = jd(REF + HOUR / 2); // consumer moves the clock in
+        clock.onTick.fire();
+        expect(visible()).toEqual({ startMs: REF, endMs: REF + HOUR });
+
+        const edge = REF + 0.95 * HOUR;          // playback reaches the 90% edge
+        clock.currentTime = jd(edge);
+        clock.onTick.fire();
+        expect(visible()).toEqual({ startMs: edge - 0.9 * HOUR, endMs: edge + 0.1 * HOUR });
+        host.destroy();
+      });
+
+      it('pauses following after zoomTo away from the playhead', () => {
+        const clock = clockAt(REF);
+        const { host, timeline, visible } = mount({ clock });
+        timeline.zoomTo(new Date(REF + 2 * HOUR), new Date(REF + 3 * HOUR));
+        clock.onTick.fire();
+        expect(visible()).toEqual({ startMs: REF + 2 * HOUR, endMs: REF + 3 * HOUR });
+        host.destroy();
+      });
     });
   });
 });

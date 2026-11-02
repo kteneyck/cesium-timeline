@@ -175,6 +175,7 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 | `onSwimLaneItemHover` | `(info: SwimLaneEventInfo \| null) => void` | — | Fires when mouse enters/leaves a swim lane item |
 | `onSwimLaneItemDoubleClick` | `(info: SwimLaneEventInfo) => void` | — | Fires when a swim lane item is double-clicked |
 | `onSwimLaneReorder` | `(orderedIds: string[]) => void` | — | Fires when swim lanes are reordered via drag. Receives the new lane id order. |
+| `initialVisibleRange` | `{ start: JulianDate \| Date; end: JulianDate \| Date }` | full `startTime`–`endTime` span | Window to open on instead of the full span. Applied on mount and whenever `startTime`/`endTime` change; re-applied once when its own value changes (compared by ms); never on ordinary re-renders. Clipped to the limits with `restrictToRange`; ignored if it has no width or doesn't overlap the limits. See [Initial Visible Window](#initial-visible-window). |
 
 ---
 
@@ -489,6 +490,70 @@ const end   = Cesium.JulianDate.fromIso8601('2026-12-31T23:59:59Z');
   onPlayPause={(playing) => { viewer.clock.shouldAnimate = playing; }}
   onMultiplierChange={(m) => { viewer.clock.multiplier = m; }}
 />
+```
+
+### Initial Visible Window
+
+Use `initialVisibleRange` to open the timeline zoomed in on part of the
+`startTime`–`endTime` span, e.g. a scene limited to one day that should open on
+one hour:
+
+```tsx
+<Timeline
+  clock={viewer.clock}
+  startTime={dayStart}
+  endTime={dayEnd}
+  restrictToRange
+  initialVisibleRange={{ start: hourStart, end: hourEnd }}
+/>
+```
+
+- **When it applies:** on mount, and again whenever `startTime`/`endTime`
+  change (a new scene loading wins over the usual reset to the full span).
+  Changing the prop's value applies it once (values are compared by ms, so a
+  fresh `Date` with the same time on every render is fine). Ordinary
+  re-renders never re-apply it, so the user's own zoom/pan is kept. Removing
+  the prop leaves the current view alone.
+- **Limits:** with `restrictToRange` it is clipped to `startTime`/`endTime`,
+  and the user can still zoom out to the full limits. If it has no width or
+  doesn't overlap the limits it is ignored and the full span is shown. The
+  span is clamped to the usual min (1 s) / max zoom.
+- **Playhead auto-follow:** normally the view re-centres when the playhead
+  reaches the 10% / 90% edge (or is off-screen). If the playhead is outside
+  the initial window, auto-follow pauses so the window isn't thrown away on
+  the next clock tick. It resumes once the playhead is inside the visible
+  window: the clock is set (or plays) into it, the user scrubs, pans or zooms
+  to it, or `jumpToTime` / ⏮ / ⏭ / LIVE is used. To show the needle straight
+  away, also move the clock into the window, e.g.
+  `viewer.clock.currentTime = hourStart`.
+- `jumpToTime` on mount takes precedence: it centres on that time, keeping
+  the initial window's width.
+
+The same window can be set imperatively through the [ref](#imperative-api)
+with `timelineRef.current?.zoomTo(start, end)`, which follows the same rules.
+
+**Angular:** bind `[initialVisibleRange]` the same way, and use the
+component's public `zoomTo(start, end)` / `getVisibleRange()` methods via
+`@ViewChild(TimelineComponent)`. Keep the bound object stable (a field, not a
+getter that builds a new range from `Date.now()` on every change-detection
+pass), since a new value is applied each time its milliseconds change:
+
+```html
+<ct-timeline
+  [clock]="clock"
+  [startTime]="dayStart"
+  [endTime]="dayEnd"
+  [restrictToRange]="true"
+  [initialVisibleRange]="{ start: hourStart, end: hourEnd }"
+/>
+```
+
+```typescript
+@ViewChild(TimelineComponent) timeline!: TimelineComponent;
+
+zoomToHour(): void {
+  this.timeline.zoomTo(hourStart, hourEnd);
+}
 ```
 
 ### Configuring Max Ticks

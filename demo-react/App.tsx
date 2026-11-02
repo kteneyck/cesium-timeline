@@ -39,6 +39,14 @@ export const TestApp: React.FC = () => {
   const [viewStartTime, setViewStartTime] = useState<Date | undefined>(undefined);
   const [viewEndTime, setViewEndTime] = useState<Date | undefined>(undefined);
   const [restrictToRange, setRestrictToRange] = useState(false);
+  // initialVisibleRange demo: open on the first hour of the view window (or the
+  // hour around now when no window is set) instead of the full span.
+  const [openZoomed, setOpenZoomed] = useState(false);
+  const initialVisibleRange = useMemo(() => {
+    if (!openZoomed) return undefined;
+    const startMs = viewStartTime ? viewStartTime.getTime() : Date.now() - 30 * 60_000;
+    return { start: new Date(startMs), end: new Date(startMs + 3_600_000) };
+  }, [openZoomed, viewStartTime]);
 
   const TIMEZONE_OPTIONS: [string, string][] = [
     ['local',                 'Local (browser)'],
@@ -677,6 +685,15 @@ export const TestApp: React.FC = () => {
                 onChange={e => setRestrictToRange(e.target.checked)}
               />
             </div>
+
+            <div className="prop-row" title="initialVisibleRange: open on the first hour of the window instead of the full span">
+              <label>Open Zoomed (1h)</label>
+              <input
+                type="checkbox"
+                checked={openZoomed}
+                onChange={e => setOpenZoomed(e.target.checked)}
+              />
+            </div>
           </div>
 
           <div className="divider" />
@@ -765,6 +782,7 @@ export const TestApp: React.FC = () => {
             startTime={viewStartTime}
             endTime={viewEndTime}
             restrictToRange={restrictToRange}
+            initialVisibleRange={initialVisibleRange}
             theme={theme}
             swimLanes={swimLanes}
             showSwimLanes={showSwimLanes}

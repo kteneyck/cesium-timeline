@@ -310,6 +310,11 @@ function makeSwimLanes(): SwimLane[] {
             <label>Restrict To Range</label>
             <input type="checkbox" [(ngModel)]="restrictToRange" />
           </div>
+
+          <div class="prop-row" title="initialVisibleRange: open on the first hour of the window instead of the full span">
+            <label>Open Zoomed (1h)</label>
+            <input type="checkbox" [(ngModel)]="openZoomed" (ngModelChange)="updateInitialVisibleRange()" />
+          </div>
         </div>
 
         <div class="divider"></div>
@@ -375,6 +380,7 @@ function makeSwimLanes(): SwimLane[] {
           [startTime]="viewStartTime"
           [endTime]="viewEndTime"
           [restrictToRange]="restrictToRange"
+          [initialVisibleRange]="initialVisibleRange"
           [theme]="theme"
           [swimLanes]="swimLanes"
           [showSwimLanes]="showSwimLanes"
@@ -432,6 +438,11 @@ export class AppComponent implements OnInit, OnDestroy {
   viewStartTime: Date | undefined;
   viewEndTime: Date | undefined;
   restrictToRange = false;
+  // initialVisibleRange demo: open on the first hour of the view window (or the
+  // hour around now when no window is set) instead of the full span. Stored as
+  // a field (not a getter) so it only changes when the toggle or window does.
+  openZoomed = false;
+  initialVisibleRange: { start: Date; end: Date } | undefined;
 
   readonly timezoneOptions: [string, string][] = [
     ['local',               'Local (browser)'],
@@ -579,6 +590,13 @@ export class AppComponent implements OnInit, OnDestroy {
         this.viewer.clock.currentTime = Cesium.JulianDate.fromDate(this.viewStartTime);
       }
     }
+    this.updateInitialVisibleRange();
+  }
+
+  updateInitialVisibleRange(): void {
+    if (!this.openZoomed) { this.initialVisibleRange = undefined; return; }
+    const startMs = this.viewStartTime ? this.viewStartTime.getTime() : Date.now() - 30 * 60_000;
+    this.initialVisibleRange = { start: new Date(startMs), end: new Date(startMs + 3_600_000) };
   }
 
   clearWindow(): void {
@@ -586,6 +604,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.windowEndInput   = '';
     this.viewStartTime    = undefined;
     this.viewEndTime      = undefined;
+    this.updateInitialVisibleRange();
   }
 
   onSwimLaneClick(info: SwimLaneEventInfo): void {
