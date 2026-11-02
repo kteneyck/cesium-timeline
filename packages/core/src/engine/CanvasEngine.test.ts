@@ -7,6 +7,7 @@ import {
   clampSpan,
   clampRangeToLimits,
   clampMsToLimits,
+  resolveVisibleRange,
   zoomRange,
   zoomAroundMs,
   calcEpochMs,
@@ -589,5 +590,59 @@ describe('drawTimeline', () => {
     const callsWith    = (ctxWith.fillRect    as ReturnType<typeof vi.fn>).mock.calls.length;
     const callsWithout = (ctxWithout.fillRect as ReturnType<typeof vi.fn>).mock.calls.length;
     expect(callsWith).toBeGreaterThan(callsWithout);
+  });
+});
+
+// ── resolveVisibleRange ─────────────────────────────────────────────────────────
+
+describe('resolveVisibleRange', () => {
+  const limitStart = 1_000_000_000_000;
+  const limitEnd   = limitStart + 86_400_000; // 1-day limit window
+  const hour       = 3_600_000;
+
+  it('returns the requested window when it lies within the limits', () => {
+    expect(resolveVisibleRange(limitStart + hour, limitStart + 2 * hour, limitStart, limitEnd, true))
+      .toEqual({ startMs: limitStart + hour, endMs: limitStart + 2 * hour });
+  });
+
+  it('returns null for a zero-width or inverted window', () => {
+    expect(resolveVisibleRange(limitStart, limitStart, limitStart, limitEnd)).toBeNull();
+    expect(resolveVisibleRange(limitStart + hour, limitStart, limitStart, limitEnd)).toBeNull();
+  });
+
+  it('returns null for non-finite values', () => {
+    expect(resolveVisibleRange(NaN, limitStart, limitStart, limitEnd)).toBeNull();
+  });
+
+  it('returns null when the window does not overlap the limits', () => {
+    expect(resolveVisibleRange(limitEnd + hour, limitEnd + 2 * hour, limitStart, limitEnd)).toBeNull();
+    expect(resolveVisibleRange(limitStart - 2 * hour, limitStart - hour, limitStart, limitEnd)).toBeNull();
+    // Touching an edge is not an overlap
+    expect(resolveVisibleRange(limitEnd, limitEnd + hour, limitStart, limitEnd)).toBeNull();
+  });
+
+  it('intersects a partly overlapping window with the limits when restricted', () => {
+    expect(resolveVisibleRange(limitStart - hour, limitStart + hour, limitStart, limitEnd, true))
+      .toEqual({ startMs: limitStart, endMs: limitStart + hour });
+  });
+
+  it('keeps a partly overlapping window as-is when not restricted', () => {
+    expect(resolveVisibleRange(limitStart - hour, limitStart + hour, limitStart, limitEnd, false))
+      .toEqual({ startMs: limitStart - hour, endMs: limitStart + hour });
+  });
+
+  it('accepts any window when no limits are given', () => {
+    expect(resolveVisibleRange(5 * hour, 6 * hour)).toEqual({ startMs: 5 * hour, endMs: 6 * hour });
+  });
+
+  it('widens a sub-second window to MIN_SPAN_MS around its centre', () => {
+    const r = resolveVisibleRange(limitStart + hour, limitStart + hour + 200, limitStart, limitEnd)!;
+    expect(r.endMs - r.startMs).toBe(MIN_SPAN_MS);
+    expect((r.startMs + r.endMs) / 2).toBe(limitStart + hour + 100);
+  });
+
+  it('keeps a widened window inside the limits when restricted', () => {
+    const r = resolveVisibleRange(limitStart, limitStart + 200, limitStart, limitEnd, true)!;
+    expect(r).toEqual({ startMs: limitStart, endMs: limitStart + MIN_SPAN_MS });
   });
 });

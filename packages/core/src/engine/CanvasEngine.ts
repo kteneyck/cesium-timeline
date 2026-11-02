@@ -685,3 +685,43 @@ export function drawTimeline(
 
   return scrollTop;
 }
+
+/**
+ * Resolve a requested visible window (e.g. `initialVisibleRange`) against the
+ * timeline's start/end limits. Returns the window to show, or `null` when the
+ * request should be ignored and the caller should fall back to its default
+ * view (typically the full start/end span).
+ *
+ * - A request with no width (`endMs <= startMs`) or non-finite values → `null`.
+ * - A request that does not overlap the limits at all → `null`. Either limit
+ *   may be omitted to leave that side open.
+ * - When `restrict` is `true` the request is intersected with the limits, so
+ *   it never shows time outside them.
+ * - The resulting span is clamped to [`MIN_SPAN_MS`, `MAX_SPAN_MS`] around its
+ *   centre (and, when restricted, re-fitted inside the limits).
+ */
+export function resolveVisibleRange(
+  startMs: number,
+  endMs: number,
+  limitStartMs?: number,
+  limitEndMs?: number,
+  restrict = false
+): { startMs: number; endMs: number } | null {
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return null;
+  if (limitEndMs != null && startMs >= limitEndMs) return null;
+  if (limitStartMs != null && endMs <= limitStartMs) return null;
+
+  let s = startMs;
+  let e = endMs;
+  if (restrict) {
+    if (limitStartMs != null) s = Math.max(s, limitStartMs);
+    if (limitEndMs != null) e = Math.min(e, limitEndMs);
+  }
+
+  const span = clampSpan(e - s);
+  const centre = (s + e) / 2;
+  s = centre - span / 2;
+  e = centre + span / 2;
+
+  return restrict ? clampRangeToLimits(s, e, limitStartMs, limitEndMs) : { startMs: s, endMs: e };
+}

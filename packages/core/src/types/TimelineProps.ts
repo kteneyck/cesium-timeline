@@ -177,6 +177,36 @@ export interface TimelineBaseProps {
    * @default false
    */
   restrictToRange?: boolean;
+  /**
+   * The visible window to open on, instead of the full `startTime`–`endTime`
+   * span. Lets a timeline with wide limits (e.g. one day) open zoomed in
+   * (e.g. to one hour of that day).
+   *
+   * - Applied when the timeline mounts, and again whenever `startTime` /
+   *   `endTime` change (the initial view takes precedence over the usual
+   *   reset to the full span). It is also applied once whenever its own value
+   *   changes, compared by milliseconds rather than object identity. Ordinary
+   *   re-renders never re-apply it, so the user's own zoom/pan is kept.
+   * - When `restrictToRange` is `true` it is clipped to `startTime`/`endTime`.
+   *   Zooming out can still reach the full limits.
+   * - Ignored (falling back to the full span) if it has no width or does not
+   *   overlap `startTime`/`endTime`.
+   * - The span is clamped to the usual minimum/maximum zoom.
+   * - Playhead auto-follow: if the current time lies outside the applied
+   *   window, auto-follow pauses so the window isn't thrown away on the next
+   *   tick. It resumes once the playhead is inside the visible window (the
+   *   clock is moved or plays into it, the user scrubs, pans or zooms to it,
+   *   or `jumpToTime` / jump-to-start / jump-to-end / LIVE is used).
+   *
+   * Currently implemented by the React package only.
+   */
+  initialVisibleRange?: VisibleRange;
+}
+
+/** A visible time window on the timeline. */
+export interface VisibleRange {
+  start: Cesium.JulianDate | Date;
+  end: Cesium.JulianDate | Date;
 }
 
 /**

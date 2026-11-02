@@ -1,5 +1,5 @@
 // Main component
-export { Timeline, type TimelineProps } from './Timeline';
+export { Timeline, type TimelineProps, type TimelineHandle } from './Timeline';
 export { TimelineCanvas, type TimelineCanvasHandle, TICK_AREA_HEIGHT } from './components/TimelineCanvas';
 export { TimelineControls, type ControlsProps } from './components/TimelineControls';
 export { TimelineSVG } from './components/TimelineSVG';

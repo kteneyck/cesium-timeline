@@ -8,6 +8,7 @@ export {
   clampSpan,
   clampRangeToLimits,
   clampMsToLimits,
+  resolveVisibleRange,
   zoomRange,
   zoomAroundMs,
   totalSwimLaneHeight,

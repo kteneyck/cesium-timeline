@@ -1,14 +1,16 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState, useEffect, useMemo } from 'react';
 import * as Cesium from 'cesium';
 import {
   type TimelineTheme,
   type TimelineLabels,
   type SwimLane,
   type SwimLaneEventInfo,
+  type VisibleRange,
   defaultTheme,
   toJulianDate,
   TICK_AREA_HEIGHT,
   clampMsToLimits,
+  resolveVisibleRange,
 } from '@kteneyck/cesium-timeline-core';
 import { TimelineControls } from './components/TimelineControls';
 import { TimelineCanvas, TimelineCanvasHandle } from './components/TimelineCanvas';
@@ -16,6 +18,33 @@ import { TimelineCanvas, TimelineCanvasHandle } from './components/TimelineCanva
 // Re-export so consumers only need @kteneyck/cesium-timeline-react
 export type { TimelineCanvasHandle };
 export { TICK_AREA_HEIGHT };
+
+/**
+ * Imperative handle exposed by `<Timeline ref={…}>`.
+ */
+export interface TimelineHandle {
+  /**
+   * Zoom/pan the visible window to [start, end]. The same rules as
+   * `initialVisibleRange` apply: the span is clamped to the min/max zoom,
+   * clipped to the limits when `restrictToRange` is set, and the call is
+   * ignored when the range has no width or does not overlap the limits.
+   * Playhead auto-follow pauses while the playhead is outside the new window.
+   */
+  zoomTo(start: Cesium.JulianDate | Date, end: Cesium.JulianDate | Date): void;
+  /** The currently visible window. */
+  getVisibleRange(): { start: Cesium.JulianDate; end: Cesium.JulianDate };
+  /** @see TimelineCanvasHandle.appendSwimLane */
+  appendSwimLane(lane: SwimLane): void;
+  /** @see TimelineCanvasHandle.updateSwimLane */
+  updateSwimLane(id: string, updates: Partial<SwimLane>): void;
+  /** @see TimelineCanvasHandle.removeSwimLane */
+  removeSwimLane(id: string): void;
+  /** @see TimelineCanvasHandle.reorderSwimLanes */
+  reorderSwimLanes(orderedIds: string[]): void;
+}
+
+const toMs = (t: Cesium.JulianDate | Date): number =>
+  t instanceof Date ? t.getTime() : Cesium.JulianDate.toDate(t).getTime();
 
 const DEFAULT_FF_SPEEDS = [2, 4, 8, 16, 32, 100, 1];
 const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
@@ -75,9 +104,11 @@ export interface TimelineProps {
   invertScrollZoom?: boolean;
   /** @see TimelineBaseProps.restrictToRange */
   restrictToRange?: boolean;
+  /** @see TimelineBaseProps.initialVisibleRange */
+  initialVisibleRange?: VisibleRange;
 }
 
-export const Timeline: React.FC<TimelineProps> = ({
+export const Timeline = forwardRef<TimelineHandle, TimelineProps>(({
   startTime: providedStart,
   endTime: providedEnd,
   currentTime: initialTime,
@@ -118,7 +149,8 @@ export const Timeline: React.FC<TimelineProps> = ({
   live,
   invertScrollZoom,
   restrictToRange,
-}) => {
+  initialVisibleRange,
+}, ref) => {
   const now = () => Date.now();
   const defaultStartMs = useMemo(
     () => providedStart
@@ -155,6 +187,48 @@ export const Timeline: React.FC<TimelineProps> = ({
   const [currentTime, setCurrentTime] = useState<Cesium.JulianDate>(() =>
     toJulianDate(initialTime ?? (providedStart ?? Cesium.JulianDate.fromDate(new Date())))
   );
+
+  // ── Initial visible range ──
+  // Compared by ms (not object identity) so a fresh Date/JulianDate with the
+  // same value on every render doesn't re-apply it.
+  const initialStartMs = initialVisibleRange ? toMs(initialVisibleRange.start) : undefined;
+  const initialEndMs   = initialVisibleRange ? toMs(initialVisibleRange.end)   : undefined;
+  const resolveRange = (startMs: number | undefined, endMs: number | undefined) =>
+    startMs == null || endMs == null
+      ? null
+      : resolveVisibleRange(startMs, endMs, limitStartMs, limitEndMs, !!restrictToRange);
+  // Only read for the canvas's very first render; later changes go through zoomTo.
+  const mountRange = useRef(resolveRange(initialStartMs, initialEndMs)).current;
+
+  // While true, playhead auto-follow (re-centring at the 10%/90% edges) is
+  // paused, because a window was applied that doesn't contain the playhead.
+  // Cleared as soon as the playhead is inside the visible window again.
+  const followSuspendedRef = useRef(mountRange != null);
+
+  // Shared auto-follow for clock ticks and the no-clock real-time fallback.
+  const followPlayhead = (ctMs: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const { startMs, endMs } = canvas.getVisibleRange();
+    if (followSuspendedRef.current) {
+      if (ctMs < startMs || ctMs > endMs) return;
+      followSuspendedRef.current = false;
+    }
+    const span = endMs - startMs;
+    const pos = ctMs - startMs;
+    if (pos <= span * 0.1) {
+      canvas.zoomTo(ctMs - span * 0.1, ctMs + span * 0.9, ctMs);
+    } else if (pos >= span * 0.9) {
+      canvas.zoomTo(ctMs - span * 0.9, ctMs + span * 0.1, ctMs);
+    }
+  };
+
+  // Zoom to a programmatically chosen window, pausing auto-follow so it isn't
+  // immediately thrown away if the playhead lies outside it.
+  const applyVisibleRange = (range: { startMs: number; endMs: number }) => {
+    followSuspendedRef.current = true;
+    canvasRef.current?.zoomTo(range.startMs, range.endMs);
+  };
   const [isPlaying, setIsPlaying] = useState(clock?.shouldAnimate ?? false);
   const [multiplier, setMultiplier] = useState(clock?.multiplier ?? 1);
 
@@ -215,17 +289,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         setCurrentTime(ct);
         setIsPlaying(clock.shouldAnimate);
         setMultiplier(clock.multiplier);
-
-        if (canvasRef.current) {
-          const { startMs, endMs } = canvasRef.current.getVisibleRange();
-          const span = endMs - startMs;
-          const pos = ctMs - startMs;
-          if (pos <= span * 0.1) {
-            canvasRef.current.zoomTo(ctMs - span * 0.1, ctMs + span * 0.9, ctMs);
-          } else if (pos >= span * 0.9) {
-            canvasRef.current.zoomTo(ctMs - span * 0.9, ctMs + span * 0.1, ctMs);
-          }
-        }
+        followPlayhead(ctMs);
       }
     };
     clock.onTick.addEventListener(onTick);
@@ -240,13 +304,7 @@ export const Timeline: React.FC<TimelineProps> = ({
       const ctMs = clampTimeMs(Date.now());
       const ct   = Cesium.JulianDate.fromDate(new Date(ctMs));
       setCurrentTime(ct);
-      if (canvasRef.current) {
-        const { startMs, endMs } = canvasRef.current.getVisibleRange();
-        const span = endMs - startMs;
-        const pos = ctMs - startMs;
-        if (pos <= span * 0.1) canvasRef.current.zoomTo(ctMs - span * 0.1, ctMs + span * 0.9, ctMs);
-        else if (pos >= span * 0.9) canvasRef.current.zoomTo(ctMs - span * 0.9, ctMs + span * 0.1, ctMs);
-      }
+      followPlayhead(ctMs);
     }, 1000);
     return () => clearInterval(id);
   }, [clock]);
@@ -256,6 +314,7 @@ export const Timeline: React.FC<TimelineProps> = ({
     if (!jumpToTime || live) return;
     const t = toJulianDate(jumpToTime);
     handleTimeChange(t);
+    followSuspendedRef.current = false;
     if (canvasRef.current) {
       const { startMs, endMs } = canvasRef.current.getVisibleRange();
       const span = endMs - startMs;
@@ -265,18 +324,47 @@ export const Timeline: React.FC<TimelineProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jumpToTime]);
 
-  // ── Zoom to view window when startTime / endTime props change ──
-  const isFirstRender = useRef(true);
+  // ── Re-apply the view window when startTime / endTime or initialVisibleRange change ──
+  // New bounds (e.g. a new scene loading): show `initialVisibleRange` if it
+  // resolves against them, otherwise the full span. A change to
+  // `initialVisibleRange` alone is applied once; an invalid/removed value then
+  // leaves the user's current view alone.
+  const prevViewDeps = useRef({ defaultStartMs, defaultEndMs, initialStartMs, initialEndMs });
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-    if (providedStart != null && providedEnd != null) {
+    const prev = prevViewDeps.current;
+    prevViewDeps.current = { defaultStartMs, defaultEndMs, initialStartMs, initialEndMs };
+    const boundsChanged  = prev.defaultStartMs !== defaultStartMs || prev.defaultEndMs !== defaultEndMs;
+    const initialChanged = prev.initialStartMs !== initialStartMs || prev.initialEndMs !== initialEndMs;
+    if (!boundsChanged && !initialChanged) return; // first render — the canvas mounted on the right window
+
+    const range = resolveRange(initialStartMs, initialEndMs);
+    if (range) {
+      applyVisibleRange(range);
+    } else if (boundsChanged && providedStart != null && providedEnd != null) {
       canvasRef.current?.zoomTo(defaultStartMs, defaultEndMs);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultStartMs, defaultEndMs]);
+  }, [defaultStartMs, defaultEndMs, initialStartMs, initialEndMs]);
+
+  // ── Imperative handle ──
+  useImperativeHandle(ref, () => ({
+    zoomTo(start, end) {
+      const range = resolveRange(toMs(start), toMs(end));
+      if (range) applyVisibleRange(range);
+    },
+    getVisibleRange() {
+      const { startMs, endMs } = canvasRef.current?.getVisibleRange()
+        ?? { startMs: mountRange?.startMs ?? defaultStartMs, endMs: mountRange?.endMs ?? defaultEndMs };
+      return {
+        start: Cesium.JulianDate.fromDate(new Date(startMs)),
+        end:   Cesium.JulianDate.fromDate(new Date(endMs)),
+      };
+    },
+    appendSwimLane:   lane => canvasRef.current?.appendSwimLane(lane),
+    updateSwimLane:   (id, updates) => canvasRef.current?.updateSwimLane(id, updates),
+    removeSwimLane:   id => canvasRef.current?.removeSwimLane(id),
+    reorderSwimLanes: ids => canvasRef.current?.reorderSwimLanes(ids),
+  }));
 
   // ── Helpers ──
   const applyMultiplier = (m: number, play = true) => {
@@ -333,6 +421,7 @@ export const Timeline: React.FC<TimelineProps> = ({
     const t = toJulianDate(providedStart ?? Cesium.JulianDate.fromDate(new Date(defaultStartMs)));
     if (clock) clock.currentTime = Cesium.JulianDate.clone(t);
     setCurrentTime(t);
+    followSuspendedRef.current = false;
     canvasRef.current?.zoomTo(defaultStartMs, defaultEndMs);
   };
 
@@ -340,6 +429,7 @@ export const Timeline: React.FC<TimelineProps> = ({
     const t = toJulianDate(providedEnd ?? Cesium.JulianDate.fromDate(new Date(defaultEndMs)));
     if (clock) clock.currentTime = Cesium.JulianDate.clone(t);
     setCurrentTime(t);
+    followSuspendedRef.current = false;
     canvasRef.current?.zoomTo(defaultStartMs, defaultEndMs);
   };
 
@@ -349,6 +439,7 @@ export const Timeline: React.FC<TimelineProps> = ({
     if (clock) clock.currentTime = Cesium.JulianDate.clone(t);
     setCurrentTime(t);
     applyMultiplier(1);
+    followSuspendedRef.current = false;
     if (canvasRef.current) {
       const { startMs, endMs } = canvasRef.current.getVisibleRange();
       const span = endMs - startMs;
@@ -421,8 +512,8 @@ export const Timeline: React.FC<TimelineProps> = ({
         <TimelineCanvas
           ref={canvasRef}
           currentTime={currentTime}
-          defaultStartMs={defaultStartMs}
-          defaultEndMs={defaultEndMs}
+          defaultStartMs={mountRange?.startMs ?? defaultStartMs}
+          defaultEndMs={mountRange?.endMs ?? defaultEndMs}
           theme={finalTheme}
           maxTicks={maxTicks}
           timezone={timezone}
@@ -448,6 +539,8 @@ export const Timeline: React.FC<TimelineProps> = ({
       )}
     </div>
   );
-};
+});
+
+Timeline.displayName = 'Timeline';
 
 export default Timeline;

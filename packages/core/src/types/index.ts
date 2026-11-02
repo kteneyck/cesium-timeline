@@ -1,4 +1,4 @@
-export type { TimelineBaseProps, ControlsBaseProps } from './TimelineProps';
+export type { TimelineBaseProps, ControlsBaseProps, VisibleRange } from './TimelineProps';
 export type { TimelineLabels } from './TimelineLabels';
 export { DEFAULT_LABELS, resolveLabel } from './TimelineLabels';
 export type { TimelineTheme } from './TimelineTheme';

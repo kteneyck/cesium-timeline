@@ -1,6 +1,7 @@
 import { render, act } from '@testing-library/react';
+import { createRef } from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { Timeline } from './Timeline';
+import { Timeline, type TimelineHandle } from './Timeline';
 import * as Cesium from 'cesium';
 
 vi.mock('cesium', () => {
@@ -273,6 +274,222 @@ describe('Timeline', () => {
 
       expect(Cesium.JulianDate.toDate(clock.currentTime).getTime()).toBe(pastEnd);
       expect(clock.shouldAnimate).toBe(true);
+    });
+  });
+
+  describe('initialVisibleRange', () => {
+    const HOUR  = 3_600_000;
+    const dayStart = REF_MS - 12 * HOUR;
+    const dayEnd   = REF_MS + 12 * HOUR;
+    const jd = (ms: number) => Cesium.JulianDate.fromDate(new Date(ms));
+    const visible = (ref: React.RefObject<TimelineHandle | null>) => {
+      const { start, end } = ref.current!.getVisibleRange();
+      return { startMs: Cesium.JulianDate.toDate(start).getTime(), endMs: Cesium.JulianDate.toDate(end).getTime() };
+    };
+
+    const renderTimeline = (props: Partial<React.ComponentProps<typeof Timeline>> = {}) => {
+      const ref = createRef<TimelineHandle>();
+      const utils = render(
+        <Timeline ref={ref} timezone="UTC" startTime={new Date(dayStart)} endTime={new Date(dayEnd)} {...props} />
+      );
+      const rerender = (next: Partial<React.ComponentProps<typeof Timeline>> = {}) => act(() => {
+        utils.rerender(
+          <Timeline ref={ref} timezone="UTC" startTime={new Date(dayStart)} endTime={new Date(dayEnd)} {...next} />
+        );
+      });
+      return { ref, rerender };
+    };
+
+    it('opens on the full start/end span when not provided', () => {
+      const { ref } = renderTimeline();
+      expect(visible(ref)).toEqual({ startMs: dayStart, endMs: dayEnd });
+    });
+
+    it('opens on the given window instead of the full span', () => {
+      const { ref } = renderTimeline({
+        initialVisibleRange: { start: new Date(REF_MS), end: new Date(REF_MS + HOUR) },
+      });
+      expect(visible(ref)).toEqual({ startMs: REF_MS, endMs: REF_MS + HOUR });
+    });
+
+    it('accepts JulianDate values', () => {
+      const { ref } = renderTimeline({
+        initialVisibleRange: { start: jd(REF_MS), end: jd(REF_MS + HOUR) },
+      });
+      expect(visible(ref)).toEqual({ startMs: REF_MS, endMs: REF_MS + HOUR });
+    });
+
+    it('falls back to the full span when the window has no width', () => {
+      const { ref } = renderTimeline({
+        initialVisibleRange: { start: new Date(REF_MS), end: new Date(REF_MS) },
+      });
+      expect(visible(ref)).toEqual({ startMs: dayStart, endMs: dayEnd });
+    });
+
+    it('falls back to the full span when the window does not overlap the limits', () => {
+      const { ref } = renderTimeline({
+        initialVisibleRange: { start: new Date(dayEnd + HOUR), end: new Date(dayEnd + 2 * HOUR) },
+      });
+      expect(visible(ref)).toEqual({ startMs: dayStart, endMs: dayEnd });
+    });
+
+    it('is clipped to the limits when restrictToRange is set', () => {
+      const { ref } = renderTimeline({
+        restrictToRange: true,
+        initialVisibleRange: { start: new Date(dayStart - HOUR), end: new Date(dayStart + HOUR) },
+      });
+      expect(visible(ref)).toEqual({ startMs: dayStart, endMs: dayStart + HOUR });
+    });
+
+    it('still lets the view zoom out to the full limits when restrictToRange is set', () => {
+      const { ref } = renderTimeline({
+        restrictToRange: true,
+        initialVisibleRange: { start: new Date(REF_MS), end: new Date(REF_MS + HOUR) },
+      });
+      act(() => { ref.current!.zoomTo(new Date(dayStart - 48 * HOUR), new Date(dayEnd + 48 * HOUR)); });
+      expect(visible(ref)).toEqual({ startMs: dayStart, endMs: dayEnd });
+    });
+
+    it('respects the minimum visible span', () => {
+      const { ref } = renderTimeline({
+        initialVisibleRange: { start: new Date(REF_MS), end: new Date(REF_MS + 100) },
+      });
+      const { startMs, endMs } = visible(ref);
+      expect(endMs - startMs).toBe(1_000);
+      expect((startMs + endMs) / 2).toBe(REF_MS + 50);
+    });
+
+    it('does not re-apply on re-renders with an equal (new-identity) value', () => {
+      const range = () => ({ start: new Date(REF_MS), end: new Date(REF_MS + HOUR) });
+      const { ref, rerender } = renderTimeline({ initialVisibleRange: range() });
+      // Stand-in for the user's own zoom/pan.
+      act(() => { ref.current!.zoomTo(new Date(REF_MS - 2 * HOUR), new Date(REF_MS + 4 * HOUR)); });
+      rerender({ initialVisibleRange: range() });
+      expect(visible(ref)).toEqual({ startMs: REF_MS - 2 * HOUR, endMs: REF_MS + 4 * HOUR });
+    });
+
+    it('applies a changed value once', () => {
+      const { ref, rerender } = renderTimeline({
+        initialVisibleRange: { start: new Date(REF_MS), end: new Date(REF_MS + HOUR) },
+      });
+      const next = { start: new Date(REF_MS + 2 * HOUR), end: new Date(REF_MS + 3 * HOUR) };
+      rerender({ initialVisibleRange: next });
+      expect(visible(ref)).toEqual({ startMs: REF_MS + 2 * HOUR, endMs: REF_MS + 3 * HOUR });
+
+      act(() => { ref.current!.zoomTo(new Date(dayStart), new Date(dayEnd)); });
+      rerender({ initialVisibleRange: { ...next } });
+      expect(visible(ref)).toEqual({ startMs: dayStart, endMs: dayEnd });
+    });
+
+    it('leaves the current view alone when the prop is removed', () => {
+      const { ref, rerender } = renderTimeline({
+        initialVisibleRange: { start: new Date(REF_MS), end: new Date(REF_MS + HOUR) },
+      });
+      rerender({});
+      expect(visible(ref)).toEqual({ startMs: REF_MS, endMs: REF_MS + HOUR });
+    });
+
+    it('wins over the full-span reset when startTime/endTime change', () => {
+      const ref = createRef<TimelineHandle>();
+      const { rerender } = render(
+        <Timeline ref={ref} timezone="UTC" startTime={new Date(dayStart)} endTime={new Date(dayEnd)}
+          initialVisibleRange={{ start: new Date(REF_MS), end: new Date(REF_MS + HOUR) }} />
+      );
+      act(() => { ref.current!.zoomTo(new Date(dayStart), new Date(dayEnd)); });
+
+      // A new scene loads: new bounds plus a new initial window.
+      const nextStart = dayStart + 24 * HOUR;
+      act(() => {
+        rerender(
+          <Timeline ref={ref} timezone="UTC" startTime={new Date(nextStart)} endTime={new Date(dayEnd + 24 * HOUR)}
+            initialVisibleRange={{ start: new Date(nextStart + HOUR), end: new Date(nextStart + 2 * HOUR) }} />
+        );
+      });
+      expect(visible(ref)).toEqual({ startMs: nextStart + HOUR, endMs: nextStart + 2 * HOUR });
+    });
+
+    it('re-applies the same window when only startTime/endTime change', () => {
+      const initial = { start: new Date(REF_MS), end: new Date(REF_MS + HOUR) };
+      const ref = createRef<TimelineHandle>();
+      const { rerender } = render(
+        <Timeline ref={ref} timezone="UTC" startTime={new Date(dayStart)} endTime={new Date(dayEnd)}
+          initialVisibleRange={initial} />
+      );
+      act(() => { ref.current!.zoomTo(new Date(dayStart), new Date(dayEnd)); });
+      act(() => {
+        rerender(
+          <Timeline ref={ref} timezone="UTC" startTime={new Date(dayStart - HOUR)} endTime={new Date(dayEnd)}
+            initialVisibleRange={initial} />
+        );
+      });
+      expect(visible(ref)).toEqual({ startMs: REF_MS, endMs: REF_MS + HOUR });
+    });
+
+    describe('playhead auto-follow', () => {
+      const makeClock = (ms: number) => {
+        const clock = new (Cesium as any).Clock();
+        clock.currentTime = jd(ms);
+        return clock;
+      };
+
+      it('re-centres on a playhead outside the window when no initial window is set (existing behaviour)', () => {
+        const clock = makeClock(dayEnd + HOUR);
+        const { ref } = renderTimeline({ clock });
+        act(() => { clock.onTick.fire(); });
+        const span = dayEnd - dayStart;
+        expect(visible(ref)).toEqual({ startMs: dayEnd + HOUR - 0.9 * span, endMs: dayEnd + HOUR + 0.1 * span });
+      });
+
+      it('keeps the initial window while the playhead is outside it', () => {
+        const clock = makeClock(dayStart); // outside the 1-hour window
+        const { ref } = renderTimeline({
+          clock,
+          initialVisibleRange: { start: new Date(REF_MS), end: new Date(REF_MS + HOUR) },
+        });
+        act(() => { clock.onTick.fire(); });
+        act(() => { clock.onTick.fire(); });
+        expect(visible(ref)).toEqual({ startMs: REF_MS, endMs: REF_MS + HOUR });
+      });
+
+      it('resumes following once the playhead is inside the window', () => {
+        const clock = makeClock(dayStart);
+        const { ref } = renderTimeline({
+          clock,
+          initialVisibleRange: { start: new Date(REF_MS), end: new Date(REF_MS + HOUR) },
+        });
+        act(() => { clock.onTick.fire(); });
+
+        // Consumer moves the clock into the window — mid-window, no re-centre.
+        clock.currentTime = jd(REF_MS + HOUR / 2);
+        act(() => { clock.onTick.fire(); });
+        expect(visible(ref)).toEqual({ startMs: REF_MS, endMs: REF_MS + HOUR });
+
+        // Playback reaches the 90% edge — follow is active again and pans.
+        const edgeMs = REF_MS + 0.95 * HOUR;
+        clock.currentTime = jd(edgeMs);
+        act(() => { clock.onTick.fire(); });
+        const v = visible(ref);
+        expect(v.endMs - v.startMs).toBe(HOUR);
+        expect(v.startMs).toBe(edgeMs - 0.9 * HOUR);
+      });
+
+      it('keeps following normally when the playhead starts inside the window', () => {
+        const clock = makeClock(REF_MS + 0.95 * HOUR);
+        const { ref } = renderTimeline({
+          clock,
+          initialVisibleRange: { start: new Date(REF_MS), end: new Date(REF_MS + HOUR) },
+        });
+        act(() => { clock.onTick.fire(); });
+        expect(visible(ref).startMs).toBe(REF_MS + 0.05 * HOUR);
+      });
+
+      it('pauses following after an imperative zoomTo away from the playhead', () => {
+        const clock = makeClock(REF_MS);
+        const { ref } = renderTimeline({ clock });
+        act(() => { ref.current!.zoomTo(new Date(REF_MS + 2 * HOUR), new Date(REF_MS + 3 * HOUR)); });
+        act(() => { clock.onTick.fire(); });
+        expect(visible(ref)).toEqual({ startMs: REF_MS + 2 * HOUR, endMs: REF_MS + 3 * HOUR });
+      });
     });
   });
 });
