@@ -533,6 +533,30 @@ one hour:
 The same window can be set imperatively through the [ref](#imperative-api)
 with `timelineRef.current?.zoomTo(start, end)`, which follows the same rules.
 
+**Angular:** bind `[initialVisibleRange]` the same way, and use the
+component's public `zoomTo(start, end)` / `getVisibleRange()` methods via
+`@ViewChild(TimelineComponent)`. Keep the bound object stable (a field, not a
+getter that builds a new range from `Date.now()` on every change-detection
+pass), since a new value is applied each time its milliseconds change:
+
+```html
+<ct-timeline
+  [clock]="clock"
+  [startTime]="dayStart"
+  [endTime]="dayEnd"
+  [restrictToRange]="true"
+  [initialVisibleRange]="{ start: hourStart, end: hourEnd }"
+/>
+```
+
+```typescript
+@ViewChild(TimelineComponent) timeline!: TimelineComponent;
+
+zoomToHour(): void {
+  this.timeline.zoomTo(hourStart, hourEnd);
+}
+```
+
 ### Configuring Max Ticks
 
 Useful when the timeline is shown at a small height or in a compact layout.

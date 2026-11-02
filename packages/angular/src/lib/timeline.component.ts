@@ -20,13 +20,18 @@ import {
   type TimelineLabels,
   type SwimLane,
   type SwimLaneEventInfo,
+  type VisibleRange,
   defaultTheme,
   toJulianDate,
   TICK_AREA_HEIGHT,
   clampMsToLimits,
+  resolveVisibleRange,
 } from '@kteneyck/cesium-timeline-core';
 import { TimelineControlsComponent } from './timeline-controls.component';
 import { TimelineCanvasComponent } from './timeline-canvas.component';
+
+const toMs = (t: Cesium.JulianDate | Date): number =>
+  t instanceof Date ? t.getTime() : Cesium.JulianDate.toDate(t).getTime();
 
 const DEFAULT_FF_SPEEDS = [2, 4, 8, 16, 32, 100, 1];
 const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
@@ -86,8 +91,8 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
       @if (enableDrag !== false || live) {
         <ct-timeline-canvas
           [currentTime]="currentTimeState"
-          [defaultStartMs]="defaultStartMs"
-          [defaultEndMs]="defaultEndMs"
+          [defaultStartMs]="mountStartMs"
+          [defaultEndMs]="mountEndMs"
           [theme]="finalTheme"
           [maxTicks]="maxTicks"
           [timezone]="timezone"
@@ -154,6 +159,8 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
   @Input() invertScrollZoom = false;
   /** @see TimelineBaseProps.restrictToRange */
   @Input() restrictToRange = false;
+  /** @see TimelineBaseProps.initialVisibleRange */
+  @Input() initialVisibleRange?: VisibleRange;
 
   // ── Outputs ────────────────────────────────────────────────────────────
   @Output() timeChange = new EventEmitter<Cesium.JulianDate>();
@@ -182,6 +189,19 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
   defaultStartMs = 0;
   defaultEndMs = 0;
   finalTheme: TimelineTheme = { ...defaultTheme };
+  /** Window the canvas mounts on: `initialVisibleRange` if it resolves, else the full span. */
+  mountStartMs = 0;
+  mountEndMs = 0;
+
+  /** `initialVisibleRange` in ms — compared by value, not object identity. */
+  private initialStartMs?: number;
+  private initialEndMs?: number;
+  /**
+   * While true, playhead auto-follow (re-centring at the 10%/90% edges) is
+   * paused because a window was applied that doesn't contain the playhead.
+   * Cleared as soon as the playhead is inside the visible window again.
+   */
+  private followSuspended = false;
 
   private ro?: ResizeObserver;
   private clockCleanup?: () => void;
@@ -237,8 +257,72 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
       : now + 12 * 3600 * 1000;
   }
 
+  /** Resolve a requested window against the current limits (null = ignore it). */
+  private resolveRange(startMs?: number, endMs?: number): { startMs: number; endMs: number } | null {
+    if (startMs == null || endMs == null) return null;
+    return resolveVisibleRange(startMs, endMs, this.limitStartMs, this.limitEndMs, this.restrictToRange);
+  }
+
+  /**
+   * Zoom to a programmatically chosen window, pausing auto-follow so it isn't
+   * immediately thrown away if the playhead lies outside it.
+   */
+  private applyVisibleRange(range: { startMs: number; endMs: number }): void {
+    this.followSuspended = true;
+    this.canvasComp?.zoomTo(range.startMs, range.endMs);
+  }
+
+  /** Shared playhead auto-follow for clock ticks and the no-clock fallback. */
+  private followPlayhead(ctMs: number): void {
+    const canvas = this.canvasComp;
+    if (!canvas) return;
+    const { startMs, endMs } = canvas.getVisibleRange();
+    if (this.followSuspended) {
+      if (ctMs < startMs || ctMs > endMs) return;
+      this.followSuspended = false;
+    }
+    const span = endMs - startMs;
+    const pos = ctMs - startMs;
+    if (pos <= span * 0.1) {
+      canvas.zoomTo(ctMs - span * 0.1, ctMs + span * 0.9, ctMs);
+    } else if (pos >= span * 0.9) {
+      canvas.zoomTo(ctMs - span * 0.9, ctMs + span * 0.1, ctMs);
+    }
+  }
+
+  // ── Public API (call via @ViewChild(TimelineComponent)) ────────────────
+
+  /**
+   * Zoom/pan the visible window to [start, end]. Same rules as
+   * `initialVisibleRange`: span clamped to the min/max zoom, clipped to the
+   * limits when `restrictToRange` is set, ignored when the range has no width
+   * or does not overlap the limits. Auto-follow pauses while the playhead is
+   * outside the new window.
+   */
+  zoomTo(start: Cesium.JulianDate | Date, end: Cesium.JulianDate | Date): void {
+    const range = this.resolveRange(toMs(start), toMs(end));
+    if (range) this.applyVisibleRange(range);
+  }
+
+  /** The currently visible window. */
+  getVisibleRange(): { start: Cesium.JulianDate; end: Cesium.JulianDate } {
+    const { startMs, endMs } = this.canvasComp?.getVisibleRange()
+      ?? { startMs: this.mountStartMs, endMs: this.mountEndMs };
+    return {
+      start: Cesium.JulianDate.fromDate(new Date(startMs)),
+      end:   Cesium.JulianDate.fromDate(new Date(endMs)),
+    };
+  }
+
   ngOnInit(): void {
     this.recomputeDefaultRange();
+
+    const mount = this.resolveRange(this.initialStartMs, this.initialEndMs);
+    this.mountStartMs = mount?.startMs ?? this.defaultStartMs;
+    this.mountEndMs   = mount?.endMs   ?? this.defaultEndMs;
+    // A first-render jumpToTime takes precedence over the initial window's
+    // position (as in React): leave follow active so it pans to the needle.
+    this.followSuspended = mount != null && !(this.jumpToTime && !this.live);
 
     this.currentTimeState = toJulianDate(
       this.currentTime ?? (this.startTime ?? Cesium.JulianDate.fromDate(new Date()))
@@ -272,6 +356,16 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
     if (changes['startTime'] || changes['endTime']) {
       this.recomputeDefaultRange();
     }
+    let initialChanged = false;
+    if (changes['initialVisibleRange']) {
+      const r = this.initialVisibleRange;
+      const s = r ? toMs(r.start) : undefined;
+      const e = r ? toMs(r.end)   : undefined;
+      initialChanged = !changes['initialVisibleRange'].firstChange &&
+        (s !== this.initialStartMs || e !== this.initialEndMs);
+      this.initialStartMs = s;
+      this.initialEndMs   = e;
+    }
     if (changes['theme']) {
       this.finalTheme = { ...defaultTheme, ...this.theme };
     }
@@ -285,6 +379,7 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
     if (changes['jumpToTime'] && this.jumpToTime && !this.live) {
       const t = toJulianDate(this.jumpToTime);
       this.handleTimeChange(t);
+      this.followSuspended = false;
       if (this.canvasComp) {
         const { startMs, endMs } = this.canvasComp.getVisibleRange();
         const span = endMs - startMs;
@@ -297,15 +392,26 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
       // Live mode switched on — jump to and follow current time.
       this.handleJumpToLive();
     }
-    if ((changes['startTime'] && !changes['startTime'].firstChange) ||
-        (changes['endTime']   && !changes['endTime'].firstChange)) {
-      if (this.canvasComp && this.startTime != null && this.endTime != null) {
+    const boundsChanged =
+      (changes['startTime'] && !changes['startTime'].firstChange) ||
+      (changes['endTime']   && !changes['endTime'].firstChange);
+    if (boundsChanged || initialChanged) {
+      if (this.canvasComp) {
         // Push the new bounds down before zooming: Angular only propagates the
         // [limitStartMs]/[limitEndMs] bindings after this hook returns, so
         // zoomTo() would otherwise clamp the new range against the old limits.
-        this.canvasComp.limitStartMs = this.limitStartMs;
-        this.canvasComp.limitEndMs   = this.limitEndMs;
-        this.canvasComp.zoomTo(this.defaultStartMs, this.defaultEndMs);
+        this.canvasComp.limitStartMs    = this.limitStartMs;
+        this.canvasComp.limitEndMs      = this.limitEndMs;
+        this.canvasComp.restrictToRange = this.restrictToRange;
+        // New bounds (e.g. a new scene): show initialVisibleRange if it
+        // resolves, otherwise the full span. A change to initialVisibleRange
+        // alone is applied once; an invalid/removed value leaves the view alone.
+        const range = this.resolveRange(this.initialStartMs, this.initialEndMs);
+        if (range) {
+          this.applyVisibleRange(range);
+        } else if (boundsChanged && this.startTime != null && this.endTime != null) {
+          this.canvasComp.zoomTo(this.defaultStartMs, this.defaultEndMs);
+        }
       }
       this.cdr.markForCheck();
     }
@@ -340,17 +446,7 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
         this.currentTimeState = ct;
         this.isPlayingState = this.clock!.shouldAnimate;
         this.multiplierState = this.clock!.multiplier;
-
-        if (this.canvasComp) {
-          const { startMs, endMs } = this.canvasComp.getVisibleRange();
-          const span = endMs - startMs;
-          const pos = ctMs - startMs;
-          if (pos <= span * 0.1) {
-            this.canvasComp.zoomTo(ctMs - span * 0.1, ctMs + span * 0.9, ctMs);
-          } else if (pos >= span * 0.9) {
-            this.canvasComp.zoomTo(ctMs - span * 0.9, ctMs + span * 0.1, ctMs);
-          }
-        }
+        this.followPlayhead(ctMs);
         this.cdr.markForCheck();
       };
       this.clock.onTick.addEventListener(onTick);
@@ -362,13 +458,7 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
           const ctMs = this.clampTimeMs(Date.now());
           const ct   = Cesium.JulianDate.fromDate(new Date(ctMs));
           this.currentTimeState = ct;
-          if (this.canvasComp) {
-            const { startMs, endMs } = this.canvasComp.getVisibleRange();
-            const span = endMs - startMs;
-            const pos = ctMs - startMs;
-            if (pos <= span * 0.1) this.canvasComp.zoomTo(ctMs - span * 0.1, ctMs + span * 0.9, ctMs);
-            else if (pos >= span * 0.9) this.canvasComp.zoomTo(ctMs - span * 0.9, ctMs + span * 0.1, ctMs);
-          }
+          this.followPlayhead(ctMs);
           this.ngZone.run(() => this.cdr.markForCheck());
         }, 1000);
       });
@@ -435,6 +525,7 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
     const t = toJulianDate(this.startTime ?? Cesium.JulianDate.fromDate(new Date(this.defaultStartMs)));
     if (this.clock) this.clock.currentTime = Cesium.JulianDate.clone(t);
     this.currentTimeState = t;
+    this.followSuspended = false;
     this.canvasComp?.zoomTo(this.defaultStartMs, this.defaultEndMs);
     this.cdr.markForCheck();
   }
@@ -443,6 +534,7 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
     const t = toJulianDate(this.endTime ?? Cesium.JulianDate.fromDate(new Date(this.defaultEndMs)));
     if (this.clock) this.clock.currentTime = Cesium.JulianDate.clone(t);
     this.currentTimeState = t;
+    this.followSuspended = false;
     this.canvasComp?.zoomTo(this.defaultStartMs, this.defaultEndMs);
     this.cdr.markForCheck();
   }
@@ -453,6 +545,7 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
     if (this.clock) this.clock.currentTime = Cesium.JulianDate.clone(t);
     this.currentTimeState = t;
     this.applyMultiplier(1);
+    this.followSuspended = false;
     if (this.canvasComp) {
       const { startMs, endMs } = this.canvasComp.getVisibleRange();
       const span = endMs - startMs;

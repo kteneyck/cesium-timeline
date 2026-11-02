@@ -197,8 +197,6 @@ export interface TimelineBaseProps {
    *   tick. It resumes once the playhead is inside the visible window (the
    *   clock is moved or plays into it, the user scrubs, pans or zooms to it,
    *   or `jumpToTime` / jump-to-start / jump-to-end / LIVE is used).
-   *
-   * Currently implemented by the React package only.
    */
   initialVisibleRange?: VisibleRange;
 }
