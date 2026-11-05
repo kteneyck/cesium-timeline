@@ -142,6 +142,31 @@ describe('TimelineControls', () => {
     expect(numberInput.value).toBe('500');
   });
 
+  it.each([['0.25', 0.25], ['0.5', 0.5], ['1.5', 1.5]])(
+    'accepts a fractional speed (%s) from the number input',
+    (typed, expected) => {
+      const onSetSpeed = vi.fn();
+      render(<TimelineControls {...makeProps({ multiplier: 4, onSetSpeed })} />);
+      fireEvent.click(document.querySelector('[title="Playback speed — click to adjust"]') as HTMLButtonElement);
+      const numberInput = document.querySelector('input[type="number"]') as HTMLInputElement;
+      fireEvent.change(numberInput, { target: { value: typed } });
+      fireEvent.blur(numberInput);
+      expect(onSetSpeed).toHaveBeenCalledWith(expected);
+      expect(numberInput.value).toBe(typed);
+    },
+  );
+
+  it.each(['0', '-2', ''])('rejects a non-positive or empty speed (%j) and reverts the input', typed => {
+    const onSetSpeed = vi.fn();
+    render(<TimelineControls {...makeProps({ multiplier: 4, onSetSpeed })} />);
+    fireEvent.click(document.querySelector('[title="Playback speed — click to adjust"]') as HTMLButtonElement);
+    const numberInput = document.querySelector('input[type="number"]') as HTMLInputElement;
+    fireEvent.change(numberInput, { target: { value: typed } });
+    fireEvent.blur(numberInput);
+    expect(onSetSpeed).not.toHaveBeenCalled();
+    expect(numberInput.value).toBe('4');
+  });
+
   it('calls onResetSpeed when the overlay reset link is clicked', () => {
     const onResetSpeed = vi.fn();
     render(<TimelineControls {...makeProps({ multiplier: 4, onResetSpeed })} />);

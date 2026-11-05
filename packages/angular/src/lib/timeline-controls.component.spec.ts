@@ -138,6 +138,39 @@ describe("TimelineControlsComponent", () => {
     expect(numberInput.value).toBe("500");
   });
 
+  it.each([["0.25", 0.25], ["0.5", 0.5], ["1.5", 1.5]])(
+    "accepts a fractional speed (%s) from the number input",
+    (typed, expected) => {
+      setInputs({ multiplier: 4 });
+      const emitted = [];
+      component.setSpeed.subscribe(v => emitted.push(v));
+      findBtnDE(fixture, "4\u00D7")?.triggerEventHandler("click", null);
+      fixture.detectChanges();
+      const numberInput = fixture.nativeElement.querySelector("input[type=number]");
+      numberInput.value = typed;
+      numberInput.dispatchEvent(new Event("input"));
+      numberInput.dispatchEvent(new Event("blur"));
+      fixture.detectChanges();
+      expect(emitted).toEqual([expected]);
+      expect(numberInput.value).toBe(typed);
+    },
+  );
+
+  it.each(["0", "-2", ""])("rejects a non-positive or empty speed (%j)", typed => {
+    setInputs({ multiplier: 4 });
+    const emitted = [];
+    component.setSpeed.subscribe(v => emitted.push(v));
+    findBtnDE(fixture, "4\u00D7")?.triggerEventHandler("click", null);
+    fixture.detectChanges();
+    const numberInput = fixture.nativeElement.querySelector("input[type=number]");
+    numberInput.value = typed;
+    numberInput.dispatchEvent(new Event("input"));
+    numberInput.dispatchEvent(new Event("blur"));
+    fixture.detectChanges();
+    expect(emitted).toEqual([]);
+    expect(numberInput.value).toBe("4");
+  });
+
   it("emits resetSpeed when the overlay reset link is clicked", () => {
     setInputs({ multiplier: 4 });
     const emitted = [];
