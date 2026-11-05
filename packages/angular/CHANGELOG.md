@@ -1,5 +1,12 @@
 # @kteneyck/cesium-timeline-angular
 
+## 0.18.1
+
+### Patch Changes
+
+- ea5145f: Allow fractional playback speeds below 1× (e.g. 0.25, 0.5) in the speed overlay's number input. Values are no longer rounded to whole numbers; zero, negative, and empty values are rejected and the input reverts to the current speed.
+  - @kteneyck/cesium-timeline-core@0.18.1
+
 ## 0.18.0
 
 ### Minor Changes
