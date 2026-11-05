@@ -252,8 +252,11 @@ export const TimelineControls: React.FC<ControlsProps> = ({
   }, [speedOverlayOpen]);
 
   const commitSpeedInput = () => {
-    const parsed = Math.round(Number(speedInputValue));
-    if (Number.isFinite(parsed)) {
+    // Fractional values (e.g. 0.25, 0.5) are allowed for slow-motion playback.
+    // Non-positive values are rejected: direction is controlled by rewind/play.
+    const trimmed = speedInputValue.trim();
+    const parsed = Number(trimmed);
+    if (trimmed !== '' && Number.isFinite(parsed) && parsed > 0) {
       onSetSpeed(parsed);
       setSpeedInputValue(String(parsed));
     } else {
@@ -405,6 +408,8 @@ export const TimelineControls: React.FC<ControlsProps> = ({
         <input
           type="number"
           className="ct-speed-input"
+          min={0}
+          step="any"
           value={speedInputValue}
           onChange={e => setSpeedInputValue(e.target.value)}
           onBlur={commitSpeedInput}

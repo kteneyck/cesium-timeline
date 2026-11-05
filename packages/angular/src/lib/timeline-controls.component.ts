@@ -185,6 +185,8 @@ const NARROW_BREAKPOINT = 520;
                   <input
                     type="number"
                     class="ct-speed-input"
+                    min="0"
+                    step="any"
                     [value]="speedInputValue"
                     (input)="onSpeedInputChange($event)"
                     (blur)="commitSpeedInput()"
@@ -516,8 +518,11 @@ export class TimelineControlsComponent implements AfterViewInit, OnChanges, OnDe
   }
 
   commitSpeedInput(): void {
-    const parsed = Math.round(Number(this.speedInputValue));
-    if (Number.isFinite(parsed)) {
+    // Fractional values (e.g. 0.25, 0.5) are allowed for slow-motion playback.
+    // Non-positive values are rejected: direction is controlled by rewind/play.
+    const trimmed = this.speedInputValue.trim();
+    const parsed = Number(trimmed);
+    if (trimmed !== '' && Number.isFinite(parsed) && parsed > 0) {
       this.setSpeed.emit(parsed);
       this.speedInputValue = String(parsed);
     } else {
