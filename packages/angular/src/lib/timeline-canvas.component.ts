@@ -18,6 +18,8 @@ import {
   type SwimLane,
   type SwimLaneItem,
   type SwimLaneEventInfo,
+  type SwimLaneDragInfo,
+  type SwimLaneDragEndInfo,
   type ReorderState,
   DEFAULT_LANE_HEIGHT,
   TICK_AREA_HEIGHT,
@@ -37,6 +39,24 @@ import {
 } from '@kteneyck/cesium-timeline-core';
 
 export { TICK_AREA_HEIGHT };
+
+/** Pixels a press on a draggable item must travel before it is a drag, not a click. */
+const ITEM_DRAG_THRESHOLD_PX = 3;
+
+/** A press on a draggable item, and — once it has moved far enough — the drag it became. */
+interface ItemDrag {
+  lane: SwimLane;
+  item: SwimLaneItem;
+  /** clientX at the press. */
+  anchorClientX: number;
+  /** The time under the pointer at the press. */
+  anchorMs: number;
+  /** The offset being drawn, after `constrainSwimLaneItemDrag`. */
+  deltaMs: number;
+  /** False while it might still be a click. */
+  active: boolean;
+  lastEvent: MouseEvent;
+}
 
 /**
  * TimelineCanvasComponent – Angular wrapper around the core canvas rendering engine.
@@ -81,6 +101,18 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
   @Input() limitStartMs?: number;
   /** Hard upper bound for the visible window when `restrictToRange` is true. */
   @Input() limitEndMs?: number;
+  /**
+   * Asked once a press on a `draggable` item has moved far enough to be a drag.
+   * Return `false` to refuse it. The Angular counterpart of returning `false`
+   * from React's `onSwimLaneItemDragStart`, since an `@Output` cannot answer.
+   */
+  @Input() allowSwimLaneItemDrag?: (info: SwimLaneEventInfo) => boolean;
+  /**
+   * Asked on every move of an item drag with the raw offset. Return a number
+   * to clamp or snap it; the item is drawn, and reported, at that offset. The
+   * Angular counterpart of returning a number from React's `onSwimLaneItemDrag`.
+   */
+  @Input() constrainSwimLaneItemDrag?: (info: SwimLaneDragInfo) => number | void;
 
   @Output() timeChange = new EventEmitter<Cesium.JulianDate>();
   @Output() dragStart = new EventEmitter<void>();
@@ -90,6 +122,12 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
   @Output() swimLaneItemDoubleClick = new EventEmitter<SwimLaneEventInfo>();
   @Output() swimLaneItemContextMenu = new EventEmitter<SwimLaneEventInfo>();
   @Output() swimLaneReorder = new EventEmitter<string[]>();
+  /** @see TimelineBaseProps.onSwimLaneItemDragStart */
+  @Output() swimLaneItemDragStart = new EventEmitter<SwimLaneEventInfo>();
+  /** @see TimelineBaseProps.onSwimLaneItemDrag */
+  @Output() swimLaneItemDrag = new EventEmitter<SwimLaneDragInfo>();
+  /** @see TimelineBaseProps.onSwimLaneItemDragEnd */
+  @Output() swimLaneItemDragEnd = new EventEmitter<SwimLaneDragEndInfo>();
   @Output() rangeSelect = new EventEmitter<{ start: Cesium.JulianDate; end: Cesium.JulianDate }>();
 
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>;
@@ -105,10 +143,19 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
   private reorderState: ReorderState | null = null;
 
   // Mouse state
-  private mouseMode: 'none' | 'scrub' | 'slide' | 'zoom' | 'rangeSelectPending' | 'rangeSelect' = 'none';
+  private mouseMode: 'none' | 'scrub' | 'slide' | 'zoom' | 'rangeSelectPending' | 'rangeSelect' | 'itemDragPending' | 'itemDrag' = 'none';
   private mouseX = 0;
   private scrubClientX = 0;
   private swimLaneDownTime = 0;
+
+  // Item drag-along-the-lane state
+  private itemDrag: ItemDrag | null = null;
+  /**
+   * A dropped item, still drawn at its new place until the host's updated
+   * `swimLanes` arrive, so it does not flash back to where it started first.
+   */
+  private settlingDrag: { laneId: string; itemId: string; deltaMs: number } | null = null;
+  private settleTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Range-selection state
   private rangeAnchorMs = 0;
@@ -145,6 +192,8 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
   private boundTouchMove = this.onTouchMove.bind(this);
   private boundTouchEnd = this.onTouchEnd.bind(this);
   private boundWheel = this.onWheel.bind(this);
+  private boundKeyDown = this.onDocKeyDown.bind(this);
+  private boundBlur = this.onWindowBlur.bind(this);
 
   constructor(private ngZone: NgZone) {}
 
@@ -167,6 +216,8 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
 
       document.addEventListener('mousemove', this.boundMouseMove);
       document.addEventListener('mouseup', this.boundMouseUp);
+      document.addEventListener('keydown', this.boundKeyDown);
+      window.addEventListener('blur', this.boundBlur);
       canvas.addEventListener('wheel', this.boundWheel, { passive: false });
       canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
       canvas.addEventListener('touchmove', this.boundTouchMove, { passive: false });
@@ -187,6 +238,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     }
     if (changes['swimLanes']) {
       this.swimLanesState = this.swimLanes ?? [];
+      this.settlingDrag = null;
       this.draw();
     }
     if (changes['showSwimLanes']) {
@@ -202,6 +254,11 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     this.ro?.disconnect();
     document.removeEventListener('mousemove', this.boundMouseMove);
     document.removeEventListener('mouseup', this.boundMouseUp);
+    document.removeEventListener('keydown', this.boundKeyDown);
+    window.removeEventListener('blur', this.boundBlur);
+    // Going away mid-drag must not leave the host holding a preview.
+    if (this.itemDrag?.active) this.finishItemDrag(true);
+    if (this.settleTimer !== null) clearTimeout(this.settleTimer);
 
     const canvas = this.canvasRef?.nativeElement;
     if (canvas) {
@@ -352,6 +409,9 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       reorderState: this.reorderState,
       rangeSelection: this.rangeSelection,
       hoverMs: this.hoverMs,
+      itemDrag: this.itemDrag?.active
+        ? { laneId: this.itemDrag.lane.id, itemId: this.itemDrag.item.id, deltaMs: this.itemDrag.deltaMs }
+        : this.settlingDrag,
     });
 
     if (clampedScrollTop !== this.scrollTop) {
@@ -395,6 +455,77 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     this.draw();
   }
 
+  // ── Item drag ──────────────────────────────────────────────────────────
+
+  /** Whether `item` can be picked up: it says so, and someone is listening. */
+  private canDragItem(item: SwimLaneItem): boolean {
+    return item.draggable === true && (
+      this.swimLaneItemDragStart.observed ||
+      this.swimLaneItemDrag.observed ||
+      this.swimLaneItemDragEnd.observed ||
+      this.constrainSwimLaneItemDrag != null
+    );
+  }
+
+  /** Move the dragged item to follow the pointer at `clientX`, as the host allows. */
+  private updateItemDrag(clientX: number, evt: MouseEvent): void {
+    const drag = this.itemDrag;
+    const canvas = this.canvasRef?.nativeElement;
+    if (!drag || !drag.active || !canvas) return;
+    drag.lastEvent = evt;
+    const rect = canvas.getBoundingClientRect();
+    const cx = Math.max(0, Math.min(rect.width, clientX - rect.left));
+    const ms = this.startMs + (cx / rect.width) * (this.endMs - this.startMs);
+    const raw = ms - drag.anchorMs;
+    const info: SwimLaneDragInfo = { laneId: drag.lane.id, item: drag.item, originalEvent: evt, deltaMs: raw };
+    const constrained = this.constrainSwimLaneItemDrag?.(info);
+    drag.deltaMs = typeof constrained === 'number' && Number.isFinite(constrained) ? constrained : raw;
+    this.draw();
+    this.ngZone.run(() => this.swimLaneItemDrag.emit({ ...info, deltaMs: drag.deltaMs }));
+  }
+
+  /** End the item drag, dropped or abandoned, and tell the host which. */
+  private finishItemDrag(cancelled: boolean): void {
+    const drag = this.itemDrag;
+    this.itemDrag = null;
+    if (this.mouseMode === 'itemDrag' || this.mouseMode === 'itemDragPending') this.mouseMode = 'none';
+    this.stopEdgeScroll();
+    if (!drag) return;
+    if (drag.active) {
+      // The press became a drag, so the click that follows the mouseup is not a click on the item.
+      this.swimLaneDownTime = 0;
+      const canvas = this.canvasRef?.nativeElement;
+      if (canvas) canvas.style.cursor = 'default';
+      if (!cancelled && drag.deltaMs !== 0) {
+        this.settlingDrag = { laneId: drag.lane.id, itemId: drag.item.id, deltaMs: drag.deltaMs };
+        // A host that declines the move never sends new lanes; give up waiting.
+        if (this.settleTimer !== null) clearTimeout(this.settleTimer);
+        this.settleTimer = setTimeout(() => {
+          this.settleTimer = null;
+          if (this.settlingDrag) { this.settlingDrag = null; this.draw(); }
+        }, 250);
+      }
+      this.ngZone.run(() => this.swimLaneItemDragEnd.emit({
+        laneId: drag.lane.id, item: drag.item, originalEvent: drag.lastEvent,
+        deltaMs: drag.deltaMs, cancelled,
+      }));
+    }
+    this.draw();
+  }
+
+  /** Escape abandons an item drag. */
+  private onDocKeyDown(e: KeyboardEvent): void {
+    if (e.key === 'Escape' && this.mouseMode === 'itemDrag') {
+      e.preventDefault();
+      this.finishItemDrag(true);
+    }
+  }
+
+  /** So does the window losing focus mid-drag. */
+  private onWindowBlur(): void {
+    if (this.mouseMode === 'itemDrag' || this.mouseMode === 'itemDragPending') this.finishItemDrag(true);
+  }
+
   // ── Edge scroll ────────────────────────────────────────────────────────
 
   private startEdgeScroll(direction: -1 | 1): void {
@@ -407,7 +538,10 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       this.endMs += shift;
       this.clampToLimits();
 
-      if (canvas) {
+      if (this.mouseMode === 'itemDrag') {
+        // The window moved under a still pointer: the item keeps up with it.
+        if (this.itemDrag) this.updateItemDrag(this.scrubClientX, this.itemDrag.lastEvent);
+      } else if (canvas) {
         const rect = canvas.getBoundingClientRect();
         const cx = Math.max(0, Math.min(rect.width, this.scrubClientX - rect.left));
         const ms = this.startMs + (cx / rect.width) * (this.endMs - this.startMs);
@@ -467,6 +601,20 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
         const hit = this.hitTestSwimLane(x, y, rect.width, rect.height);
         if (hit) {
           this.swimLaneDownTime = performance.now();
+          if (this.canDragItem(hit.item)) {
+            // Could be a click or a drag; the first few pixels of movement decide.
+            this.itemDrag = {
+              lane: hit.lane,
+              item: hit.item,
+              anchorClientX: e.clientX,
+              anchorMs: this.startMs + (x / rect.width) * (this.endMs - this.startMs),
+              deltaMs: 0,
+              active: false,
+              lastEvent: e,
+            };
+            this.mouseMode = 'itemDragPending';
+            this.scrubClientX = e.clientX;
+          }
           return;
         }
       }
@@ -550,6 +698,33 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     const rect = canvas.getBoundingClientRect();
     const w = rect.width;
 
+    // Item drag
+    if (this.mouseMode === 'itemDragPending') {
+      const drag = this.itemDrag;
+      if (!drag) { this.mouseMode = 'none'; return; }
+      if (Math.abs(e.clientX - drag.anchorClientX) < ITEM_DRAG_THRESHOLD_PX) return;
+      const info: SwimLaneEventInfo = { laneId: drag.lane.id, item: drag.item, originalEvent: e };
+      if (this.allowSwimLaneItemDrag && this.allowSwimLaneItemDrag(info) === false) {
+        this.itemDrag = null;
+        this.mouseMode = 'none';
+        return;
+      }
+      drag.active = true;
+      this.mouseMode = 'itemDrag';
+      canvas.style.cursor = 'grabbing';
+      this.ngZone.run(() => this.swimLaneItemDragStart.emit(info));
+    }
+    if (this.mouseMode === 'itemDrag') {
+      this.scrubClientX = e.clientX;
+      const x = e.clientX - rect.left;
+      const edge = w * 0.08;
+      if (x < edge) this.startEdgeScroll(-1);
+      else if (x > w - edge) this.startEdgeScroll(1);
+      else this.stopEdgeScroll();
+      this.updateItemDrag(e.clientX, e);
+      return;
+    }
+
     if (this.mouseMode === 'scrub') {
       this.scrubClientX = e.clientX;
       const x = e.clientX - rect.left;
@@ -614,6 +789,12 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     }
 
     this.stopEdgeScroll();
+
+    if (this.mouseMode === 'itemDrag' || this.mouseMode === 'itemDragPending') {
+      // A pending press never moved: it was a click, which onCanvasClick reports.
+      this.finishItemDrag(false);
+      return;
+    }
 
     if (this.mouseMode === 'rangeSelectPending') {
       this.rangeSelection = null;
@@ -713,7 +894,7 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
       const hit = this.hitTestSwimLane(x, y, rect.width, rect.height);
       const prev = this.hoveredItem;
       if (hit) {
-        canvas.style.cursor = nearNeedle ? 'grab' : 'pointer';
+        canvas.style.cursor = nearNeedle || this.canDragItem(hit.item) ? 'grab' : 'pointer';
         if (!prev || prev.item.id !== hit.item.id || prev.lane.id !== hit.lane.id) {
           this.hoveredItem = hit;
           this.ngZone.run(() =>

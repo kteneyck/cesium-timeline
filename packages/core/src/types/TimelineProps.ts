@@ -1,7 +1,7 @@
 import * as Cesium from 'cesium';
 import { TickInterval } from './TickInterval';
 import { TimelineTheme } from './TimelineTheme';
-import { SwimLane, SwimLaneEventInfo } from './SwimLane';
+import { SwimLane, SwimLaneEventInfo, SwimLaneDragInfo, SwimLaneDragEndInfo } from './SwimLane';
 import { TimelineLabels } from './TimelineLabels';
 
 /**
@@ -130,6 +130,25 @@ export interface TimelineBaseProps {
   onSwimLaneItemContextMenu?: (info: SwimLaneEventInfo) => void;
   /** Fired when swim lanes are reordered via drag. Returns the new ordered lane IDs. */
   onSwimLaneReorder?: (orderedLaneIds: string[]) => void;
+  /**
+   * Fired once when a `draggable` item has moved far enough to count as a
+   * drag rather than a click. Return `false` to refuse the drag; the press is
+   * then ignored.
+   */
+  onSwimLaneItemDragStart?: (info: SwimLaneEventInfo) => boolean | void;
+  /**
+   * Fired on every pointer move while a `draggable` item is dragged.
+   * `deltaMs` is the raw offset from where the drag began. Return a number to
+   * constrain it (e.g. clamp to a range, or snap); the timeline draws the item
+   * at the returned offset and reports that offset from then on.
+   */
+  onSwimLaneItemDrag?: (info: SwimLaneDragInfo) => number | void;
+  /**
+   * Fired once when a drag ends — dropped (`cancelled: false`) or abandoned
+   * with Escape / loss of window focus (`cancelled: true`). The timeline stops
+   * drawing the offset; the host is expected to update `swimLanes` to match.
+   */
+  onSwimLaneItemDragEnd?: (info: SwimLaneDragEndInfo) => void;
   /**
    * Overrides for control-bar labels and tooltips.
    * Useful for localisation or custom verbiage — provide only the strings you

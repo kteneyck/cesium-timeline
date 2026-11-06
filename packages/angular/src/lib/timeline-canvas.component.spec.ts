@@ -197,4 +197,104 @@ describe('TimelineCanvasComponent', () => {
     setInputs();
     expect(() => fixture.destroy()).not.toThrow();
   });
+
+  // The canvas is 800×200 px showing REF_MS ± 1 h, so one pixel is 9 000 ms.
+  // The needle sits at x = 400 and wins presses near it, so the item is half an
+  // hour later, at x = 600. The lane occupies y 0–24.
+  describe('swim-lane item drag', () => {
+    const MS_PER_PX = 9_000;
+
+    function setup(draggable = true, overrides: Partial<TimelineCanvasComponent> = {}) {
+      setInputs({
+        swimLanes: [{
+          id: 'lane',
+          label: 'Lane',
+          items: [{ id: 'k', instant: Cesium.JulianDate.fromDate(new Date(REF_MS + 1_800_000)), draggable }],
+        }],
+        showSwimLanes: true,
+        ...overrides,
+      });
+      const canvas: HTMLCanvasElement = fixture.nativeElement.querySelector('canvas');
+      const starts = vi.fn(), moves = vi.fn(), ends = vi.fn(), clicks = vi.fn();
+      component.swimLaneItemDragStart.subscribe(starts);
+      component.swimLaneItemDrag.subscribe(moves);
+      component.swimLaneItemDragEnd.subscribe(ends);
+      component.swimLaneItemClick.subscribe(clicks);
+      return { canvas, starts, moves, ends, clicks };
+    }
+
+    const press = (canvas: HTMLCanvasElement, x: number) =>
+      canvas.dispatchEvent(new MouseEvent('mousedown', { button: 0, clientX: x, clientY: 12, bubbles: true }));
+    const moveTo = (x: number) =>
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: x, clientY: 12 }));
+    const release = (x: number) =>
+      document.dispatchEvent(new MouseEvent('mouseup', { clientX: x, clientY: 12 }));
+
+    it('reports the offset while dragging and on the drop', () => {
+      const { canvas, starts, moves, ends } = setup();
+      press(canvas, 600);
+      moveTo(650);
+      expect(starts).toHaveBeenCalledTimes(1);
+      expect(moves).toHaveBeenLastCalledWith(expect.objectContaining({ laneId: 'lane', deltaMs: 50 * MS_PER_PX }));
+      release(650);
+      expect(ends).toHaveBeenCalledWith(expect.objectContaining({ deltaMs: 50 * MS_PER_PX, cancelled: false }));
+    });
+
+    it('treats a press that barely moves as a click', () => {
+      const { canvas, starts, ends, clicks } = setup();
+      press(canvas, 600);
+      moveTo(601);
+      release(601);
+      canvas.dispatchEvent(new MouseEvent('click', { clientX: 601, clientY: 12, bubbles: true }));
+      expect(starts).not.toHaveBeenCalled();
+      expect(ends).not.toHaveBeenCalled();
+      expect(clicks).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not report a click after a drag', () => {
+      const { canvas, clicks } = setup();
+      press(canvas, 600);
+      moveTo(660);
+      release(660);
+      canvas.dispatchEvent(new MouseEvent('click', { clientX: 660, clientY: 12, bubbles: true }));
+      expect(clicks).not.toHaveBeenCalled();
+    });
+
+    it('uses the offset constrainSwimLaneItemDrag returns', () => {
+      const { canvas, ends } = setup(true, { constrainSwimLaneItemDrag: () => 1234 });
+      press(canvas, 600);
+      moveTo(700);
+      release(700);
+      expect(ends).toHaveBeenCalledWith(expect.objectContaining({ deltaMs: 1234 }));
+    });
+
+    it('cancels on Escape', () => {
+      const { canvas, ends } = setup();
+      press(canvas, 600);
+      moveTo(650);
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      expect(ends).toHaveBeenCalledWith(expect.objectContaining({ cancelled: true }));
+      release(650);
+      expect(ends).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets allowSwimLaneItemDrag refuse a drag', () => {
+      const { canvas, starts, moves, ends } = setup(true, { allowSwimLaneItemDrag: () => false });
+      press(canvas, 600);
+      moveTo(650);
+      release(650);
+      expect(starts).not.toHaveBeenCalled();
+      expect(moves).not.toHaveBeenCalled();
+      expect(ends).not.toHaveBeenCalled();
+    });
+
+    it('ignores items that are not draggable', () => {
+      const { canvas, starts, ends } = setup(false);
+      press(canvas, 600);
+      moveTo(650);
+      release(650);
+      expect(starts).not.toHaveBeenCalled();
+      expect(ends).not.toHaveBeenCalled();
+    });
+  });
 });

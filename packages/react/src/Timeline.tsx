@@ -5,6 +5,8 @@ import {
   type TimelineLabels,
   type SwimLane,
   type SwimLaneEventInfo,
+  type SwimLaneDragInfo,
+  type SwimLaneDragEndInfo,
   type VisibleRange,
   defaultTheme,
   toJulianDate,
@@ -85,6 +87,12 @@ export interface TimelineProps {
   onSwimLaneItemDoubleClick?: (info: SwimLaneEventInfo) => void;
   onSwimLaneItemContextMenu?: (info: SwimLaneEventInfo) => void;
   onSwimLaneReorder?: (orderedLaneIds: string[]) => void;
+  /** @see TimelineBaseProps.onSwimLaneItemDragStart */
+  onSwimLaneItemDragStart?: (info: SwimLaneEventInfo) => boolean | void;
+  /** @see TimelineBaseProps.onSwimLaneItemDrag */
+  onSwimLaneItemDrag?: (info: SwimLaneDragInfo) => number | void;
+  /** @see TimelineBaseProps.onSwimLaneItemDragEnd */
+  onSwimLaneItemDragEnd?: (info: SwimLaneDragEndInfo) => void;
   onRangeSelect?: (start: Cesium.JulianDate, end: Cesium.JulianDate) => void;
   /**
    * Overrides for control-bar labels and tooltips.
@@ -141,6 +149,9 @@ export const Timeline = forwardRef<TimelineHandle, TimelineProps>(({
   onSwimLaneItemDoubleClick,
   onSwimLaneItemContextMenu,
   onSwimLaneReorder,
+  onSwimLaneItemDragStart,
+  onSwimLaneItemDrag,
+  onSwimLaneItemDragEnd,
   onRangeSelect,
   labels,
   liveButtonSize,
@@ -534,6 +545,9 @@ export const Timeline = forwardRef<TimelineHandle, TimelineProps>(({
           onSwimLaneItemDoubleClick={onSwimLaneItemDoubleClick}
           onSwimLaneItemContextMenu={onSwimLaneItemContextMenu}
           onSwimLaneReorder={onSwimLaneReorder}
+          onSwimLaneItemDragStart={onSwimLaneItemDragStart}
+          onSwimLaneItemDrag={onSwimLaneItemDrag}
+          onSwimLaneItemDragEnd={onSwimLaneItemDragEnd}
           onRangeSelect={onRangeSelect}
         />
       )}

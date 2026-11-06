@@ -15,10 +15,12 @@ export {
   hitTestSwimLane,
   hitTestLaneLabel,
   isInSwimLaneRegion,
+  itemDragOffsetMs,
 } from './CanvasEngine';
 
 export type {
   TimelineRenderState,
   ReorderState,
+  ItemDragState,
   SwimLaneHitResult,
 } from './CanvasEngine';

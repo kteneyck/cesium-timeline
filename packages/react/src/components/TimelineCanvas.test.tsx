@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, act } from '@testing-library/react';
+import { render, act, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { TimelineCanvas, TimelineCanvasHandle } from './TimelineCanvas';
 import { defaultTheme, MIN_SPAN_MS, MAX_SPAN_MS } from '@kteneyck/cesium-timeline-core';
@@ -8,7 +8,7 @@ import * as Cesium from 'cesium';
 // Capture the state the engine is actually asked to render, so needle position
 // can be asserted (there is no public getter for it).
 const { drawStates } = vi.hoisted(() => ({
-  drawStates: [] as Array<{ startMs: number; endMs: number; currentMs: number }>,
+  drawStates: [] as Array<{ startMs: number; endMs: number; currentMs: number; itemDrag?: unknown }>,
 }));
 
 vi.mock('@kteneyck/cesium-timeline-core', async (importOriginal) => {
@@ -21,7 +21,7 @@ vi.mock('@kteneyck/cesium-timeline-core', async (importOriginal) => {
       h: number,
       state: Parameters<typeof actual.drawTimeline>[3],
     ) => {
-      drawStates.push({ startMs: state.startMs, endMs: state.endMs, currentMs: state.currentMs });
+      drawStates.push({ startMs: state.startMs, endMs: state.endMs, currentMs: state.currentMs, itemDrag: state.itemDrag });
       return actual.drawTimeline(ctx, w, h, state);
     },
   };
@@ -252,5 +252,162 @@ describe('TimelineCanvas', () => {
       );
     });
     expect(handle.current).not.toBeNull();
+  });
+});
+
+// ── Item drag ─────────────────────────────────────────────────────────────────
+// The canvas is 800×200 px showing REF_MS ± 1 h, so one pixel is 9 000 ms and
+// REF_MS (the needle) sits at x = 400. The item is half an hour later, at x = 600,
+// clear of the needle, which wins presses near it. The lane occupies y 0–24.
+describe('swim-lane item drag', () => {
+  const MS_PER_PX = 9_000;
+
+  const lanesWith = (draggable: boolean) => [{
+    id: 'lane',
+    label: 'Lane',
+    items: [{ id: 'k', instant: Cesium.JulianDate.fromDate(new Date(REF_MS + 1_800_000)), draggable }],
+  }];
+
+  function setup(draggable = true, extra: Record<string, unknown> = {}) {
+    const onSwimLaneItemDragStart = vi.fn();
+    const onSwimLaneItemDrag = vi.fn();
+    const onSwimLaneItemDragEnd = vi.fn();
+    const onSwimLaneItemClick = vi.fn();
+    const { container } = renderCanvas({
+      swimLanes: lanesWith(draggable),
+      showSwimLanes: true,
+      onSwimLaneItemDragStart,
+      onSwimLaneItemDrag,
+      onSwimLaneItemDragEnd,
+      onSwimLaneItemClick,
+      ...extra,
+    });
+    const canvas = container.querySelector('canvas')!;
+    return { canvas, onSwimLaneItemDragStart, onSwimLaneItemDrag, onSwimLaneItemDragEnd, onSwimLaneItemClick };
+  }
+
+  const press = (canvas: HTMLCanvasElement, x: number) =>
+    fireEvent.mouseDown(canvas, { button: 0, clientX: x, clientY: 12 });
+  const moveTo = (x: number) => fireEvent.mouseMove(document, { clientX: x, clientY: 12 });
+  const release = (x: number) => fireEvent.mouseUp(document, { clientX: x, clientY: 12 });
+
+  it('reports the offset while dragging and on the drop', () => {
+    const { canvas, onSwimLaneItemDragStart, onSwimLaneItemDrag, onSwimLaneItemDragEnd } = setup();
+    press(canvas, 600);
+    moveTo(650);
+    expect(onSwimLaneItemDragStart).toHaveBeenCalledTimes(1);
+    expect(onSwimLaneItemDrag).toHaveBeenLastCalledWith(expect.objectContaining({
+      laneId: 'lane', deltaMs: 50 * MS_PER_PX,
+    }));
+    release(650);
+    expect(onSwimLaneItemDragEnd).toHaveBeenCalledWith(expect.objectContaining({
+      laneId: 'lane', deltaMs: 50 * MS_PER_PX, cancelled: false,
+    }));
+  });
+
+  it('draws the dragged item at the offset', () => {
+    const { canvas } = setup();
+    press(canvas, 600);
+    drawStates.length = 0;
+    moveTo(580);
+    expect(drawStates[drawStates.length - 1]?.itemDrag).toEqual({ laneId: 'lane', itemId: 'k', deltaMs: -20 * MS_PER_PX });
+  });
+
+  it('keeps drawing a dropped item at its new place until new lanes arrive', () => {
+    const { canvas } = setup();
+    press(canvas, 600);
+    moveTo(580);
+    release(580);
+    // Not snapped back while the host has yet to re-render…
+    expect(drawStates[drawStates.length - 1]?.itemDrag).toEqual({ laneId: 'lane', itemId: 'k', deltaMs: -20 * MS_PER_PX });
+  });
+
+  it('stops drawing the offset once the host sends new lanes', () => {
+    const handle = React.createRef<TimelineCanvasHandle>();
+    const props = {
+      ref: handle,
+      currentTime: Cesium.JulianDate.fromDate(new Date(REF_MS)),
+      defaultStartMs: REF_MS - 3_600_000,
+      defaultEndMs: REF_MS + 3_600_000,
+      theme: defaultTheme,
+      onTimeChange: vi.fn(),
+      showSwimLanes: true,
+      onSwimLaneItemDragEnd: vi.fn(),
+    };
+    const { container, rerender } = render(<TimelineCanvas {...props} swimLanes={lanesWith(true)} />);
+    const canvas = container.querySelector('canvas')!;
+    press(canvas, 600);
+    moveTo(580);
+    release(580);
+    rerender(<TimelineCanvas {...props} swimLanes={lanesWith(true)} />);
+    expect(drawStates[drawStates.length - 1]?.itemDrag).toBeNull();
+  });
+
+  it('stops drawing the offset after a cancelled drag', () => {
+    const { canvas } = setup();
+    press(canvas, 600);
+    moveTo(580);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(drawStates[drawStates.length - 1]?.itemDrag).toBeNull();
+  });
+
+  it('treats a press that barely moves as a click, not a drag', () => {
+    const { canvas, onSwimLaneItemDragStart, onSwimLaneItemDragEnd, onSwimLaneItemClick } = setup();
+    press(canvas, 600);
+    moveTo(601);
+    release(601);
+    fireEvent.click(canvas, { clientX: 601, clientY: 12 });
+    expect(onSwimLaneItemDragStart).not.toHaveBeenCalled();
+    expect(onSwimLaneItemDragEnd).not.toHaveBeenCalled();
+    expect(onSwimLaneItemClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not report a click after a drag', () => {
+    const { canvas, onSwimLaneItemClick } = setup();
+    press(canvas, 600);
+    moveTo(660);
+    release(660);
+    fireEvent.click(canvas, { clientX: 660, clientY: 12 });
+    expect(onSwimLaneItemClick).not.toHaveBeenCalled();
+  });
+
+  it('uses the offset the host returns', () => {
+    const { canvas, onSwimLaneItemDragEnd } = setup(true, {
+      onSwimLaneItemDrag: () => 1234,
+    });
+    press(canvas, 600);
+    moveTo(700);
+    release(700);
+    expect(onSwimLaneItemDragEnd).toHaveBeenCalledWith(expect.objectContaining({ deltaMs: 1234 }));
+  });
+
+  it('cancels on Escape', () => {
+    const { canvas, onSwimLaneItemDragEnd } = setup();
+    press(canvas, 600);
+    moveTo(650);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onSwimLaneItemDragEnd).toHaveBeenCalledWith(expect.objectContaining({ cancelled: true }));
+    release(650);
+    expect(onSwimLaneItemDragEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets the host refuse a drag', () => {
+    const { canvas, onSwimLaneItemDrag, onSwimLaneItemDragEnd } = setup(true, {
+      onSwimLaneItemDragStart: () => false,
+    });
+    press(canvas, 600);
+    moveTo(650);
+    release(650);
+    expect(onSwimLaneItemDrag).not.toHaveBeenCalled();
+    expect(onSwimLaneItemDragEnd).not.toHaveBeenCalled();
+  });
+
+  it('ignores items that are not draggable', () => {
+    const { canvas, onSwimLaneItemDragStart, onSwimLaneItemDragEnd } = setup(false);
+    press(canvas, 600);
+    moveTo(650);
+    release(650);
+    expect(onSwimLaneItemDragStart).not.toHaveBeenCalled();
+    expect(onSwimLaneItemDragEnd).not.toHaveBeenCalled();
   });
 });

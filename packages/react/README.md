@@ -175,6 +175,7 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 | `onSwimLaneItemHover` | `(info: SwimLaneEventInfo \| null) => void` | — | Fires when mouse enters/leaves a swim lane item |
 | `onSwimLaneItemDoubleClick` | `(info: SwimLaneEventInfo) => void` | — | Fires when a swim lane item is double-clicked |
 | `onSwimLaneReorder` | `(orderedIds: string[]) => void` | — | Fires when swim lanes are reordered via drag. Receives the new lane id order. |
+| `onSwimLaneItemDragStart` / `onSwimLaneItemDrag` / `onSwimLaneItemDragEnd` | see the root README, *Dragging Items Along a Lane* | — | Slide `draggable` items earlier or later. |
 | `initialVisibleRange` | `{ start: JulianDate \| Date; end: JulianDate \| Date }` | full `startTime`–`endTime` span | Window to open on instead of the full span. Applied on mount and whenever `startTime`/`endTime` change; re-applied once when its own value changes (compared by ms); never on ordinary re-renders. Clipped to the limits with `restrictToRange`; ignored if it has no width or doesn't overlap the limits. See [Initial Visible Window](#initial-visible-window). |
 
 ---

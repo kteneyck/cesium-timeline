@@ -38,6 +38,18 @@ export interface SwimLaneItem {
   style?: Partial<SwimLaneItemStyle>;
   /** Arbitrary user data attached to this item. */
   data?: unknown;
+  /**
+   * When true, the item can be dragged left or right along its lane. A press
+   * that moves less than a few pixels is still a click. Needs at least one of
+   * the `onSwimLaneItemDrag*` callbacks to have any effect.
+   */
+  draggable?: boolean;
+  /**
+   * The id of another item in the same lane. While that item is dragged, this
+   * one is drawn moved by the same amount — e.g. the keyframe markers sitting
+   * on a bar. Dragging this item itself moves it alone.
+   */
+  dragWith?: string;
 }
 
 // ── Swim lane ─────────────────────────────────────────────────────────────────
@@ -58,6 +70,25 @@ export interface SwimLaneEventInfo {
   laneId: string;
   item: SwimLaneItem;
   originalEvent: MouseEvent;
+}
+
+/** Reported while a draggable item is dragged and when the drag ends. */
+export interface SwimLaneDragInfo extends SwimLaneEventInfo {
+  /**
+   * How far the item has been moved, in milliseconds (positive = later). This
+   * is the offset the timeline is drawing, i.e. after any constraint the
+   * `onSwimLaneItemDrag` handler returned.
+   */
+  deltaMs: number;
+}
+
+/** Reported once when an item drag finishes. */
+export interface SwimLaneDragEndInfo extends SwimLaneDragInfo {
+  /**
+   * True when the drag was abandoned (Escape, or the window losing focus)
+   * rather than dropped. The host should put the item back where it was.
+   */
+  cancelled: boolean;
 }
 
 // ── Default swim lane style ───────────────────────────────────────────────────

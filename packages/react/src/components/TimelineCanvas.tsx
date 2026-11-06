@@ -24,6 +24,8 @@ import {
   type SwimLane,
   type SwimLaneItem,
   type SwimLaneEventInfo,
+  type SwimLaneDragInfo,
+  type SwimLaneDragEndInfo,
   type ReorderState,
   DEFAULT_LANE_HEIGHT,
   TICK_AREA_HEIGHT,
@@ -100,6 +102,27 @@ interface TimelineCanvasProps {
   onSwimLaneItemDoubleClick?: (info: SwimLaneEventInfo) => void;
   onSwimLaneItemContextMenu?: (info: SwimLaneEventInfo) => void;
   onSwimLaneReorder?: (orderedLaneIds: string[]) => void;
+  onSwimLaneItemDragStart?: (info: SwimLaneEventInfo) => boolean | void;
+  onSwimLaneItemDrag?: (info: SwimLaneDragInfo) => number | void;
+  onSwimLaneItemDragEnd?: (info: SwimLaneDragEndInfo) => void;
+}
+
+/** Pixels a press on a draggable item must travel before it is a drag, not a click. */
+const ITEM_DRAG_THRESHOLD_PX = 3;
+
+/** A press on a draggable item, and — once it has moved far enough — the drag it became. */
+interface ItemDrag {
+  lane: SwimLane;
+  item: SwimLaneItem;
+  /** clientX at the press. */
+  anchorClientX: number;
+  /** The time under the pointer at the press. */
+  anchorMs: number;
+  /** The offset being drawn, after the host's constraint. */
+  deltaMs: number;
+  /** False while it might still be a click. */
+  active: boolean;
+  lastEvent: MouseEvent;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -113,6 +136,9 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       onSwimLaneItemClick, onSwimLaneItemHover, onSwimLaneItemDoubleClick,
       onSwimLaneItemContextMenu,
       onSwimLaneReorder,
+      onSwimLaneItemDragStart,
+      onSwimLaneItemDrag,
+      onSwimLaneItemDragEnd,
       disableNeedleDrag,
       invertScrollZoom,
       restrictToRange,
@@ -192,10 +218,33 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     useEffect(() => { onSwimLaneItemDoubleClickRef.current = onSwimLaneItemDoubleClick; }, [onSwimLaneItemDoubleClick]);
     useEffect(() => { onSwimLaneItemContextMenuRef.current = onSwimLaneItemContextMenu; }, [onSwimLaneItemContextMenu]);
     useEffect(() => { onSwimLaneReorderRef.current = onSwimLaneReorder; }, [onSwimLaneReorder]);
+    const onSwimLaneItemDragStartRef = useRef(onSwimLaneItemDragStart);
+    const onSwimLaneItemDragRef      = useRef(onSwimLaneItemDrag);
+    const onSwimLaneItemDragEndRef   = useRef(onSwimLaneItemDragEnd);
+    useEffect(() => { onSwimLaneItemDragStartRef.current = onSwimLaneItemDragStart; }, [onSwimLaneItemDragStart]);
+    useEffect(() => { onSwimLaneItemDragRef.current = onSwimLaneItemDrag; }, [onSwimLaneItemDrag]);
+    useEffect(() => { onSwimLaneItemDragEndRef.current = onSwimLaneItemDragEnd; }, [onSwimLaneItemDragEnd]);
+    // Item drag-along-the-lane state
+    const itemDragRef = useRef<ItemDrag | null>(null);
+    /**
+     * A dropped item, still drawn at its new place until the host's updated
+     * `swimLanes` arrive. Without it the item would flash back to where it
+     * started for the frame between the drop and the host's re-render.
+     */
+    const settlingDragRef = useRef<{ laneId: string; itemId: string; deltaMs: number } | null>(null);
+    const settleTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+    /** Whether `item` can be picked up: it says so, and someone is listening. */
+    const canDragItem = useCallback((item: SwimLaneItem) =>
+      item.draggable === true && (
+        onSwimLaneItemDragStartRef.current != null ||
+        onSwimLaneItemDragRef.current != null ||
+        onSwimLaneItemDragEndRef.current != null
+      ), []);
 
     // Sync swim lane prop changes into refs
     useEffect(() => {
       swimLanesRef.current = swimLanesProp ?? [];
+      settlingDragRef.current = null;
       draw();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [swimLanesProp]);
@@ -214,7 +263,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     const followRateRef  = useRef(0);
 
     // Mouse state
-    const mouseMode    = useRef<'none' | 'scrub' | 'slide' | 'zoom' | 'rangeSelectPending' | 'rangeSelect'>('none');
+    const mouseMode    = useRef<'none' | 'scrub' | 'slide' | 'zoom' | 'rangeSelectPending' | 'rangeSelect' | 'itemDragPending' | 'itemDrag'>('none');
     const mouseX       = useRef(0);
     // clientX of the cursor during a scrub drag — used by the edge-scroll RAF
     // to keep the needle pinned to the cursor as the window shifts under it.
@@ -262,6 +311,9 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       reorderState: reorderStateRef.current,
       rangeSelection: rangeSelectionRef.current,
       hoverMs: hoverMsRef.current,
+      itemDrag: itemDragRef.current?.active
+        ? { laneId: itemDragRef.current.lane.id, itemId: itemDragRef.current.item.id, deltaMs: itemDragRef.current.deltaMs }
+        : settlingDragRef.current,
     }), []);
 
     // ── Imperative handle (called by Timeline parent) ──────────────────────
@@ -407,6 +459,58 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       draw();
     }, [currentTime, draw]);
 
+    // ── Item drag ─────────────────────────────────────────────────────────
+    /** Move the dragged item to follow the pointer at `clientX`, as the host allows. */
+    const updateItemDrag = useCallback((clientX: number, evt: MouseEvent) => {
+      const drag   = itemDragRef.current;
+      const canvas = canvasRef.current;
+      if (!drag || !drag.active || !canvas) return;
+      drag.lastEvent = evt;
+      const rect = canvas.getBoundingClientRect();
+      const cx   = Math.max(0, Math.min(rect.width, clientX - rect.left));
+      const ms   = startMsRef.current + (cx / rect.width) * (endMsRef.current - startMsRef.current);
+      const raw  = ms - drag.anchorMs;
+      const constrained = onSwimLaneItemDragRef.current?.({
+        laneId: drag.lane.id, item: drag.item, originalEvent: evt, deltaMs: raw,
+      });
+      drag.deltaMs = typeof constrained === 'number' && Number.isFinite(constrained) ? constrained : raw;
+      draw();
+    }, [draw]);
+
+    /** End the item drag, dropped or abandoned, and tell the host which. */
+    const finishItemDrag = useCallback((cancelled: boolean) => {
+      const drag = itemDragRef.current;
+      itemDragRef.current = null;
+      if (mouseMode.current === 'itemDrag' || mouseMode.current === 'itemDragPending') {
+        mouseMode.current = 'none';
+      }
+      if (edgeRAF.current !== null) {
+        cancelAnimationFrame(edgeRAF.current);
+        edgeRAF.current = null;
+      }
+      if (!drag) return;
+      if (drag.active) {
+        // The press became a drag, so the click that follows the mouseup is
+        // not a click on the item.
+        swimLaneDownTime.current = 0;
+        if (canvasRef.current) canvasRef.current.style.cursor = 'default';
+        if (!cancelled && drag.deltaMs !== 0) {
+          settlingDragRef.current = { laneId: drag.lane.id, itemId: drag.item.id, deltaMs: drag.deltaMs };
+          // A host that declines the move never sends new lanes; give up waiting.
+          if (settleTimerRef.current !== null) clearTimeout(settleTimerRef.current);
+          settleTimerRef.current = setTimeout(() => {
+            settleTimerRef.current = null;
+            if (settlingDragRef.current) { settlingDragRef.current = null; draw(); }
+          }, 250);
+        }
+        onSwimLaneItemDragEndRef.current?.({
+          laneId: drag.lane.id, item: drag.item, originalEvent: drag.lastEvent,
+          deltaMs: drag.deltaMs, cancelled,
+        });
+      }
+      draw();
+    }, [draw]);
+
     // ── Edge-scroll animation loop ────────────────────────────────────────
     const startEdgeScroll = useCallback((direction: -1 | 1) => {
       if (edgeRAF.current !== null) return;
@@ -418,7 +522,11 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         endMsRef.current   += shift;
         clampToLimits();
 
-        if (canvas) {
+        if (mouseMode.current === 'itemDrag') {
+          // The window moved under a still pointer: the item keeps up with it.
+          const drag = itemDragRef.current;
+          if (drag) updateItemDrag(scrubClientX.current, drag.lastEvent);
+        } else if (canvas) {
           const rect = canvas.getBoundingClientRect();
           const cx   = Math.max(0, Math.min(rect.width, scrubClientX.current - rect.left));
           const ms   = startMsRef.current + (cx / rect.width) * (endMsRef.current - startMsRef.current);
@@ -430,7 +538,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         edgeRAF.current = requestAnimationFrame(scroll);
       };
       edgeRAF.current = requestAnimationFrame(scroll);
-    }, [draw, onTimeChange, clampToLimits]);
+    }, [draw, onTimeChange, clampToLimits, updateItemDrag]);
 
     const stopEdgeScroll = useCallback(() => {
       if (edgeRAF.current !== null) {
@@ -485,6 +593,20 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
           const hit = hitTestSwimLane(x, y, rect.width, rect.height);
           if (hit) {
             swimLaneDownTime.current = performance.now();
+            if (canDragItem(hit.item)) {
+              // Could be a click or a drag; the first few pixels of movement decide.
+              itemDragRef.current = {
+                lane: hit.lane,
+                item: hit.item,
+                anchorClientX: e.clientX,
+                anchorMs: startMsRef.current + (x / rect.width) * (endMsRef.current - startMsRef.current),
+                deltaMs: 0,
+                active: false,
+                lastEvent: e.nativeEvent,
+              };
+              mouseMode.current = 'itemDragPending';
+              scrubClientX.current = e.clientX;
+            }
             return;
           }
         }
@@ -530,7 +652,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         mouseMode.current = 'zoom';
         mouseX.current    = e.clientX;
       }
-    }, [draw, onTimeChange, onDragStart, isInLaneLabelArea, isInSwimLaneRegion, hitTestSwimLane]);
+    }, [draw, onTimeChange, onDragStart, isInLaneLabelArea, isInSwimLaneRegion, hitTestSwimLane, canDragItem]);
 
     useEffect(() => {
       const onMouseMove = (e: MouseEvent) => {
@@ -564,6 +686,32 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
 
         const rect = canvas.getBoundingClientRect();
         const w    = rect.width;
+
+        // ── Item drag ───────────────────────────────────────────────
+        if (mouseMode.current === 'itemDragPending') {
+          const drag = itemDragRef.current;
+          if (!drag) { mouseMode.current = 'none'; return; }
+          if (Math.abs(e.clientX - drag.anchorClientX) < ITEM_DRAG_THRESHOLD_PX) return;
+          const accepted = onSwimLaneItemDragStartRef.current?.({ laneId: drag.lane.id, item: drag.item, originalEvent: e });
+          if (accepted === false) {
+            itemDragRef.current = null;
+            mouseMode.current = 'none';
+            return;
+          }
+          drag.active = true;
+          mouseMode.current = 'itemDrag';
+          canvas.style.cursor = 'grabbing';
+        }
+        if (mouseMode.current === 'itemDrag') {
+          scrubClientX.current = e.clientX;
+          const x    = e.clientX - rect.left;
+          const edge = w * 0.08;
+          if (x < edge) startEdgeScroll(-1);
+          else if (x > w - edge) startEdgeScroll(1);
+          else stopEdgeScroll();
+          updateItemDrag(e.clientX, e);
+          return;
+        }
 
         if (mouseMode.current === 'scrub') {
           scrubClientX.current = e.clientX;
@@ -636,6 +784,12 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
 
         stopEdgeScroll();
 
+        if (mouseMode.current === 'itemDrag' || mouseMode.current === 'itemDragPending') {
+          // A pending press never moved: it was a click, which handleClick reports.
+          finishItemDrag(false);
+          return;
+        }
+
         if (mouseMode.current === 'rangeSelectPending') {
           // Short click — move needle to anchor position
           curMsRef.current = rangeAnchorMs.current;
@@ -680,13 +834,28 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         onDragEnd?.();
       };
 
+      // Escape, or the window losing focus mid-drag, abandons an item drag.
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && mouseMode.current === 'itemDrag') {
+          e.preventDefault();
+          finishItemDrag(true);
+        }
+      };
+      const onBlur = () => {
+        if (mouseMode.current === 'itemDrag' || mouseMode.current === 'itemDragPending') finishItemDrag(true);
+      };
+
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup',   onMouseUp);
+      document.addEventListener('keydown',   onKeyDown);
+      window.addEventListener('blur',        onBlur);
       return () => {
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup',   onMouseUp);
+        document.removeEventListener('keydown',   onKeyDown);
+        window.removeEventListener('blur',        onBlur);
       };
-    }, [draw, onTimeChange, onDragEnd, startEdgeScroll, stopEdgeScroll, clampToLimits]);
+    }, [draw, onTimeChange, onDragEnd, startEdgeScroll, stopEdgeScroll, clampToLimits, updateItemDrag, finishItemDrag]);
 
     // Zoom around center (uses core zoomRange)
     const zoomFrom = useCallback((amount: number) => {
@@ -874,7 +1043,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         const hit = hitTestSwimLane(x, y, rect.width, rect.height);
         const prev = hoveredItemRef.current;
         if (hit) {
-          e.currentTarget.style.cursor = nearNeedle ? 'grab' : 'pointer';
+          e.currentTarget.style.cursor = nearNeedle || canDragItem(hit.item) ? 'grab' : 'pointer';
           if (!prev || prev.item.id !== hit.item.id || prev.lane.id !== hit.lane.id) {
             hoveredItemRef.current = hit;
             onSwimLaneItemHoverRef.current?.({ laneId: hit.lane.id, item: hit.item, originalEvent: e.nativeEvent });
@@ -918,7 +1087,7 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         e.currentTarget.style.cursor = 'default';
       }
       draw();
-    }, [draw, hitTestSwimLane, isInSwimLaneRegion, isInLaneLabelArea]);
+    }, [draw, hitTestSwimLane, isInSwimLaneRegion, isInLaneLabelArea, canDragItem]);
 
     const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
       const elapsed = performance.now() - swimLaneDownTime.current;
@@ -958,9 +1127,12 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
 
     // Cleanup RAFs on unmount
     useEffect(() => () => {
+      // Unmounting mid-drag must not leave the host holding a preview.
+      if (itemDragRef.current?.active) finishItemDrag(true);
+      if (settleTimerRef.current !== null) clearTimeout(settleTimerRef.current);
       if (edgeRAF.current !== null) cancelAnimationFrame(edgeRAF.current);
       if (followRAF.current !== null) cancelAnimationFrame(followRAF.current);
-    }, []);
+    }, [finishItemDrag]);
 
     return (
       <canvas

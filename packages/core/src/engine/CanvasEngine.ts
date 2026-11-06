@@ -58,6 +58,28 @@ export interface TimelineRenderState {
    * would land before committing.
    */
   hoverMs?: number | null;
+  /**
+   * An item being dragged along its lane. While set, that item — and every
+   * item in the same lane whose `dragWith` names it — is drawn `deltaMs` later
+   * (or earlier, when negative), with a faint outline left where it started.
+   */
+  itemDrag?: ItemDragState | null;
+}
+
+/** Drag-an-item visual state. */
+export interface ItemDragState {
+  laneId: string;
+  itemId: string;
+  deltaMs: number;
+}
+
+/**
+ * How far `item` is drawn from its own time by an item drag in progress: the
+ * drag's offset when the item is the one dragged or follows it, otherwise 0.
+ */
+export function itemDragOffsetMs(itemDrag: ItemDragState | null | undefined, laneId: string, item: SwimLaneItem): number {
+  if (!itemDrag || itemDrag.laneId !== laneId) return 0;
+  return item.id === itemDrag.itemId || item.dragWith === itemDrag.itemId ? itemDrag.deltaMs : 0;
 }
 
 /** Drag-to-reorder visual state. */
@@ -274,7 +296,10 @@ export function hitTestSwimLane(
 
     if (canvasY < laneTop || canvasY >= laneBottom) continue;
 
-    for (const item of lane.items) {
+    // Topmost first: items are painted in array order, so the last one under
+    // the pointer is the one the user can see — a marker sitting on a bar.
+    for (let i = lane.items.length - 1; i >= 0; i--) {
+      const item = lane.items[i];
       if (item.interval) {
         const iStart = Cesium.JulianDate.toDate(item.interval.start).getTime();
         const iStop  = Cesium.JulianDate.toDate(item.interval.stop).getTime();
@@ -354,7 +379,7 @@ export function drawTimeline(
   const {
     startMs, endMs, currentMs, theme: t, maxTicks,
     swimLanes: lanes, showSwimLanes, reorderState: rs, timezone, use12h, months,
-    rangeSelection, hoverMs,
+    rangeSelection, hoverMs, itemDrag,
   } = state;
   let { scrollTop } = state;
 
@@ -415,12 +440,27 @@ export function drawTimeline(
         // Draw items
         for (const item of lane.items) {
           const itemStyle = resolveItemStyle(lane, item, t);
+          const dragOffset = itemDragOffsetMs(itemDrag, lane.id, item);
 
           if (item.interval) {
             const iStart = Cesium.JulianDate.toDate(item.interval.start).getTime();
             const iStop  = Cesium.JulianDate.toDate(item.interval.stop).getTime();
-            const x1 = msToX(iStart);
-            const x2 = msToX(iStop);
+            if (dragOffset !== 0) {
+              // Where the bar was picked up from, so the move reads as a move.
+              const ox1 = Math.max(0, msToX(iStart));
+              const ow  = Math.min(w, msToX(iStop)) - ox1;
+              if (ow > 0) {
+                ctx.globalAlpha = 0.6;
+                ctx.strokeStyle = itemStyle.color;
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]);
+                ctx.strokeRect(ox1, y + 3, ow, laneH - 6);
+                ctx.setLineDash([]);
+                ctx.globalAlpha = 1;
+              }
+            }
+            const x1 = msToX(iStart + dragOffset);
+            const x2 = msToX(iStop + dragOffset);
             const barX = Math.max(0, x1);
             const barW = Math.min(w, x2) - barX;
             if (barW > 0) {
@@ -440,7 +480,7 @@ export function drawTimeline(
           }
 
           if (item.instant) {
-            const iMs = Cesium.JulianDate.toDate(item.instant).getTime();
+            const iMs = Cesium.JulianDate.toDate(item.instant).getTime() + dragOffset;
             const mx = msToX(iMs);
             if (mx >= -itemStyle.markerSize && mx <= w + itemStyle.markerSize) {
               const cy = y + laneH / 2;

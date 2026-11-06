@@ -14,6 +14,7 @@ import {
   resolveItemStyle,
   totalSwimLaneHeight,
   hitTestSwimLane,
+  itemDragOffsetMs,
   hitTestLaneLabel,
   isInSwimLaneRegion,
   drawTimeline,
@@ -472,6 +473,44 @@ describe('hitTestSwimLane', () => {
 
   it('misses when x is outside the interval', () => {
     expect(hitTestSwimLane(800, 5, canvasW, canvasH, makeState())).toBeNull();
+  });
+
+  it('returns the topmost item — a marker drawn over a bar wins', () => {
+    const state = makeState();
+    state.swimLanes[0].items.push({
+      id: 'marker',
+      instant: Cesium.JulianDate.fromDate(new Date(3000)),
+    } as never);
+    // x = 300 is inside the bar (100–500) and on the marker
+    expect(hitTestSwimLane(300, 5, canvasW, canvasH, state)?.item.id).toBe('marker');
+    // away from the marker, the bar is still hit
+    expect(hitTestSwimLane(150, 5, canvasW, canvasH, state)?.item.id).toBe('i1');
+  });
+});
+
+// ── itemDragOffsetMs ──────────────────────────────────────────────────────────
+
+describe('itemDragOffsetMs', () => {
+  const drag = { laneId: 'l1', itemId: 'bar', deltaMs: 500 };
+
+  it('offsets the dragged item', () => {
+    expect(itemDragOffsetMs(drag, 'l1', { id: 'bar' })).toBe(500);
+  });
+
+  it('offsets an item that follows the dragged one', () => {
+    expect(itemDragOffsetMs(drag, 'l1', { id: 'k1', dragWith: 'bar' })).toBe(500);
+  });
+
+  it('leaves other items, and other lanes, alone', () => {
+    expect(itemDragOffsetMs(drag, 'l1', { id: 'other' })).toBe(0);
+    expect(itemDragOffsetMs(drag, 'l2', { id: 'bar' })).toBe(0);
+    expect(itemDragOffsetMs(null, 'l1', { id: 'bar' })).toBe(0);
+  });
+
+  it('does not move the bar when a follower is the one dragged', () => {
+    const markerDrag = { laneId: 'l1', itemId: 'k1', deltaMs: 500 };
+    expect(itemDragOffsetMs(markerDrag, 'l1', { id: 'bar' })).toBe(0);
+    expect(itemDragOffsetMs(markerDrag, 'l1', { id: 'k1', dragWith: 'bar' })).toBe(500);
   });
 });
 
