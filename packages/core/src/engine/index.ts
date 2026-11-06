@@ -13,6 +13,7 @@ export {
   zoomAroundMs,
   totalSwimLaneHeight,
   hitTestSwimLane,
+  MARKER_PICK_GAP,
   hitTestLaneLabel,
   isInSwimLaneRegion,
   itemDragOffsetMs,
