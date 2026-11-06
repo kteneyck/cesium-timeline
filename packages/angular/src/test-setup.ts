@@ -26,6 +26,8 @@ const ctxMock = {
   lineTo: vi.fn(),
   stroke: vi.fn(),
   fill: vi.fn(),
+  closePath: vi.fn(),
+  strokeRect: vi.fn(),
   arc: vi.fn(),
   rect: vi.fn(),
   clip: vi.fn(),

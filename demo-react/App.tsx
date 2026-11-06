@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Timeline } from '../packages/react/src/Timeline';
 import { defaultTheme } from '../packages/core/src/types';
-import type { TimelineTheme, SwimLane, SwimLaneEventInfo } from '../packages/core/src/types';
+import type { TimelineTheme, SwimLane, SwimLaneItem, SwimLaneEventInfo, SwimLaneDragInfo, SwimLaneDragEndInfo } from '../packages/core/src/types';
 import { DateTimeFormats } from '../packages/core/src/utils';
 import * as Cesium from 'cesium';
 
@@ -78,8 +78,12 @@ export const TestApp: React.FC = () => {
   const [swimLaneTransition, setSwimLaneTransition] = useState<'animated' | 'instant'>('animated');
   const [swimLaneLog, setSwimLaneLog] = useState<string[]>([]);
 
-  // Demo swim lane data — relative to "now"
-  const swimLanes = useMemo<SwimLane[]>(() => {
+  // Item drag
+  const [itemDrag, setItemDrag] = useState(true);
+  const [dragSnapMin, setDragSnapMin] = useState(0);
+
+  // Demo swim lane data — relative to "now". State, so a dropped item stays where it was dropped.
+  const [baseSwimLanes, setBaseSwimLanes] = useState<SwimLane[]>(() => {
     const now = new Date();
     const h = (hours: number) => {
       const d = new Date(now);
@@ -87,6 +91,19 @@ export const TestApp: React.FC = () => {
       return Cesium.JulianDate.fromDate(d);
     };
     return [
+      {
+        // A bar carrying keyframe markers: drag the bar and they ride along,
+        // drag a marker and it moves alone.
+        id: 'track',
+        label: 'Track',
+        items: [
+          { id: 'trip', interval: new Cesium.TimeInterval({ start: h(-2), stop: h(2) }), style: { color: '#26a69a' }, data: { name: 'Trip' } },
+          { id: 'key-1', instant: h(-2), dragWith: 'trip', style: { color: '#ffffff', markerShape: 'diamond' as const, markerSize: 9 } },
+          { id: 'key-2', instant: h(-0.5), dragWith: 'trip', style: { color: '#ffffff', markerShape: 'diamond' as const, markerSize: 9 } },
+          { id: 'key-3', instant: h(1), dragWith: 'trip', style: { color: '#ffffff', markerShape: 'diamond' as const, markerSize: 9 } },
+          { id: 'key-4', instant: h(2), dragWith: 'trip', style: { color: '#ffffff', markerShape: 'diamond' as const, markerSize: 9 } },
+        ],
+      },
       {
         id: 'satellite-passes',
         label: 'Sat Passes',
@@ -124,7 +141,50 @@ export const TestApp: React.FC = () => {
         style: { backgroundColor: 'rgba(120,144,156,0.08)' },
       },
     ];
-  }, []);
+  });
+
+  // Every item is draggable while Item Drag is on.
+  const swimLanes = useMemo<SwimLane[]>(
+    () => baseSwimLanes.map(lane => ({ ...lane, items: lane.items.map(item => ({ ...item, draggable: itemDrag })) })),
+    [baseSwimLanes, itemDrag]
+  );
+
+  const shiftItem = (item: SwimLaneItem, ms: number): SwimLaneItem => {
+    const shift = (t: Cesium.JulianDate) => Cesium.JulianDate.addSeconds(t, ms / 1000, new Cesium.JulianDate());
+    return {
+      ...item,
+      interval: item.interval && new Cesium.TimeInterval({ start: shift(item.interval.start), stop: shift(item.interval.stop) }),
+      instant: item.instant && shift(item.instant),
+    };
+  };
+
+  const logSwimLane = (msg: string) => setSwimLaneLog(prev => [msg, ...prev].slice(0, 8));
+  const formatDelta = (ms: number) => `${ms < 0 ? '−' : '+'}${(Math.abs(ms) / 60_000).toFixed(1)} min`;
+
+  const handleSwimLaneItemDragStart = (info: SwimLaneEventInfo) => {
+    logSwimLane(`Drag start: lane=${info.laneId} item=${info.item.id}`);
+  };
+
+  // Snaps the offset when a snap is chosen — the return value is what the timeline draws.
+  const handleSwimLaneItemDrag = (info: SwimLaneDragInfo): number | void => {
+    if (dragSnapMin > 0) {
+      const step = dragSnapMin * 60_000;
+      return Math.round(info.deltaMs / step) * step;
+    }
+  };
+
+  const handleSwimLaneItemDragEnd = (info: SwimLaneDragEndInfo) => {
+    logSwimLane(info.cancelled
+      ? `Drag cancelled: item=${info.item.id}`
+      : `Drop: item=${info.item.id} ${formatDelta(info.deltaMs)}`);
+    if (info.cancelled || info.deltaMs === 0) return;
+    // The dragged item and anything riding along with it.
+    setBaseSwimLanes(lanes => lanes.map(lane => lane.id !== info.laneId ? lane : {
+      ...lane,
+      items: lane.items.map(item =>
+        item.id === info.item.id || item.dragWith === info.item.id ? shiftItem(item, info.deltaMs) : item),
+    }));
+  };
 
   const handleSwimLaneClick = (info: SwimLaneEventInfo) => {
     const msg = `Click: lane=${info.laneId} item=${info.item.id}`;
@@ -586,6 +646,23 @@ export const TestApp: React.FC = () => {
             </div>
 
             <div className="prop-row">
+              <label>Item Drag</label>
+              <button className={`toggle-btn ${itemDrag ? 'on' : 'off'}`} onClick={() => setItemDrag(v => !v)}>
+                {itemDrag ? 'ON' : 'OFF'}
+              </button>
+            </div>
+
+            <div className="prop-row">
+              <label>Drag Snap</label>
+              <select value={dragSnapMin} onChange={e => setDragSnapMin(+e.target.value)}>
+                <option value={0}>None</option>
+                <option value={5}>5 Minutes</option>
+                <option value={15}>15 Minutes</option>
+                <option value={60}>1 Hour</option>
+              </select>
+            </div>
+
+            <div className="prop-row">
               <label>Lane Transition</label>
               <select value={swimLaneTransition} onChange={e => setSwimLaneTransition(e.target.value as 'animated' | 'instant')}>
                 <option value="animated">Animated</option>
@@ -750,7 +827,7 @@ export const TestApp: React.FC = () => {
             <div className="section-title">Swim Lane Events</div>
             <div className="info-panel" style={{ maxHeight: '160px', overflowY: 'auto', fontSize: '11px' }}>
               {swimLaneLog.length === 0 ? (
-                <span style={{ color: '#666' }}>Click/hover swim lane items…</span>
+                <span style={{ color: '#666' }}>Click/hover/drag swim lane items… (Esc cancels a drag)</span>
               ) : (
                 swimLaneLog.map((msg, i) => (
                   <div key={i} style={{ color: i === 0 ? '#4da6ff' : '#888' }}>{msg}</div>
@@ -791,6 +868,9 @@ export const TestApp: React.FC = () => {
             onSwimLaneItemClick={handleSwimLaneClick}
             onSwimLaneItemHover={handleSwimLaneHover}
             onSwimLaneReorder={handleSwimLaneReorder}
+            onSwimLaneItemDragStart={handleSwimLaneItemDragStart}
+            onSwimLaneItemDrag={handleSwimLaneItemDrag}
+            onSwimLaneItemDragEnd={handleSwimLaneItemDragEnd}
             liveButtonSize={liveButtonSize}
             liveButtonPosition={liveButtonPosition}
             live={live}

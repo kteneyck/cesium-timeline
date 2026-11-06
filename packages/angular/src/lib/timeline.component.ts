@@ -20,6 +20,8 @@ import {
   type TimelineLabels,
   type SwimLane,
   type SwimLaneEventInfo,
+  type SwimLaneDragInfo,
+  type SwimLaneDragEndInfo,
   type VisibleRange,
   defaultTheme,
   toJulianDate,
@@ -105,6 +107,8 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
           [restrictToRange]="restrictToRange"
           [limitStartMs]="limitStartMs"
           [limitEndMs]="limitEndMs"
+          [allowSwimLaneItemDrag]="allowSwimLaneItemDrag"
+          [constrainSwimLaneItemDrag]="constrainSwimLaneItemDrag"
           (timeChange)="handleTimeChange($event)"
           (dragStart)="isDragging = true"
           (dragEnd)="isDragging = false"
@@ -113,6 +117,9 @@ const DEFAULT_RW_SPEEDS = [1, 2, 4, 8, 16, 32, 100];
           (swimLaneItemDoubleClick)="swimLaneItemDoubleClick.emit($event)"
           (swimLaneItemContextMenu)="swimLaneItemContextMenu.emit($event)"
           (swimLaneReorder)="swimLaneReorder.emit($event)"
+          (swimLaneItemDragStart)="swimLaneItemDragStart.emit($event)"
+          (swimLaneItemDrag)="swimLaneItemDrag.emit($event)"
+          (swimLaneItemDragEnd)="swimLaneItemDragEnd.emit($event)"
           (rangeSelect)="rangeSelect.emit($event)"
         />
       }
@@ -161,6 +168,16 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
   @Input() restrictToRange = false;
   /** @see TimelineBaseProps.initialVisibleRange */
   @Input() initialVisibleRange?: VisibleRange;
+  /**
+   * Asked before a `draggable` swim-lane item starts to drag; return `false`
+   * to refuse. @see TimelineBaseProps.onSwimLaneItemDragStart
+   */
+  @Input() allowSwimLaneItemDrag?: (info: SwimLaneEventInfo) => boolean;
+  /**
+   * Asked on every move of an item drag; return a number to clamp or snap the
+   * offset. @see TimelineBaseProps.onSwimLaneItemDrag
+   */
+  @Input() constrainSwimLaneItemDrag?: (info: SwimLaneDragInfo) => number | void;
 
   // ── Outputs ────────────────────────────────────────────────────────────
   @Output() timeChange = new EventEmitter<Cesium.JulianDate>();
@@ -173,6 +190,12 @@ export class TimelineComponent implements OnInit, AfterViewInit, OnChanges, OnDe
   @Output() swimLaneItemDoubleClick = new EventEmitter<SwimLaneEventInfo>();
   @Output() swimLaneItemContextMenu = new EventEmitter<SwimLaneEventInfo>();
   @Output() swimLaneReorder = new EventEmitter<string[]>();
+  /** @see TimelineBaseProps.onSwimLaneItemDragStart */
+  @Output() swimLaneItemDragStart = new EventEmitter<SwimLaneEventInfo>();
+  /** @see TimelineBaseProps.onSwimLaneItemDrag */
+  @Output() swimLaneItemDrag = new EventEmitter<SwimLaneDragInfo>();
+  /** @see TimelineBaseProps.onSwimLaneItemDragEnd */
+  @Output() swimLaneItemDragEnd = new EventEmitter<SwimLaneDragEndInfo>();
   @Output() rangeSelect = new EventEmitter<{ start: Cesium.JulianDate; end: Cesium.JulianDate }>();
 
   // ── ViewChild refs ─────────────────────────────────────────────────────

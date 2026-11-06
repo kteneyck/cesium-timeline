@@ -179,6 +179,7 @@ Angular components use standalone imports — no NgModule required. Selectors: `
 | `onSwimLaneItemHover` | `(info: SwimLaneEventInfo \| null) => void` | — | Fires when mouse enters/leaves a swim lane item                                                                                                                                                                                         |
 | `onSwimLaneItemDoubleClick` | `(info: SwimLaneEventInfo) => void` | — | Fires when a swim lane item is double-clicked                                                                                                                                                                                           |
 | `onSwimLaneReorder` | `(orderedIds: string[]) => void` | — | Fires when swim lanes are reordered via drag. Receives the new lane id order.                                                                                                                                                           |
+| `onSwimLaneItemDragStart` / `onSwimLaneItemDrag` / `onSwimLaneItemDragEnd` | see [Dragging Items Along a Lane](#dragging-items-along-a-lane) | — | Slide `draggable` items earlier or later. |
 | `onRangeSelect` | `(start: JulianDate, end: JulianDate) => void` | — | Fires when the user completes a click-and-drag in the tick area. The visible window zooms to the selected span; receives the resulting start and end times.                                                                             |
 | `labels` | `Partial<TimelineLabels>` | English defaults | Override any control-bar label or tooltip string. See [Labels & i18n](#labels--i18n).                                                                                                                                                   |
 | `liveButtonSize` | `'sm' \| 'md' \| 'lg'` | `'md'` | Size of the LIVE button in the control bar.                                                                                                                                                                                             |
@@ -1119,6 +1120,60 @@ const handleReorder = (orderedIds: string[]) => {
   onSwimLaneReorder={handleReorder}
 />
 ```
+
+### Dragging Items Along a Lane
+
+Mark an item `draggable` and pass the drag callbacks to let the user slide it
+earlier or later. A press that moves less than 3 px is still a click. The
+timeline draws the item at its new place (with a dashed outline where it
+started) while the drag is in progress; your `swimLanes` are not touched, so on
+the drop you apply the move and pass the updated lanes back.
+
+Items whose `dragWith` names the dragged item move with it — the markers sitting
+on a bar, say. Dragging one of those markers moves only the marker.
+
+```tsx
+const lanes: SwimLane[] = [{
+  id: 'boat',
+  label: 'Boat',
+  items: [
+    { id: 'trip', interval, draggable: true },
+    { id: 'stop-1', instant: t1, draggable: true, dragWith: 'trip' },
+  ],
+}];
+
+<Timeline
+  clock={viewer.clock}
+  swimLanes={lanes}
+  // Constrain the move: return the offset to draw instead
+  onSwimLaneItemDrag={({ deltaMs }) => Math.max(minDelta, Math.min(maxDelta, deltaMs))}
+  onSwimLaneItemDragEnd={({ item, deltaMs, cancelled }) => {
+    if (!cancelled) moveItem(item.id, deltaMs);
+  }}
+/>
+```
+
+| Callback | Signature | Notes |
+|----------|-----------|-------|
+| `onSwimLaneItemDragStart` | `(info: SwimLaneEventInfo) => boolean \| void` | Once the press has moved far enough to be a drag. Return `false` to refuse it. |
+| `onSwimLaneItemDrag` | `(info: SwimLaneDragInfo) => number \| void` | Every move. `deltaMs` is the raw offset; return a number to clamp or snap it. |
+| `onSwimLaneItemDragEnd` | `(info: SwimLaneDragEndInfo) => void` | Once, on the drop or when Escape / window blur abandons the drag (`cancelled: true`). |
+
+In Angular the three callbacks are outputs — `(swimLaneItemDragStart)`,
+`(swimLaneItemDrag)` and `(swimLaneItemDragEnd)` — and, since an output cannot
+answer, refusing or constraining a drag is done through two inputs instead:
+
+```html
+<ct-timeline
+  [swimLanes]="lanes"
+  [allowSwimLaneItemDrag]="canDrag"
+  [constrainSwimLaneItemDrag]="clampToScene"
+  (swimLaneItemDragEnd)="onDragEnd($event)"
+/>
+```
+
+Dragging near either edge scrolls the timeline, like scrubbing does. Item drag is
+mouse-only for now; touch still scrubs.
 
 ### Show / Hide Swim Lanes
 
