@@ -15,6 +15,7 @@ import {
   totalSwimLaneHeight,
   hitTestSwimLane,
   itemDragOffsetMs,
+  MARKER_PICK_GAP,
   hitTestLaneLabel,
   isInSwimLaneRegion,
   drawTimeline,
@@ -475,16 +476,65 @@ describe('hitTestSwimLane', () => {
     expect(hitTestSwimLane(800, 5, canvasW, canvasH, makeState())).toBeNull();
   });
 
-  it('returns the topmost item — a marker drawn over a bar wins', () => {
+  // The lane is 24 px tall, so its markers (10 px by default) are centred on
+  // y = 12 and their shape spans y 5–19 and ±7 px either side of the marker.
+  const withMarkers = (msList: number[], extra: Record<string, unknown> = {}) => {
     const state = makeState();
-    state.swimLanes[0].items.push({
-      id: 'marker',
-      instant: Cesium.JulianDate.fromDate(new Date(3000)),
-    } as never);
+    msList.forEach((ms, i) => state.swimLanes[0].items.push({
+      id: `marker-${i}`,
+      instant: Cesium.JulianDate.fromDate(new Date(ms)),
+      ...extra,
+    } as never));
+    return state;
+  };
+
+  it('returns the topmost item — a marker drawn over a bar wins', () => {
+    const state = withMarkers([3000]);
     // x = 300 is inside the bar (100–500) and on the marker
-    expect(hitTestSwimLane(300, 5, canvasW, canvasH, state)?.item.id).toBe('marker');
+    expect(hitTestSwimLane(300, 12, canvasW, canvasH, state)?.item.id).toBe('marker-0');
     // away from the marker, the bar is still hit
-    expect(hitTestSwimLane(150, 5, canvasW, canvasH, state)?.item.id).toBe('i1');
+    expect(hitTestSwimLane(150, 12, canvasW, canvasH, state)?.item.id).toBe('i1');
+  });
+
+  it('gives the bar a press above or below a marker, outside its shape', () => {
+    const state = withMarkers([3000]);
+    expect(hitTestSwimLane(300, 2, canvasW, canvasH, state)?.item.id).toBe('i1');
+    expect(hitTestSwimLane(300, 22, canvasW, canvasH, state)?.item.id).toBe('i1');
+  });
+
+  it('gives the bar a press on markers packed too close to pick out', () => {
+    // 100 ms apart is 10 px at this zoom: less than the 10 px marker plus the gap.
+    const state = withMarkers([2900, 3000, 3100, 3200]);
+    for (const x of [290, 300, 310, 320]) {
+      expect(hitTestSwimLane(x, 12, canvasW, canvasH, state)?.item.id).toBe('i1');
+    }
+  });
+
+  it('lets a marker be picked again once zooming in separates it', () => {
+    const state = withMarkers([2900, 3000, 3100, 3200]);
+    // Half the span on the same width: the markers are 20 px apart.
+    const zoomed = { ...state, endMs: 5_000 };
+    expect(hitTestSwimLane(600, 12, canvasW, canvasH, zoomed)?.item.id).toBe('marker-1');
+  });
+
+  it('separates by the gap: a neighbour exactly size + gap away does not crowd', () => {
+    const spaced = 10 + MARKER_PICK_GAP; // px, which is ms × 10 at this zoom
+    const state = withMarkers([3000, 3000 + spaced * 10]);
+    expect(hitTestSwimLane(300, 12, canvasW, canvasH, state)?.item.id).toBe('marker-0');
+  });
+
+  it('still hits markers in a lane without a bar, at any height and however close', () => {
+    const state = withMarkers([7000, 7100]);
+    // 700 is beyond the bar (100–500): nothing but the markers to hit.
+    expect(hitTestSwimLane(710, 2, canvasW, canvasH, state)?.item.id).toBe('marker-1');
+    expect(hitTestSwimLane(700, 12, canvasW, canvasH, state)?.item.id).toBe('marker-0');
+    // In both columns at once: the topmost.
+    expect(hitTestSwimLane(705, 12, canvasW, canvasH, state)?.item.id).toBe('marker-1');
+  });
+
+  it("treats a 'line' marker's whole column as its shape", () => {
+    const state = withMarkers([3000], { style: { markerShape: 'line' } });
+    expect(hitTestSwimLane(300, 2, canvasW, canvasH, state)?.item.id).toBe('marker-0');
   });
 });
 

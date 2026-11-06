@@ -105,6 +105,22 @@ export const TestApp: React.FC = () => {
         ],
       },
       {
+        // Keyframes five minutes apart: packed too close to pick out at the
+        // default zoom, so a press anywhere on the bar grabs the bar. Zoom in
+        // and each can be dragged on its own.
+        id: 'dense-track',
+        label: 'Dense',
+        items: [
+          { id: 'dense-trip', interval: new Cesium.TimeInterval({ start: h(-1), stop: h(1) }), style: { color: '#8d6e63' }, data: { name: 'Dense trip' } },
+          ...Array.from({ length: 25 }, (_, i) => ({
+            id: `dense-key-${i}`,
+            instant: Cesium.JulianDate.addSeconds(h(-1), i * 300, new Cesium.JulianDate()),
+            dragWith: 'dense-trip',
+            style: { color: '#ffffff', markerShape: 'diamond' as const, markerSize: 9 },
+          })),
+        ],
+      },
+      {
         id: 'satellite-passes',
         label: 'Sat Passes',
         items: [

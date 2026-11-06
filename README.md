@@ -1132,6 +1132,11 @@ the drop you apply the move and pass the updated lanes back.
 Items whose `dragWith` names the dragged item move with it — the markers sitting
 on a bar, say. Dragging one of those markers moves only the marker.
 
+A marker drawn on a bar takes a press only when the pointer is on the marker
+itself and the marker can be picked out: markers packed closer than their size
+plus `MARKER_PICK_GAP` at the current zoom leave the press to the bar, so the
+bar can always be grabbed. Zoom in to separate them and pick one.
+
 ```tsx
 const lanes: SwimLane[] = [{
   id: 'boat',

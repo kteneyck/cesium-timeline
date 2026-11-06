@@ -272,7 +272,28 @@ export function totalSwimLaneHeight(lanes: SwimLane[]): number {
 // ─── Hit-testing (framework-agnostic) ─────────────────────────────────────────
 
 /**
+ * Pixels that must separate a marker from its nearest neighbour, beyond the
+ * marker's own size, before it can be picked out of a bar it sits on.
+ */
+export const MARKER_PICK_GAP = 4;
+
+/**
  * Given canvas-local coordinates, find which swim lane item (if any) is under the point.
+ *
+ * Markers are drawn over bars, so a press on both has to choose, and it chooses
+ * in this order:
+ *
+ * 1. A marker the pointer is actually on — inside the marker's own shape, not
+ *    just its column — and that can be picked out: its nearest neighbouring
+ *    marker is at least its size plus `MARKER_PICK_GAP` away at the current
+ *    zoom. Topmost first.
+ * 2. Otherwise the bar under the pointer. Markers packed closer than that cover
+ *    their bar completely, and grabbing the bar would be impossible; zoomed in
+ *    far enough to separate them, each can be picked again.
+ * 3. Otherwise a marker whose column the pointer is in, at any height — so a
+ *    lane of markers alone, or the space just beside a bar, hits as before.
+ *
+ * `'line'` markers span the lane, so their shape is their whole column.
  */
 export function hitTestSwimLane(
   canvasX: number,
@@ -286,6 +307,7 @@ export function hitTestSwimLane(
   const laneRegionH = Math.max(0, canvasH - TICK_AREA_HEIGHT);
   if (canvasY < 0 || canvasY >= laneRegionH) return null;
 
+  const msToX = (ms: number) => ((ms - startMs) / (endMs - startMs)) * canvasW;
   let y = -scrollTop;
 
   for (const lane of lanes) {
@@ -296,27 +318,42 @@ export function hitTestSwimLane(
 
     if (canvasY < laneTop || canvasY >= laneBottom) continue;
 
-    // Topmost first: items are painted in array order, so the last one under
-    // the pointer is the one the user can see — a marker sitting on a bar.
+    const centreY = laneTop + laneH / 2;
+    const markers = lane.items
+      .filter(item => item.instant)
+      .map(item => ({
+        item,
+        x: msToX(Cesium.JulianDate.toDate(item.instant!).getTime()),
+        style: resolveItemStyle(lane, item, theme),
+      }));
+    const inColumn = (marker: typeof markers[number]) =>
+      Math.abs(canvasX - marker.x) <= marker.style.markerSize / 2 + 2;
+    const onShape = (marker: typeof markers[number]) =>
+      inColumn(marker) && (
+        marker.style.markerShape === 'line' ||
+        Math.abs(canvasY - centreY) <= marker.style.markerSize / 2 + 2
+      );
+    const crowded = (marker: typeof markers[number]) =>
+      markers.some(other => other !== marker &&
+        Math.abs(other.x - marker.x) < marker.style.markerSize + MARKER_PICK_GAP);
+
+    // Topmost first throughout: items are painted in array order.
+    for (let i = markers.length - 1; i >= 0; i--) {
+      if (onShape(markers[i]) && !crowded(markers[i])) return { lane, item: markers[i].item };
+    }
+
     for (let i = lane.items.length - 1; i >= 0; i--) {
       const item = lane.items[i];
-      if (item.interval) {
-        const iStart = Cesium.JulianDate.toDate(item.interval.start).getTime();
-        const iStop  = Cesium.JulianDate.toDate(item.interval.stop).getTime();
-        const x1 = ((iStart - startMs) / (endMs - startMs)) * canvasW;
-        const x2 = ((iStop  - startMs) / (endMs - startMs)) * canvasW;
-        if (canvasX >= Math.max(0, x1) && canvasX <= Math.min(canvasW, x2)) {
-          return { lane, item };
-        }
+      if (!item.interval) continue;
+      const x1 = msToX(Cesium.JulianDate.toDate(item.interval.start).getTime());
+      const x2 = msToX(Cesium.JulianDate.toDate(item.interval.stop).getTime());
+      if (canvasX >= Math.max(0, x1) && canvasX <= Math.min(canvasW, x2)) {
+        return { lane, item };
       }
-      if (item.instant) {
-        const iMs = Cesium.JulianDate.toDate(item.instant).getTime();
-        const mx = ((iMs - startMs) / (endMs - startMs)) * canvasW;
-        const style = resolveItemStyle(lane, item, theme);
-        if (Math.abs(canvasX - mx) <= style.markerSize / 2 + 2) {
-          return { lane, item };
-        }
-      }
+    }
+
+    for (let i = markers.length - 1; i >= 0; i--) {
+      if (inColumn(markers[i])) return { lane, item: markers[i].item };
     }
     return null;
   }
