@@ -41,6 +41,8 @@ import {
   zoomAroundMs,
   clampRangeToLimits,
   clampMsToLimits,
+  maxSwimLaneScroll,
+  TOUCH_AXIS_LOCK_PX,
 } from '@kteneyck/cesium-timeline-core';
 
 // Re-export for consumers
@@ -283,8 +285,14 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
     const hoverMsRef = useRef<number | null>(null);
 
     // Touch state
-    const touchMode      = useRef<'none' | 'scrub' | 'slide' | 'pinch'>('none');
+    // 'pending': one finger down on overflowing swim lanes, axis not yet known.
+    // 'vscroll': that finger moved mostly vertically and now scrolls the lanes.
+    const touchMode      = useRef<'none' | 'pending' | 'scrub' | 'slide' | 'vscroll' | 'pinch'>('none');
     const touchX         = useRef(0);
+    // Where a pending touch began (client px) and the lane scroll at that moment.
+    const touchStartX    = useRef(0);
+    const touchStartY    = useRef(0);
+    const touchStartScroll = useRef(0);
     const pinchDist      = useRef(0);
     // Canvas-relative X of the midpoint between the two pinch fingers (pixels).
     const pinchMidX      = useRef(0);
@@ -912,10 +920,21 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
 
         if (e.touches.length === 1) {
           const x  = e.touches[0].clientX - rect.left;
+          const y  = e.touches[0].clientY - rect.top;
           const cx = Math.max(0, Math.min(rect.width, x));
           const ms = startMsRef.current + (cx / rect.width) * (endMsRef.current - startMsRef.current);
           prePinchCurMs.current = curMsRef.current;
-          if (disableNeedleDragRef.current) {
+          const laneRegionH = Math.max(0, rect.height - TICK_AREA_HEIGHT);
+          const canScrollLanes = y >= 0 && y < laneRegionH &&
+            maxSwimLaneScroll(swimLanesRef.current, showSwimLanesRef.current, rect.height) > 0;
+          if (canScrollLanes) {
+            // Wait to see which way the finger moves: vertical scrolls the
+            // lanes, horizontal scrubs (or pans), a tap moves the needle.
+            touchMode.current        = 'pending';
+            touchStartX.current      = e.touches[0].clientX;
+            touchStartY.current      = e.touches[0].clientY;
+            touchStartScroll.current = scrollTopRef.current;
+          } else if (disableNeedleDragRef.current) {
             // In live mode single-finger becomes a pan, not a scrub.
             touchMode.current = 'slide';
             touchX.current    = e.touches[0].clientX;
@@ -946,7 +965,31 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
         e.preventDefault();
         const rect = canvas.getBoundingClientRect();
 
-        if (touchMode.current === 'scrub' && e.touches.length >= 1) {
+        if (touchMode.current === 'pending' && e.touches.length >= 1) {
+          const dx = e.touches[0].clientX - touchStartX.current;
+          const dy = e.touches[0].clientY - touchStartY.current;
+          if (Math.hypot(dx, dy) < TOUCH_AXIS_LOCK_PX) return;
+          if (Math.abs(dy) > Math.abs(dx)) {
+            touchMode.current = 'vscroll';
+          } else if (disableNeedleDragRef.current) {
+            touchMode.current = 'slide';
+            touchX.current    = touchStartX.current;
+          } else {
+            touchMode.current = 'scrub';
+            onDragStart?.();
+          }
+        }
+
+        if (touchMode.current === 'vscroll' && e.touches.length >= 1) {
+          const maxScroll = maxSwimLaneScroll(swimLanesRef.current, showSwimLanesRef.current, rect.height);
+          const dy = touchStartY.current - e.touches[0].clientY;
+          const next = Math.max(0, Math.min(maxScroll, touchStartScroll.current + dy));
+          if (next !== scrollTopRef.current) {
+            scrollTopRef.current = next;
+            draw();
+          }
+
+        } else if (touchMode.current === 'scrub' && e.touches.length >= 1) {
           const x    = e.touches[0].clientX - rect.left;
           const edge = rect.width * 0.08;
 
@@ -993,6 +1036,17 @@ export const TimelineCanvas = forwardRef<TimelineCanvasHandle, TimelineCanvasPro
       const onTouchEnd = (e: TouchEvent) => {
         stopEdgeScroll();
         if (touchMode.current === 'scrub') onDragEnd?.();
+        // A tap on scrollable lanes still moves the needle to that spot.
+        if (touchMode.current === 'pending' && !disableNeedleDragRef.current && e.touches.length === 0) {
+          const rect = canvas.getBoundingClientRect();
+          const cx = Math.max(0, Math.min(rect.width, touchStartX.current - rect.left));
+          const ms = startMsRef.current + (cx / rect.width) * (endMsRef.current - startMsRef.current);
+          curMsRef.current = ms;
+          draw();
+          onDragStart?.();
+          onTimeChange(Cesium.JulianDate.fromDate(new Date(ms)));
+          onDragEnd?.();
+        }
 
         if (e.touches.length === 0) {
           touchMode.current = 'none';

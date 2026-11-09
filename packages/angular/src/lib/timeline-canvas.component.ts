@@ -34,8 +34,10 @@ import {
   zoomRange,
   zoomAroundMs,
   totalSwimLaneHeight,
+  maxSwimLaneScroll,
   clampRangeToLimits,
   clampMsToLimits,
+  TOUCH_AXIS_LOCK_PX,
 } from '@kteneyck/cesium-timeline-core';
 
 export { TICK_AREA_HEIGHT };
@@ -166,8 +168,14 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
   private hoverMs: number | null = null;
 
   // Touch state
-  private touchMode: 'none' | 'scrub' | 'slide' | 'pinch' = 'none';
+  // 'pending': one finger down on overflowing swim lanes, axis not yet known.
+  // 'vscroll': that finger moved mostly vertically and now scrolls the lanes.
+  private touchMode: 'none' | 'pending' | 'scrub' | 'slide' | 'vscroll' | 'pinch' = 'none';
   private touchX = 0;
+  // Where a pending touch began (client px) and the lane scroll at that moment.
+  private touchStartX = 0;
+  private touchStartY = 0;
+  private touchStartScroll = 0;
   private pinchDist = 0;
   // Canvas-relative X of the midpoint between the two pinch fingers (pixels).
   private pinchMidX = 0;
@@ -995,6 +1003,11 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     this.draw();
   }
 
+  /** How far the swim lanes can scroll on a canvas `canvasH` px tall. */
+  private maxLaneScroll(canvasH: number): number {
+    return maxSwimLaneScroll(this.swimLanesState, this.showSwimLanesState, canvasH);
+  }
+
   // ── Wheel handler ──────────────────────────────────────────────────────
 
   private onWheel(e: WheelEvent): void {
@@ -1028,10 +1041,18 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
 
     if (e.touches.length === 1) {
       const x = e.touches[0].clientX - rect.left;
+      const y = e.touches[0].clientY - rect.top;
       const cx = Math.max(0, Math.min(rect.width, x));
       const ms = this.startMs + (cx / rect.width) * (this.endMs - this.startMs);
       this.prePinchCurMs = this.curMs;
-      if (this.disableNeedleDrag) {
+      if (this.isInSwimLaneRegion(y, rect.height) && this.maxLaneScroll(rect.height) > 0) {
+        // Wait to see which way the finger moves: vertical scrolls the
+        // lanes, horizontal scrubs (or pans), a tap moves the needle.
+        this.touchMode = 'pending';
+        this.touchStartX = e.touches[0].clientX;
+        this.touchStartY = e.touches[0].clientY;
+        this.touchStartScroll = this.scrollTop;
+      } else if (this.disableNeedleDrag) {
         // In live mode single-finger becomes a pan, not a scrub.
         this.touchMode = 'slide';
         this.touchX = e.touches[0].clientX;
@@ -1065,7 +1086,29 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     const canvas = this.canvasRef.nativeElement;
     const rect = canvas.getBoundingClientRect();
 
-    if (this.touchMode === 'scrub' && e.touches.length >= 1) {
+    if (this.touchMode === 'pending' && e.touches.length >= 1) {
+      const dx = e.touches[0].clientX - this.touchStartX;
+      const dy = e.touches[0].clientY - this.touchStartY;
+      if (Math.hypot(dx, dy) < TOUCH_AXIS_LOCK_PX) return;
+      if (Math.abs(dy) > Math.abs(dx)) {
+        this.touchMode = 'vscroll';
+      } else if (this.disableNeedleDrag) {
+        this.touchMode = 'slide';
+        this.touchX = this.touchStartX;
+      } else {
+        this.touchMode = 'scrub';
+        this.ngZone.run(() => this.dragStart.emit());
+      }
+    }
+
+    if (this.touchMode === 'vscroll' && e.touches.length >= 1) {
+      const dy = this.touchStartY - e.touches[0].clientY;
+      const next = Math.max(0, Math.min(this.maxLaneScroll(rect.height), this.touchStartScroll + dy));
+      if (next !== this.scrollTop) {
+        this.scrollTop = next;
+        this.draw();
+      }
+    } else if (this.touchMode === 'scrub' && e.touches.length >= 1) {
       const x = e.touches[0].clientX - rect.left;
       const edge = rect.width * 0.08;
       this.scrubClientX = e.touches[0].clientX;
@@ -1112,6 +1155,19 @@ export class TimelineCanvasComponent implements AfterViewInit, OnChanges, OnDest
     this.stopEdgeScroll();
     if (this.touchMode === 'scrub') {
       this.ngZone.run(() => this.dragEnd.emit());
+    }
+    // A tap on scrollable lanes still moves the needle to that spot.
+    if (this.touchMode === 'pending' && !this.disableNeedleDrag && e.touches.length === 0) {
+      const rect = this.canvasRef.nativeElement.getBoundingClientRect();
+      const cx = Math.max(0, Math.min(rect.width, this.touchStartX - rect.left));
+      const ms = this.startMs + (cx / rect.width) * (this.endMs - this.startMs);
+      this.curMs = ms;
+      this.draw();
+      this.ngZone.run(() => {
+        this.dragStart.emit();
+        this.timeChange.emit(Cesium.JulianDate.fromDate(new Date(ms)));
+        this.dragEnd.emit();
+      });
     }
 
     if (e.touches.length === 0) {

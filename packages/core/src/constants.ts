@@ -36,5 +36,11 @@ export const SCROLLBAR_WIDTH = 6;
  *  Keeps scrolling smooth when the overflow range is small. */
 export const SWIM_LANE_SCROLL_SPEED = 0.3;
 
+/** Distance in pixels a single finger must travel on the swim lanes before the
+ *  gesture is locked to an axis: mostly vertical scrolls the lanes, mostly
+ *  horizontal scrubs the needle (or pans in live mode). A touch that ends
+ *  inside this distance counts as a tap and moves the needle there. */
+export const TOUCH_AXIS_LOCK_PX = 8;
+
 /** Abbreviated month names used for tick labels. */
 export const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
