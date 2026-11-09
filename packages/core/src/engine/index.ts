@@ -12,6 +12,7 @@ export {
   zoomRange,
   zoomAroundMs,
   totalSwimLaneHeight,
+  maxSwimLaneScroll,
   hitTestSwimLane,
   MARKER_PICK_GAP,
   hitTestLaneLabel,

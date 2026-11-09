@@ -13,6 +13,7 @@ import {
   calcEpochMs,
   resolveItemStyle,
   totalSwimLaneHeight,
+  maxSwimLaneScroll,
   hitTestSwimLane,
   itemDragOffsetMs,
   MARKER_PICK_GAP,
@@ -429,6 +430,29 @@ describe('totalSwimLaneHeight', () => {
       { id: 'b', label: 'B', items: [], height: 20 },
     ];
     expect(totalSwimLaneHeight(lanes)).toBe(52); // 30+1 + 20+1
+  });
+});
+
+// ── maxSwimLaneScroll ─────────────────────────────────────────────────────────
+
+describe('maxSwimLaneScroll', () => {
+  const lanes = [
+    { id: 'a', label: 'A', items: [], height: 30 },
+    { id: 'b', label: 'B', items: [], height: 30 },
+  ]; // 62px of content
+
+  it('is 0 when lanes are hidden or absent', () => {
+    expect(maxSwimLaneScroll(lanes, false, TICK_AREA_HEIGHT + 20)).toBe(0);
+    expect(maxSwimLaneScroll([], true, TICK_AREA_HEIGHT + 20)).toBe(0);
+  });
+
+  it('is 0 when all lanes fit above the tick area', () => {
+    expect(maxSwimLaneScroll(lanes, true, TICK_AREA_HEIGHT + 62)).toBe(0);
+    expect(maxSwimLaneScroll(lanes, true, TICK_AREA_HEIGHT + 100)).toBe(0);
+  });
+
+  it('is the overflow when lanes do not fit', () => {
+    expect(maxSwimLaneScroll(lanes, true, TICK_AREA_HEIGHT + 40)).toBe(22);
   });
 });
 

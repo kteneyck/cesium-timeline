@@ -269,6 +269,20 @@ export function totalSwimLaneHeight(lanes: SwimLane[]): number {
   return total;
 }
 
+/**
+ * How far the swim lanes can scroll vertically on a canvas `canvasH` pixels
+ * tall: 0 when lanes are hidden or all fit above the tick area.
+ */
+export function maxSwimLaneScroll(
+  lanes: SwimLane[],
+  showSwimLanes: boolean,
+  canvasH: number,
+): number {
+  if (!showSwimLanes || lanes.length === 0) return 0;
+  const laneRegionH = Math.max(0, canvasH - TICK_AREA_HEIGHT);
+  return Math.max(0, totalSwimLaneHeight(lanes) - laneRegionH);
+}
+
 // ─── Hit-testing (framework-agnostic) ─────────────────────────────────────────
 
 /**
